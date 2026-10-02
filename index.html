@@ -281,6 +281,69 @@ setTimeout(finish,MAX)})();</script>
                     }
                 } catch (e) {}
 
+                // ---- Per-bot / per-app isolation (layer 2) ------------------------
+                // Per-account prefixes alone still shared everything between two
+                // bots (or two GitHub Pages URLs) opened from the SAME Telegram
+                // account, because they run on the same origin in the same
+                // WebView. Telegram does not tell a Mini App which bot launched
+                // it, so the app's own address is the identity: the page path
+                // (the repo / folder / file name), plus an optional ?bot=NAME
+                // in the URL for the rare case of the same URL used in two bots.
+                // Each (account + app) pair now gets its own private keyspace.
+                function mu_hash53(str) {
+                    var h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+                    for (var i = 0, ch; i < str.length; i++) {
+                        ch = str.charCodeAt(i);
+                        h1 = Math.imul(h1 ^ ch, 2654435761);
+                        h2 = Math.imul(h2 ^ ch, 1597334677);
+                    }
+                    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+                    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+                    return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
+                }
+                function mu_computeScope() {
+                    var p = '/';
+                    try { p = String(window.location.pathname || '/'); } catch (e) {}
+                    try { p = decodeURIComponent(p); } catch (e) {}
+                    p = p.toLowerCase().replace(/\/index\.html?$/, '').replace(/\/+$/, '');
+                    var b = '';
+                    try {
+                        var q = mu_parseQueryStr((window.location.search || '').replace(/^\?/, ''));
+                        b = String(q['bot'] || '').toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 40);
+                    } catch (e) {}
+                    return mu_hash53(p + '|' + b);
+                }
+                var mu_scope = mu_computeScope();
+                window.__MU_SCOPE_ID = mu_scope;
+                window.__MU_SCOPE_CLAIMED_BY_ME = false;
+                var mu_v1Prefix = mu_prefix; // layer-1 (per-account only) keys from the previous version
+                mu_prefix = 'mu_sc_' + mu_acctId + '_' + mu_scope + '_';
+                // One-time migration: the first app/bot to open after this update
+                // inherits this account's existing notes (copied, the old keys are
+                // left untouched as a safety copy). Every other bot/URL starts clean.
+                try {
+                    var SCOPE_CLAIM_KEY = '__mu_scope_claim_v2_' + mu_acctId;
+                    var scopeOwner = mu_realStore.getItem(SCOPE_CLAIM_KEY);
+                    if (scopeOwner === null) {
+                        window.__MU_SCOPE_CLAIMED_BY_ME = true;
+                        var v1Keys = [];
+                        for (var vi = 0; vi < mu_realStore.length; vi++) {
+                            var vk = mu_realStore.key(vi);
+                            if (vk && vk.indexOf(mu_v1Prefix) === 0) v1Keys.push(vk);
+                        }
+                        for (var vj = 0; vj < v1Keys.length; vj++) {
+                            try {
+                                var vv = mu_realStore.getItem(v1Keys[vj]);
+                                var nk = mu_prefix + v1Keys[vj].slice(mu_v1Prefix.length);
+                                if (vv !== null && mu_realStore.getItem(nk) === null) mu_realStore.setItem(nk, vv);
+                            } catch (e) {}
+                        }
+                        mu_realStore.setItem(SCOPE_CLAIM_KEY, mu_scope);
+                    } else if (scopeOwner === mu_scope) {
+                        window.__MU_SCOPE_CLAIMED_BY_ME = true;
+                    }
+                } catch (e) {}
+
                 // Methods are non-enumerable so Object.keys()/for-in over localStorage
                 // never returns method names as if they were stored keys.
                 var mu_scopedStorage = {};
@@ -10509,14 +10572,17 @@ window.mu_syncHtmlBg = function(){
             // makes sure the one account that already claimed the old shared
             // localStorage data also inherits this old shared database
             // instead of starting empty.
-            const DB_NAME = window.__MU_ACCT_ID ? (LEGACY_DB_NAME + '_acct_' + window.__MU_ACCT_ID) : LEGACY_DB_NAME;
+            const ACCT_DB_NAME = window.__MU_ACCT_ID ? (LEGACY_DB_NAME + '_acct_' + window.__MU_ACCT_ID) : LEGACY_DB_NAME;
+            // Layer 2: one database per (Telegram account + app/bot address).
+            const DB_NAME = (window.__MU_ACCT_ID && window.__MU_SCOPE_ID) ? (ACCT_DB_NAME + '_s_' + window.__MU_SCOPE_ID) : ACCT_DB_NAME;
             const KV_STORE = 'kv';
             const MEDIA_STORE = 'media';
             const DB_VERSION = 2;
-            function mu_migrateLegacyIdb(newDb) {
+            function mu_migrateLegacyIdb(newDb, srcName) {
                 return new Promise(function(resolveOuter){
                     try {
-                        const oldReq = indexedDB.open(LEGACY_DB_NAME, DB_VERSION);
+                        let copied = 0;
+                        const oldReq = indexedDB.open(srcName || LEGACY_DB_NAME, DB_VERSION);
                         oldReq.onupgradeneeded = function(){
                             try { if (!oldReq.result.objectStoreNames.contains(KV_STORE)) oldReq.result.createObjectStore(KV_STORE); } catch (_) {}
                             try { if (!oldReq.result.objectStoreNames.contains(MEDIA_STORE)) oldReq.result.createObjectStore(MEDIA_STORE); } catch (_) {}
@@ -10524,7 +10590,7 @@ window.mu_syncHtmlBg = function(){
                         oldReq.onsuccess = function(){
                             const oldDb = oldReq.result;
                             let storesLeft = 2;
-                            function storeDone(){ storesLeft--; if (storesLeft <= 0) resolveOuter(); }
+                            function storeDone(){ storesLeft--; if (storesLeft <= 0) resolveOuter(copied); }
                             function copyStore(storeName){
                                 try {
                                     const cursorReq = oldDb.transaction(storeName, 'readonly').objectStore(storeName).openCursor();
@@ -10532,7 +10598,7 @@ window.mu_syncHtmlBg = function(){
                                     cursorReq.onsuccess = function(e){
                                         const cursor = e.target.result;
                                         if (cursor) {
-                                            try { newStore.put(cursor.value, cursor.key); } catch (_) {}
+                                            try { newStore.put(cursor.value, cursor.key); copied++; } catch (_) {}
                                             cursor.continue();
                                         } else {
                                             storeDone();
@@ -10544,9 +10610,9 @@ window.mu_syncHtmlBg = function(){
                             copyStore(KV_STORE);
                             copyStore(MEDIA_STORE);
                         };
-                        oldReq.onerror = function(){ resolveOuter(); };
-                        oldReq.onblocked = function(){ resolveOuter(); };
-                    } catch (_) { resolveOuter(); }
+                        oldReq.onerror = function(){ resolveOuter(0); };
+                        oldReq.onblocked = function(){ resolveOuter(0); };
+                    } catch (_) { resolveOuter(0); }
                 });
             }
             let openPromise = null;
@@ -10566,8 +10632,15 @@ window.mu_syncHtmlBg = function(){
                         };
                         req.onsuccess = function(){
                             const db = req.result;
-                            if (isNewDb && DB_NAME !== LEGACY_DB_NAME && (window.__MU_LEGACY_CLAIMED_BY_ME || (window.__MU_LEGACY_OWNER && window.__MU_LEGACY_OWNER === window.__MU_ACCT_ID))) {
-                                mu_migrateLegacyIdb(db).then(function(){ resolve(db); }).catch(function(){ resolve(db); });
+                            if (isNewDb && DB_NAME !== ACCT_DB_NAME && window.__MU_SCOPE_CLAIMED_BY_ME) {
+                                // Only the app that claimed this account's old notes inherits the
+                                // old per-account database; if that was itself never migrated from
+                                // the very old shared one, fall back to that one as before.
+                                mu_migrateLegacyIdb(db, ACCT_DB_NAME).then(function(n){
+                                    if (!n && (window.__MU_LEGACY_CLAIMED_BY_ME || (window.__MU_LEGACY_OWNER && window.__MU_LEGACY_OWNER === window.__MU_ACCT_ID))) return mu_migrateLegacyIdb(db, LEGACY_DB_NAME);
+                                }).then(function(){ resolve(db); }).catch(function(){ resolve(db); });
+                            } else if (isNewDb && DB_NAME === ACCT_DB_NAME && DB_NAME !== LEGACY_DB_NAME && (window.__MU_LEGACY_CLAIMED_BY_ME || (window.__MU_LEGACY_OWNER && window.__MU_LEGACY_OWNER === window.__MU_ACCT_ID))) {
+                                mu_migrateLegacyIdb(db, LEGACY_DB_NAME).then(function(){ resolve(db); }).catch(function(){ resolve(db); });
                             } else {
                                 resolve(db);
                             }
