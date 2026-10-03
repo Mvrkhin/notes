@@ -487,10 +487,9 @@ setTimeout(finish,MAX)})();</script>
         body.theme-darkweb::before,
         .mu-darkweb-rain-col, .mu-darkweb-scanlines,
         body.theme-vampire::before, body.theme-vampire::after,
-        [class^="mu-vampire-bat-"], [class^="mu-vampire-bat-"] .mu-vbat-wing, .mu-vampire-branches,
+        .mu-vampire-branches,
         body.theme-halloween::before, body.theme-halloween::after,
         .mu-halloween-pumpkin, .mu-halloween-fog, .mu-halloween-branches,
-        body.theme-starwars::before, body.theme-starwars::after,
         body.theme-hogwarts::before, body.theme-hogwarts::after,
         .mu-hogwarts-castle, .mu-hogwarts-lake, .mu-hogwarts-lake::before, .mu-hogwarts-lake::after,
         body.theme-strangerthings::before, body.theme-strangerthings::after,
@@ -540,9 +539,6 @@ setTimeout(finish,MAX)})();</script>
         body.mu-scrolling.theme-redhorizon::after,
         body.mu-scrolling .mu-redhorizon-stars::before,
         body.mu-scrolling .mu-redhorizon-stars::after,
-        body.mu-scrolling .mu-vampire-symbols span,
-        body.mu-scrolling [class^="mu-vampire-bat-"],
-        body.mu-scrolling [class^="mu-vampire-bat-"] .mu-vbat-wing,
         body.mu-scrolling .mu-vampire-branches,
         body.mu-scrolling .mu-halloween-pumpkin,
         body.mu-scrolling .mu-halloween-fog,
@@ -618,10 +614,7 @@ setTimeout(finish,MAX)})();</script>
             body.theme-phantom::before, body.theme-phantom::after {
                 animation: none !important;
             }
-            .mu-vampire-symbols span {
-                animation: none !important;
-            }
-            [class^="mu-vampire-bat-"], [class^="mu-vampire-bat-"] .mu-vbat-wing, .mu-vampire-branches {
+            .mu-vampire-branches {
                 animation: none !important;
             }
             body.theme-halloween::before, body.theme-halloween::after,
@@ -1134,7 +1127,8 @@ setTimeout(finish,MAX)})();</script>
             background:
                 repeating-linear-gradient(0deg, rgba(0, 255, 120, .05) 0px, rgba(0, 255, 120, .05) 1px, transparent 1px, transparent 3px),
                 radial-gradient(ellipse 90% 70% at 50% 45%, rgba(0, 255, 120, .07) 0%, transparent 70%);
-            animation: terminalFlicker 4.5s linear infinite;
+            /* steady glow: the flicker animation was removed */
+            opacity: .85;
         }
         @keyframes terminalFlicker {
             0%, 19%, 21%, 23%, 45%, 47%, 80%, 100% { opacity: .92; }
@@ -1220,7 +1214,8 @@ setTimeout(finish,MAX)})();</script>
                 radial-gradient(circle 1px at 82% 60%, rgba(255, 90, 90, .3), transparent 100%),
                 radial-gradient(circle 1px at 92% 22%, rgba(255, 90, 90, .28), transparent 100%),
                 radial-gradient(ellipse 80% 60% at 50% 40%, rgba(200, 0, 0, .16) 0%, transparent 70%);
-            animation: darkwebStatic 2.2s steps(2) infinite, darkwebPulse 5s ease-in-out infinite;
+            /* steady glow: the brightness/pulse animations were removed */
+            opacity: .7;
         }
         @keyframes darkwebStatic {
             0%   { opacity: .55; }
@@ -1698,162 +1693,6 @@ setTimeout(finish,MAX)})();</script>
             0%   { opacity: .4; }
             100% { opacity: .95; }
         }
-        /* Two redesigned bats — built from real parts (two scalloped
-           membrane wings, a small round body, two pointed ears, two
-           glowing red eyes) instead of the old plain triangle-wing shape,
-           so they read as an actual bat silhouette rather than a bowtie.
-           Each part is its own element (not a pseudo-element) so there's
-           room for wings + ears + eyes at once; the wings still flap on
-           their own fast loop while the whole bat glides across the
-           screen and fades out at the edges, same "appear, cross, go
-           quiet" cadence as before.
-
-           The bats now have distinct, deliberate flight lanes instead
-           of both drifting through the same general area:
-           - odd bats (1, 3) fly in the narrow gap directly under the sticky
-             top nav bar — the strip of empty page (just margin + the
-             page title) that has no card behind it, so the bat is only
-             ever visible passing through that specific empty band and
-             tucks out of sight behind real cards elsewhere (kept at the
-             same z-index: -1 as the rest of the theme's background art).
-           - even bats (2, 4) fly much lower, over the notes list itself,
-             and are given a higher z-index (above ordinary note/folder
-             cards, still well under the sticky header and any modal) so
-             they stay clearly visible gliding over the notes instead of
-             disappearing behind their opaque backgrounds.
-           Like the Halloween swarm below, the bat-N selectors only set
-           each bat's lane; the shared wing/body/ear rules apply to all of
-           them via the [class^=] attribute match, so adding more bats
-           never needs new structural CSS. */
-        [class^="mu-vampire-bat-"] { display: none; }
-        body.theme-vampire [class^="mu-vampire-bat-"] {
-            display: block;
-            position: fixed;
-            width: 26px;
-            height: 15px;
-            pointer-events: none;
-            contain: layout style;
-        }
-        body.theme-vampire .mu-vampire-bat-1 {
-            top: 150px;
-            left: -34px;
-            z-index: -1;
-            animation: vampireBatFly1 22s linear infinite;
-        }
-        body.theme-vampire .mu-vampire-bat-2 {
-            top: 58vh;
-            left: -40px;
-            z-index: 40;
-            animation: vampireBatFly2 29s linear -10s infinite;
-        }
-        body.theme-vampire .mu-vampire-bat-3 {
-            top: 90px;
-            left: -34px;
-            z-index: -1;
-            animation: vampireBatFly1 26s linear -14s infinite;
-        }
-        body.theme-vampire .mu-vampire-bat-4 {
-            top: 74vh;
-            left: -40px;
-            z-index: 40;
-            animation: vampireBatFly2 24s linear -4s infinite;
-        }
-        /* Wings: a scalloped, multi-point clip-path (rather than one clean
-           triangle) so the trailing edge reads as a webbed membrane
-           stretched between finger bones. The right wing reuses the exact
-           same polygon mirrored with scaleX(-1) instead of a hand-mirrored
-           duplicate, baked into its own flap keyframes below (animating
-           `transform` overwrites the whole property per-frame, so the
-           mirror has to live inside the keyframes, not as a separate
-           static rule that the animation would otherwise wipe out). */
-        body.theme-vampire .mu-vbat-wing {
-            position: absolute;
-            top: 15%;
-            width: 16px;
-            height: 11px;
-            background: linear-gradient(135deg, #3a1030 0%, #170210 55%, #050001 100%);
-            filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .6));
-        }
-        body.theme-vampire .mu-vbat-wing-l {
-            left: 2px;
-            transform-origin: right center;
-            clip-path: polygon(100% 42%, 80% 8%, 58% 34%, 42% 2%, 26% 36%, 10% 10%, 0% 52%, 12% 70%, 28% 52%, 42% 78%, 56% 54%, 72% 76%, 88% 58%, 100% 66%);
-            animation: vampireBatFlap .45s ease-in-out infinite alternate;
-        }
-        body.theme-vampire .mu-vbat-wing-r {
-            right: 2px;
-            transform-origin: left center;
-            clip-path: polygon(100% 42%, 80% 8%, 58% 34%, 42% 2%, 26% 36%, 10% 10%, 0% 52%, 12% 70%, 28% 52%, 42% 78%, 56% 54%, 72% 76%, 88% 58%, 100% 66%);
-            animation: vampireBatFlapMirror .45s ease-in-out infinite alternate;
-        }
-        body.theme-vampire .mu-vampire-bat-2 .mu-vbat-wing-l,
-        body.theme-vampire .mu-vampire-bat-2 .mu-vbat-wing-r,
-        body.theme-vampire .mu-vampire-bat-4 .mu-vbat-wing-l,
-        body.theme-vampire .mu-vampire-bat-4 .mu-vbat-wing-r {
-            animation-duration: .52s;
-        }
-        /* Body: a small round gradient with two tiny glowing red eyes
-           (its own pseudo-elements, now free since the wings moved to
-           real elements) sitting on top of the wing bases. */
-        body.theme-vampire .mu-vbat-body {
-            position: absolute;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%);
-            width: 9px;
-            height: 7px;
-            border-radius: 50%;
-            background: radial-gradient(circle at 35% 30%, #4a1533 0%, #1c0311 55%, #0a0002 100%);
-            box-shadow: 0 0 3px rgba(0, 0, 0, .7);
-        }
-        body.theme-vampire .mu-vbat-body::before,
-        body.theme-vampire .mu-vbat-body::after {
-            content: "";
-            position: absolute;
-            top: 34%;
-            width: 1.4px;
-            height: 1.4px;
-            border-radius: 50%;
-            background: #ff4646;
-            box-shadow: 0 0 3px 1px rgba(255, 70, 70, .85);
-        }
-        body.theme-vampire .mu-vbat-body::before { left: 26%; }
-        body.theme-vampire .mu-vbat-body::after { left: 66%; }
-        /* Ears: two small triangles (border-trick, no extra markup) angled
-           outward above the body. */
-        body.theme-vampire .mu-vbat-ear {
-            position: absolute;
-            top: -55%;
-            width: 0;
-            height: 0;
-            border-left: 2.5px solid transparent;
-            border-right: 2.5px solid transparent;
-            border-bottom: 4.5px solid #1c0311;
-        }
-        body.theme-vampire .mu-vbat-ear-l { left: 34%; transform: rotate(-20deg); }
-        body.theme-vampire .mu-vbat-ear-r { right: 34%; transform: rotate(20deg); }
-        @keyframes vampireBatFlap {
-            0%   { transform: scaleY(1) rotate(0deg); }
-            100% { transform: scaleY(.5) rotate(-10deg); }
-        }
-        @keyframes vampireBatFlapMirror {
-            0%   { transform: scaleX(-1) scaleY(1) rotate(0deg); }
-            100% { transform: scaleX(-1) scaleY(.5) rotate(10deg); }
-        }
-        @keyframes vampireBatFly1 {
-            0%   { transform: translate3d(0, 0, 0); opacity: 0; }
-            8%   { opacity: .95; }
-            45%  { transform: translate3d(60vw, -10px, 0); opacity: .95; }
-            55%  { transform: translate3d(76vw, -4px, 0); opacity: 0; }
-            100% { transform: translate3d(76vw, -4px, 0); opacity: 0; }
-        }
-        @keyframes vampireBatFly2 {
-            0%   { transform: translate3d(0, 0, 0) scale(.85); opacity: 0; }
-            10%  { opacity: .95; }
-            50%  { transform: translate3d(52vw, 14px, 0) scale(.85); opacity: .95; }
-            62%  { transform: translate3d(68vw, 22px, 0) scale(.85); opacity: 0; }
-            100% { transform: translate3d(68vw, 22px, 0) scale(.85); opacity: 0; }
-        }
         /* The tree line — a jagged near-black silhouette of bare, thorny
            branches along the very bottom edge, like the woods at the edge
            of Mystic Falls at night. Drawn as one clipped shape (a zigzag
@@ -1883,60 +1722,6 @@ setTimeout(finish,MAX)})();</script>
         @keyframes vampireBranchSway {
             0%, 100% { transform: translateX(0); }
             50%      { transform: translateX(-1.2%); }
-        }
-        /* Falling rose petals and blood drops — both drawn with plain
-           border-radius/rotate tricks (a petal is an asymmetric-radius
-           shape, a drop is the classic "one square corner" teardrop),
-           tumbling slowly down past the screen and fading in/out at the
-           top/bottom so the loop is invisible. Odd spans are petals, even
-           spans are drops. */
-        .mu-vampire-symbols { display: none; }
-        body.theme-vampire .mu-vampire-symbols {
-            display: block;
-            position: fixed;
-            inset: 0;
-            overflow: hidden;
-            pointer-events: none;
-            z-index: -1;
-        }
-        body.theme-vampire .mu-vampire-symbols span {
-            position: absolute;
-            top: -6%;
-            width: 13px;
-            height: 13px;
-            opacity: 0;
-            animation: vampireFall 18s linear infinite;
-        }
-        body.theme-vampire .mu-vampire-symbols span::before {
-            content: "";
-            display: block;
-            width: 100%;
-            height: 100%;
-        }
-        body.theme-vampire .mu-vampire-symbols span:nth-child(odd)::before {
-            background: linear-gradient(135deg, #c21633 0%, #6e0716 100%);
-            border-radius: 100% 0% 100% 0%;
-            box-shadow: 0 0 6px rgba(180, 20, 40, .4);
-        }
-        body.theme-vampire .mu-vampire-symbols span:nth-child(even)::before {
-            width: 72%;
-            height: 100%;
-            background: linear-gradient(#9a0f24, #4a0712);
-            border-radius: 50% 50% 50% 0;
-            transform: rotate(45deg);
-            box-shadow: 0 0 5px rgba(150, 15, 30, .45);
-        }
-        body.theme-vampire .mu-vampire-symbols span:nth-child(1) { left: 10%; animation-duration: 19s; animation-delay: 0s; }
-        body.theme-vampire .mu-vampire-symbols span:nth-child(2) { left: 78%; animation-duration: 23s; animation-delay: -5s; }
-        body.theme-vampire .mu-vampire-symbols span:nth-child(3) { left: 24%; animation-duration: 21s; animation-delay: -9s; }
-        body.theme-vampire .mu-vampire-symbols span:nth-child(4) { left: 60%; animation-duration: 25s; animation-delay: -3s; }
-        body.theme-vampire .mu-vampire-symbols span:nth-child(5) { left: 42%; animation-duration: 20s; animation-delay: -13s; }
-        body.theme-vampire .mu-vampire-symbols span:nth-child(6) { left: 88%; animation-duration: 22s; animation-delay: -7s; }
-        @keyframes vampireFall {
-            0%   { transform: translate3d(0, 0, 0) rotate(0deg); opacity: 0; }
-            8%   { opacity: .55; }
-            90%  { opacity: .5; }
-            100% { transform: translate3d(0, 112vh, 0) rotate(55deg); opacity: 0; }
         }
 
         /* Red Horizon — a warm desert-night skyline: a deep rust-red sky
@@ -2441,76 +2226,6 @@ setTimeout(finish,MAX)})();</script>
             background: none !important;
             animation: none !important;
         }
-        /* Star Wars — a galaxy-far-far-away palette: black space, the
-           saga's signature crawl-text gold, and a drifting
-           starfield pair, built entirely out of CSS (no emoji). */
-        body.theme-starwars {
-            --bg-gradient:
-                radial-gradient(ellipse 50% 30% at 50% 100%, rgba(120, 80, 10, .10) 0%, transparent 70%),
-                radial-gradient(ellipse 140% 100% at 50% 12%, #0d0f1a 0%, #05060c 45%, #000000 100%) !important;
-            --panel-bg: rgba(255, 216, 0, 0.035) !important;
-            --panel-border: rgba(255, 216, 0, 0.22) !important;
-            --card-bg: rgba(4, 4, 6, 0.88) !important;
-            --text-color: #ffe81f !important;
-            text-shadow: 0 0 6px rgba(255, 232, 60, .22), 0 1px 3px rgba(0, 0, 0, 0.75) !important;
-        }
-        body.theme-starwars::before {
-            /* A deep field of distant stars over faint blue-violet nebula
-               wisps (and a hint of dark-side crimson), drifting almost
-               imperceptibly. */
-            content: "";
-            position: fixed;
-            top: -8%; left: -8%; right: -8%; bottom: -8%;
-            background:
-                radial-gradient(circle 1px at 6% 12%, rgba(255,255,255,.9), transparent 100%),
-                radial-gradient(circle 1px at 14% 38%, rgba(255,255,255,.6), transparent 100%),
-                radial-gradient(circle 1.5px at 24% 68%, rgba(255,255,255,.75), transparent 100%),
-                radial-gradient(circle 1px at 33% 22%, rgba(255,255,255,.55), transparent 100%),
-                radial-gradient(circle 1px at 41% 82%, rgba(255,255,255,.5), transparent 100%),
-                radial-gradient(circle 1.5px at 52% 10%, rgba(255,255,255,.7), transparent 100%),
-                radial-gradient(circle 1px at 61% 46%, rgba(255,255,255,.6), transparent 100%),
-                radial-gradient(circle 1px at 69% 74%, rgba(255,255,255,.5), transparent 100%),
-                radial-gradient(circle 1.5px at 78% 30%, rgba(255,255,255,.8), transparent 100%),
-                radial-gradient(circle 1px at 86% 58%, rgba(255,255,255,.55), transparent 100%),
-                radial-gradient(circle 1px at 92% 16%, rgba(255,255,255,.65), transparent 100%),
-                radial-gradient(circle 1px at 96% 88%, rgba(255,255,255,.5), transparent 100%),
-                radial-gradient(ellipse 55% 30% at 25% 20%, rgba(80, 90, 190, .11) 0%, transparent 70%),
-                radial-gradient(ellipse 50% 35% at 75% 65%, rgba(140, 60, 160, .09) 0%, transparent 70%),
-                radial-gradient(ellipse 45% 30% at 85% 90%, rgba(160, 30, 30, .08) 0%, transparent 70%);
-            pointer-events: none;
-            z-index: -1;
-            contain: paint;
-            animation: starwarsDrift 50s ease-in-out infinite alternate;
-        }
-        @keyframes starwarsDrift {
-            0%   { transform: translate3d(0, 0, 0); }
-            100% { transform: translate3d(-1.2%, .8%, 0); }
-        }
-        body.theme-starwars::after {
-            /* A brighter scatter of twinkling stars on its own faster cycle,
-               layered over the field above. */
-            content: "";
-            position: fixed;
-            inset: 0;
-            pointer-events: none;
-            z-index: -1;
-            contain: paint;
-            background-image:
-                radial-gradient(circle 1px at 18% 24%, rgba(255,255,255,.9), transparent 100%),
-                radial-gradient(circle 1px at 46% 14%, rgba(255,255,255,.85), transparent 100%),
-                radial-gradient(circle 1.5px at 64% 40%, rgba(255,255,255,.9), transparent 100%),
-                radial-gradient(circle 1px at 82% 20%, rgba(255,255,255,.75), transparent 100%),
-                radial-gradient(circle 1px at 10% 60%, rgba(255,255,255,.7), transparent 100%),
-                radial-gradient(circle 1px at 36% 78%, rgba(255,255,255,.65), transparent 100%),
-                radial-gradient(circle 1.5px at 90% 72%, rgba(255,255,255,.8), transparent 100%);
-            animation: starwarsTwinkle 5.5s ease-in-out infinite alternate;
-        }
-        @keyframes starwarsTwinkle {
-            0%   { opacity: .45; }
-            50%  { opacity: 1; }
-            100% { opacity: .55; }
-        }
-
         /* Hogwarts (هاگوارتز) — rebuilt from scratch: a Harry-Potter-
            inspired night at the castle, entirely hand-drawn CSS shapes
            (no emoji anywhere, and no candle icons — the only "flame"
@@ -4081,8 +3796,7 @@ setTimeout(finish,MAX)})();</script>
             padding: 8px 10px; font-size: 11.5px; line-height: 1.35;
             text-align: center; white-space: normal;
         }
-        .structure-controls .structure-add { border-color: var(--text-color); background: rgba(255, 255, 255, 0.09); font-weight: 700; }
-        .structure-controls .structure-add:hover { background: rgba(255, 255, 255, 0.16); }
+        .structure-controls .structure-add { border-color: var(--text-color); font-weight: 700; }
         .structure-controls .btn-folder-del { border-color: rgba(239, 68, 68, 0.3); }
         .structure-controls .btn-folder-del:hover { border-color: #ef4444; }
         .structure-store {
@@ -6678,6 +6392,26 @@ window.mu_syncHtmlBg = function(){
             });
             localStorage.setItem('app_theme_order_v2', '1');
         }
+        // One-time migration: Dark Web and Terminal now sit right after Hugo, so any saved
+        // theme index is remapped to the same theme in the new order.
+        if (!localStorage.getItem('app_theme_order_v3')) {
+            var oldO3 = ['yourname', 'oceanic', 'anime', 'hugo', 'interstellar', 'onepiece', 'hogwarts', 'homealone', 'strangerthings', 'vampire', 'starwars', 'phantom', 'halloween', 'dreamy', 'spider', 'darkweb', 'terminal', 'redhorizon', 'midnightblue', 'aurora', 'aurora-phantom', 'love', 'cyberpunk', 'anonymous'], newO3 = ['yourname', 'oceanic', 'anime', 'hugo', 'darkweb', 'terminal', 'interstellar', 'onepiece', 'hogwarts', 'homealone', 'strangerthings', 'vampire', 'starwars', 'phantom', 'halloween', 'dreamy', 'spider', 'redhorizon', 'midnightblue', 'aurora', 'aurora-phantom', 'love', 'cyberpunk', 'anonymous'];
+            ['app_theme_index_v14','app_lite_prev_theme_v1'].forEach(function(k){
+                var v = parseInt(localStorage.getItem(k), 10);
+                if (Number.isFinite(v) && v >= 0 && v < oldO3.length) localStorage.setItem(k, String(newO3.indexOf(oldO3[v])));
+            });
+            localStorage.setItem('app_theme_order_v3', '1');
+        }
+        // One-time migration: the Star Wars theme was removed, so any saved theme index is
+        // remapped to the same theme in the new order (Star Wars falls back to the first theme).
+        if (!localStorage.getItem('app_theme_order_v4')) {
+            var oldO4 = ['yourname', 'oceanic', 'anime', 'hugo', 'darkweb', 'terminal', 'interstellar', 'onepiece', 'hogwarts', 'homealone', 'strangerthings', 'vampire', 'starwars', 'phantom', 'halloween', 'dreamy', 'spider', 'redhorizon', 'midnightblue', 'aurora', 'aurora-phantom', 'love', 'cyberpunk', 'anonymous'], newO4 = ['yourname', 'oceanic', 'anime', 'hugo', 'darkweb', 'terminal', 'interstellar', 'onepiece', 'hogwarts', 'homealone', 'strangerthings', 'vampire', 'phantom', 'halloween', 'dreamy', 'spider', 'redhorizon', 'midnightblue', 'aurora', 'aurora-phantom', 'love', 'cyberpunk', 'anonymous'];
+            ['app_theme_index_v14','app_lite_prev_theme_v1'].forEach(function(k){
+                var v = parseInt(localStorage.getItem(k), 10);
+                if (Number.isFinite(v) && v >= 0 && v < oldO4.length) { var ni = newO4.indexOf(oldO4[v]); localStorage.setItem(k, String(ni < 0 ? 0 : ni)); }
+            });
+            localStorage.setItem('app_theme_order_v4', '1');
+        }
         var saved = localStorage.getItem('app_theme_index_v14');
         if (saved === null) return;
         var idx = parseInt(saved, 10);
@@ -6686,7 +6420,7 @@ window.mu_syncHtmlBg = function(){
         // this early copy only exists so the very first paint (before that
         // script block runs) can already show the right theme instead of
         // flashing the default and then snapping over.
-        var classes = ['theme-yourname','theme-oceanic','theme-anime','theme-hugo','theme-interstellar','theme-onepiece','theme-hogwarts','theme-homealone','theme-strangerthings','theme-vampire','theme-starwars','theme-phantom','theme-halloween','theme-dreamy','theme-spider','theme-darkweb','theme-terminal','theme-redhorizon','theme-midnightblue','theme-aurora','theme-aurora-phantom','theme-love','theme-cyberpunk','theme-anonymous'];
+        var classes = ['theme-yourname','theme-oceanic','theme-anime','theme-hugo','theme-darkweb','theme-terminal','theme-interstellar','theme-onepiece','theme-hogwarts','theme-homealone','theme-strangerthings','theme-vampire','theme-phantom','theme-halloween','theme-dreamy','theme-spider','theme-redhorizon','theme-midnightblue','theme-aurora','theme-aurora-phantom','theme-love','theme-cyberpunk','theme-anonymous'];
         var cls = classes[idx];
         if (cls && cls !== 'theme-yourname') {
             document.body.classList.remove('theme-yourname');
@@ -6700,36 +6434,7 @@ window.mu_syncHtmlBg = function(){
     <div class="mu-redhorizon-stars" aria-hidden="true"></div>
     <div class="mu-spider-web" aria-hidden="true"></div>
     <div class="mu-spider" aria-hidden="true"></div>
-    <div class="mu-vampire-bat-1" aria-hidden="true">
-        <span class="mu-vbat-wing mu-vbat-wing-l"></span>
-        <span class="mu-vbat-wing mu-vbat-wing-r"></span>
-        <span class="mu-vbat-body"></span>
-        <span class="mu-vbat-ear mu-vbat-ear-l"></span>
-        <span class="mu-vbat-ear mu-vbat-ear-r"></span>
-    </div>
-    <div class="mu-vampire-bat-2" aria-hidden="true">
-        <span class="mu-vbat-wing mu-vbat-wing-l"></span>
-        <span class="mu-vbat-wing mu-vbat-wing-r"></span>
-        <span class="mu-vbat-body"></span>
-        <span class="mu-vbat-ear mu-vbat-ear-l"></span>
-        <span class="mu-vbat-ear mu-vbat-ear-r"></span>
-    </div>
-    <div class="mu-vampire-bat-3" aria-hidden="true">
-        <span class="mu-vbat-wing mu-vbat-wing-l"></span>
-        <span class="mu-vbat-wing mu-vbat-wing-r"></span>
-        <span class="mu-vbat-body"></span>
-        <span class="mu-vbat-ear mu-vbat-ear-l"></span>
-        <span class="mu-vbat-ear mu-vbat-ear-r"></span>
-    </div>
-    <div class="mu-vampire-bat-4" aria-hidden="true">
-        <span class="mu-vbat-wing mu-vbat-wing-l"></span>
-        <span class="mu-vbat-wing mu-vbat-wing-r"></span>
-        <span class="mu-vbat-body"></span>
-        <span class="mu-vbat-ear mu-vbat-ear-l"></span>
-        <span class="mu-vbat-ear mu-vbat-ear-r"></span>
-    </div>
     <div class="mu-vampire-branches" aria-hidden="true"></div>
-    <div class="mu-vampire-symbols" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></div>
     <div class="mu-halloween-pumpkin" aria-hidden="true">
         <span class="mu-hwp-eye mu-hwp-eye-l"></span>
         <span class="mu-hwp-eye mu-hwp-eye-r"></span>
@@ -8721,19 +8426,18 @@ window.mu_syncHtmlBg = function(){
                 { id: 'oceanic', emoji: '', nameFa: 'اقیانوسی', nameEn: 'Oceanic', class: 'theme-oceanic' },
                 { id: 'anime', emoji: '', nameFa: 'دخترونه', nameEn: 'Girly', class: 'theme-anime' },
                 { id: 'hugo', emoji: '', nameFa: 'هوگو', nameEn: 'Hugo', class: 'theme-hugo' },
+                { id: 'darkweb', emoji: '', nameFa: 'دارک وب', nameEn: 'Dark Web', class: 'theme-darkweb' },
+                { id: 'terminal', emoji: '', nameFa: 'ترمینال', nameEn: 'Terminal', class: 'theme-terminal' },
                 { id: 'interstellar', emoji: '', nameFa: 'میان‌ستاره‌ای', nameEn: 'Interstellar', class: 'theme-interstellar' },
                 { id: 'onepiece', emoji: '', nameFa: 'وان پیس', nameEn: 'One Piece', class: 'theme-onepiece' },
                 { id: 'hogwarts', emoji: '', nameFa: 'هاگوارتز', nameEn: 'Hogwarts', class: 'theme-hogwarts' },
                 { id: 'homealone', emoji: '', nameFa: 'تنها در خانه', nameEn: 'Home Alone', class: 'theme-homealone' },
                 { id: 'strangerthings', emoji: '', nameFa: 'چیزهای عجیب', nameEn: 'Stranger Things', class: 'theme-strangerthings' },
                 { id: 'vampire', emoji: '', nameFa: 'خون‌آشام', nameEn: 'The Vampire', class: 'theme-vampire' },
-                { id: 'starwars', emoji: '', nameFa: 'جنگ ستارگان', nameEn: 'Star Wars', class: 'theme-starwars' },
                 { id: 'phantom', emoji: '', nameFa: 'فانتوم', nameEn: 'Phantom', class: 'theme-phantom' },
                 { id: 'halloween', emoji: '', nameFa: 'هالووین', nameEn: 'Halloween', class: 'theme-halloween' },
                 { id: 'dreamy', emoji: '', nameFa: 'رویایی', nameEn: 'Dreamy', class: 'theme-dreamy' },
                 { id: 'spider', emoji: '', nameFa: 'عنکبوتی', nameEn: 'Spider', class: 'theme-spider' },
-                { id: 'darkweb', emoji: '', nameFa: 'دارک وب', nameEn: 'Dark Web', class: 'theme-darkweb' },
-                { id: 'terminal', emoji: '', nameFa: 'ترمینال', nameEn: 'Terminal', class: 'theme-terminal' },
                 { id: 'redhorizon', emoji: '', nameFa: 'افق سرخ', nameEn: 'Red Horizon', class: 'theme-redhorizon' },
                 { id: 'midnightblue', emoji: '', nameFa: 'میدنایت بلو', nameEn: 'Midnight Blue', class: 'theme-midnightblue' },
                 { id: 'aurora', emoji: '', nameFa: 'شفق قطبی', nameEn: 'Aurora', class: 'theme-aurora' },
@@ -8843,7 +8547,6 @@ window.mu_syncHtmlBg = function(){
             homealone: { bg: "radial-gradient(ellipse 90% 60% at 50% 100%, #1a2f52 0%, #101f3d 32%, #0a1428 56%, #050a16 80%, #02050c 100%)", text: "#f3e6cf", border: "rgba(214, 168, 92, .28)" },
             strangerthings: { bg: "radial-gradient(ellipse 92% 55% at 50% -4%, #2c0808 0%, #1e0706 20%, #130404 42%, #0a0303 68%, #030101 100%)", text: "#ecdfce", border: "rgba(210, 50, 35, .32)" },
             vampire: { bg: "radial-gradient(ellipse 100% 60% at 50% -8%, #4a000f 0%, #2b0009 26%, #150410 52%, #060209 78%, #020103 100%)", text: "#f0d5cf", border: "rgba(200, 30, 45, 0.3)" },
-            starwars: { bg: "radial-gradient(ellipse 50% 30% at 50% 100%, rgba(120, 80, 10, .10) 0%, transparent 70%), radial-gradient(ellipse 140% 100% at 50% 12%, #0d0f1a 0%, #05060c 45%, #000000 100%)", text: "#ffe81f", border: "rgba(255, 216, 0, 0.22)" },
             phantom: { bg: "radial-gradient(circle at 50% 8%, #2b1250 0%, #140a28 40%, #05020a 75%, #000 100%)", text: "#d8b4fe", border: "rgba(192, 132, 252, 0.25)" },
             halloween: { bg: "radial-gradient(ellipse 100% 60% at 50% 108%, #241033 0%, #180b28 30%, #0d0616 58%, #060309 82%, #030104 100%)", text: "#ffb347", border: "rgba(168, 85, 247, 0.25)" },
             dreamy: { bg: "radial-gradient(ellipse 70% 40% at 50% 100%, rgba(255, 182, 225, 0.08) 0%, transparent 65%), linear-gradient(160deg, #1b1030 0%, #2b1055 32%, #4c3f91 68%, #6a4fa0 100%)", text: "#ffd6e2", border: "rgba(255, 192, 203, 0.28)" },
@@ -10803,7 +10506,7 @@ window.mu_syncHtmlBg = function(){
                             <span class="mc-group-label">${t.mcGroupPrimary}</span>
                             <div class="mc-row">
                                 <button class="btn-save-prominent" onclick="saveAndCloseCategory('${item.id}')">${t.save}</button>
-                                <button onclick="mu_openViewerStyleChooser('${item.id}')">${currentLang==='fa'?'نمایش یادداشت':'View note'}</button>
+                                <button onclick="mu_openNoteViewer('${item.id}')">${currentLang==='fa'?'نمایش یادداشت':'View note'}</button>
                                 <button onclick="toggleArchiveNote('${item.id}')">${item.archived ? (currentLang==='fa'?'خروج از بایگانی':'Unarchive') : (currentLang==='fa'?'بایگانی':'Archive')}</button>
                                 <button onclick="toggleVisibility('${item.id}')">${isHidden ? t.show : t.hide}</button>
                                 <button class="mc-linkprev-btn" title="${t.previewLink}" aria-label="${t.previewLink}" onclick="toggleLinkPreview('${item.id}')">${currentLang==='fa'?'نمایش لینک':'Show link'}</button>
@@ -17180,7 +16883,7 @@ ${body}
         function openMorseTool(){
             const fa = currentLang==='fa';
             morseToolBuffer = '';
-            showAdvanced(`
+            mu_showAdvancedNoAnim(`
                 <div class="advanced-head"><h3>📡 ${fa?'مبدل کد مورس':'Morse Code Converter'}</h3><button class="btn-main" onclick="closeAdvancedModal()">✕</button></div>
                 <div class="mc-tool-tabs">
                     <button type="button" class="mc-tool-tab-btn active" id="morseTabBtnText" onclick="morseToolSwitchTab('text')">✍️ ${fa?'متن ← مورس':'Text → Morse'}</button>
@@ -17336,7 +17039,7 @@ ${body}
         }
         function openBinaryTool(){
             const fa = currentLang==='fa';
-            showAdvanced(`
+            mu_showAdvancedNoAnim(`
                 <div class="advanced-head"><h3>🔢 ${fa?'مبدل کد باینری':'Binary Code Converter'}</h3><button class="btn-main" onclick="closeAdvancedModal()">✕</button></div>
                 <div class="mc-tool-tabs">
                     <button type="button" class="mc-tool-tab-btn active" id="binTabBtnText" onclick="binToolSwitchTab('text')">✍️ ${fa?'متن ← باینری':'Text → Binary'}</button>
@@ -17476,7 +17179,7 @@ ${body}
             // Now the modal pops in immediately with a short loading message, and
             // the heavy work runs a frame later so the pop-in animation itself is
             // never the thing waiting on it.
-            showAdvanced(`<div class="advanced-head"><h3>🌌 ${fa?'شبکه دانش':'Knowledge Graph'}</h3><button class="btn-main" onclick="closeAdvancedModal()">✕</button></div>`+
+            mu_showAdvancedNoAnim(`<div class="advanced-head"><h3>🌌 ${fa?'شبکه دانش':'Knowledge Graph'}</h3><button class="btn-main" onclick="closeAdvancedModal()">✕</button></div>`+
                 `<div class="markhin-smart-empty">${fa?'در حال ساخت نقشه ارتباط‌ها…':'Building the connection map…'}</div>`);
             const kgShellCard=document.getElementById('advancedCard');
             if(kgShellCard) kgShellCard.classList.add('kg-wide');
@@ -17921,8 +17624,15 @@ ${body}
             if (m) m.dataset.openerScrollY = String(window.scrollY || window.pageYOffset || 0);
             const card=document.getElementById('advancedCard');
             card.innerHTML=html;
+            m.classList.remove('mu-no-anim');
             m.style.display='flex';
             requestAnimationFrame(()=>{ requestAnimationFrame(()=>mu_nudgeRepaint(card)); });
+        }
+        /* Morse / Binary tools: open without the fade + pop-in animation (it showed as a flash). */
+        function mu_showAdvancedNoAnim(html){
+            showAdvanced(html);
+            const m=document.getElementById('advancedModal');
+            if(m) m.classList.add('mu-no-anim');
         }
         function closeAdvancedModal(){
             const m=document.getElementById('advancedModal');
@@ -26921,7 +26631,7 @@ const MU_AI = (function(){
                 return MU_Theme.list.length + ' total): ' + MU_Theme.list.map(function(t){ return t.id + ' = ' + t.nameEn + ' / ' + t.nameFa; }).join('; ') + '. Use the id when possible';
             }
         }catch(e){}
-        return '24 total): yourname, oceanic, anime, hugo, interstellar, onepiece, hogwarts, homealone, strangerthings, vampire, starwars, phantom, halloween, dreamy, spider, darkweb, terminal, redhorizon, midnightblue, aurora, aurora-phantom, love, cyberpunk, anonymous';
+        return '23 total): yourname, oceanic, anime, hugo, darkweb, terminal, interstellar, onepiece, hogwarts, homealone, strangerthings, vampire, phantom, halloween, dreamy, spider, redhorizon, midnightblue, aurora, aurora-phantom, love, cyberpunk, anonymous';
     })();
 
     const MAI_TOOLS = [
@@ -28411,7 +28121,7 @@ const MU_AI = (function(){
                         theme: themeInfo,
                         available_themes: (typeof MU_Theme !== 'undefined' && MU_Theme.list) ? MU_Theme.list.map(t => t.id) : [],
                         language: currentLang,
-                        note_viewer_style: { current: (typeof window.mu_getViewerStyle === 'function') ? window.mu_getViewerStyle() : 'ocean', options: ['retro','ocean'] },
+                        note_viewer_style: { current: (typeof window.mu_getViewerStyle === 'function') ? window.mu_getViewerStyle() : 'ask', options: ['ask','retro','ocean'] },
                         note_preview: { enabled: (typeof window.mu_getNotePreviewEnabled === 'function') ? window.mu_getNotePreviewEnabled() : false, lines: (typeof window.mu_getNotePreviewLines === 'function') ? window.mu_getNotePreviewLines() : 1, lines_range: [1,5] },
                         list_sort_mode: { current: sortMode, label: curSort ? (fa ? curSort.fa : curSort.en) : sortMode, options: sortOpt.map(o => ({ value:o.value, label: fa ? o.fa : o.en })) }
                     } };
@@ -28431,7 +28141,7 @@ const MU_AI = (function(){
                 }
                 case 'set_viewer_style': {
                     const st = String(input.style || '').trim().toLowerCase();
-                    if(st !== 'retro' && st !== 'ocean') return { ok:false, error: fa ? 'سبک باید retro (قدیمی/ویندوزی) یا ocean (اقیانوسی) باشد.' : 'style must be "retro" or "ocean".' };
+                    if(st !== 'retro' && st !== 'ocean' && st !== 'ask') return { ok:false, error: fa ? 'سبک باید retro (ویندوز ۹۵)، ocean (اقیانوسی) یا ask (انتخاب هر بار) باشد.' : 'style must be "retro", "ocean" or "ask".' };
                     if(typeof window.mu_setViewerStyle !== 'function') return { ok:false, error: fa ? 'تنظیم سبک نمایش در دسترس نیست.' : 'Viewer style setting is unavailable right now.' };
                     const prevSt = window.mu_getViewerStyle();
                     if(window.MU_Lite && MU_Lite.setViewerStyle) MU_Lite.setViewerStyle(st); else window.mu_setViewerStyle(st);
@@ -32899,10 +32609,10 @@ html[dir="rtl"] .mu-viewer-progress>i{margin-left:auto;transform-origin:right ce
 <script id="muNoteViewerJs">
 // Read-only note viewer style: 'retro' (default, old Windows error dialog) or 'ocean'.
 window.mu_getViewerStyle = function(){
-    try { var v = localStorage.getItem('markhin_viewer_style_v1'); return (v === 'retro' || v === 'ocean') ? v : 'ocean'; } catch(e){ return 'ocean'; }
+    try { var v = localStorage.getItem('markhin_viewer_style_v1'); return (v === 'retro' || v === 'ocean' || v === 'ask') ? v : 'ask'; } catch(e){ return 'ask'; }
 };
 window.mu_setViewerStyle = function(v){
-    v = (v === 'retro' || v === 'ocean') ? v : 'ocean';
+    v = (v === 'retro' || v === 'ocean' || v === 'ask') ? v : 'ask';
     try { localStorage.setItem('markhin_viewer_style_v1', v); } catch(e){}
 };
 (function(){
@@ -33027,6 +32737,10 @@ window.mu_setViewerStyle = function(v){
   };
 
   window.mu_openNoteViewer=async function(id,styleOverride){
+    // Default setting = "ask": show the Ocean / Windows 95 picker first, then open with the chosen look.
+    if(styleOverride!=='retro' && styleOverride!=='ocean' && window.mu_getViewerStyle && window.mu_getViewerStyle()==='ask'){
+      window.mu_openViewerStyleChooser(id); return;
+    }
     var item=categories.find(function(c){return String(c.id)===String(id);});
     if(!item) return;
     var fa=currentLang==='fa', t=i18n[currentLang]||{};
@@ -33058,7 +32772,7 @@ window.mu_setViewerStyle = function(v){
     root.querySelector('.mu-viewer-title').textContent=title;
     root.querySelector('.mu-viewer-close').setAttribute('aria-label',fa?'بستن':'Close');
     root.querySelector('.mu-viewer-ok').textContent=fa?'باشه':'OK';
-    var vStyle=(styleOverride==='retro'||styleOverride==='ocean')?styleOverride:((window.mu_getViewerStyle&&window.mu_getViewerStyle())||'ocean');
+    var vStyle=(styleOverride==='retro'||styleOverride==='ocean')?styleOverride:((window.mu_getViewerStyle&&window.mu_getViewerStyle()!=='ask'&&window.mu_getViewerStyle())||'ocean');
     root.classList.toggle('mu-vs-retro', vStyle==='retro');
     root.classList.toggle('mu-vs-ocean', vStyle==='ocean');
     var body=root.querySelector('.mu-viewer-body');
@@ -33307,10 +33021,10 @@ window.muIcon = function (name) {
       '<div class="mu-set-row" style="flex-direction:column;align-items:stretch">' +
         '<div class="mu-set-text">' +
           '<div class="mu-set-title">' + (fa ? 'سبک کادر نمایش یادداشت' : 'Note viewer style') + '</div>' +
-          '<div class="mu-set-desc">' + (fa ? 'ظاهر پنجره‌ای که با «نمایش یادداشت» باز می‌شود.' : 'Look of the window that opens with “View note”.') + '</div>' +
+          '<div class="mu-set-desc">' + (fa ? 'با «نمایش یادداشت» هر بار بپرسد، یا همیشه با یک سبک ثابت باز شود.' : 'Ask each time you press “View note”, or always open with one fixed style.') + '</div>' +
         '</div>' +
         '<div class="mu-vs-seg" id="muViewerStyleSeg" role="group">' +
-          [['ocean', fa ? 'اقیانوسی (پیش‌فرض)' : 'Ocean (default)'], ['retro', fa ? 'ویندوز ۹۵' : 'Windows 95']].map(function (o) {
+          [['ask', fa ? 'انتخاب هر بار (پیش‌فرض)' : 'Ask each time (default)'], ['ocean', fa ? 'اقیانوسی' : 'Ocean'], ['retro', fa ? 'ویندوز ۹۵' : 'Windows 95']].map(function (o) {
             return '<button type="button" class="mu-vs-opt" data-vs="' + o[0] + '" aria-pressed="' + ((window.mu_getViewerStyle && window.mu_getViewerStyle() === o[0]) ? 'true' : 'false') + '" onclick="MU_Lite.setViewerStyle(\'' + o[0] + '\')">' + o[1] + '</button>';
           }).join('') +
         '</div>' +
@@ -33362,7 +33076,7 @@ window.muIcon = function (name) {
     disable: function () { if (isOn()) { disable(); } syncSwitch(); },
     setViewerStyle: function (v) {
       if (window.mu_setViewerStyle) window.mu_setViewerStyle(v);
-      var cur = (window.mu_getViewerStyle && window.mu_getViewerStyle()) || 'ocean';
+      var cur = (window.mu_getViewerStyle && window.mu_getViewerStyle()) || 'ask';
       document.querySelectorAll('#muViewerStyleSeg .mu-vs-opt').forEach(function (b) {
         b.setAttribute('aria-pressed', b.getAttribute('data-vs') === cur ? 'true' : 'false');
       });
@@ -33861,6 +33575,93 @@ html .preview-box * {
     -webkit-text-fill-color: #ffffff !important;
 }
 html .text-box:not(.masked):empty:before { color: #ffffff !important; }
+</style>
+<style id="muStructureButtons">
+/* Add note / Add folder / Delete buttons keep their own look in every theme
+   (these themes force one shared border on all .btn-main, which hid it). */
+body.theme-anime .structure-controls .structure-add,
+body.theme-anonymous .structure-controls .structure-add,
+body.theme-darkweb .structure-controls .structure-add,
+body.theme-hogwarts .structure-controls .structure-add,
+body.theme-homealone .structure-controls .structure-add,
+body.theme-hugo .structure-controls .structure-add,
+body.theme-onepiece .structure-controls .structure-add,
+body.theme-phantom .structure-controls .structure-add,
+body.theme-strangerthings .structure-controls .structure-add {
+    border-color: currentColor !important;
+    font-weight: 700 !important;
+    box-shadow: inset 0 0 14px rgba(255,255,255,.14), 0 2px 8px rgba(0,0,0,.35) !important;
+}
+body.theme-anime .structure-controls .structure-add:hover,
+body.theme-anonymous .structure-controls .structure-add:hover,
+body.theme-darkweb .structure-controls .structure-add:hover,
+body.theme-hogwarts .structure-controls .structure-add:hover,
+body.theme-homealone .structure-controls .structure-add:hover,
+body.theme-hugo .structure-controls .structure-add:hover,
+body.theme-onepiece .structure-controls .structure-add:hover,
+body.theme-phantom .structure-controls .structure-add:hover,
+body.theme-strangerthings .structure-controls .structure-add:hover {
+    box-shadow: inset 0 0 18px rgba(255,255,255,.22), 0 2px 10px rgba(0,0,0,.4) !important;
+}
+body.theme-anime .structure-controls .btn-folder-del,
+body.theme-anonymous .structure-controls .btn-folder-del,
+body.theme-darkweb .structure-controls .btn-folder-del,
+body.theme-hogwarts .structure-controls .btn-folder-del,
+body.theme-homealone .structure-controls .btn-folder-del,
+body.theme-hugo .structure-controls .btn-folder-del,
+body.theme-onepiece .structure-controls .btn-folder-del,
+body.theme-phantom .structure-controls .btn-folder-del,
+body.theme-strangerthings .structure-controls .btn-folder-del {
+    border-color: rgba(239,68,68,.6) !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,.35) !important;
+}
+body.theme-anime .structure-controls .btn-folder-del:hover,
+body.theme-anonymous .structure-controls .btn-folder-del:hover,
+body.theme-darkweb .structure-controls .btn-folder-del:hover,
+body.theme-hogwarts .structure-controls .btn-folder-del:hover,
+body.theme-homealone .structure-controls .btn-folder-del:hover,
+body.theme-hugo .structure-controls .btn-folder-del:hover,
+body.theme-onepiece .structure-controls .btn-folder-del:hover,
+body.theme-phantom .structure-controls .btn-folder-del:hover,
+body.theme-strangerthings .structure-controls .btn-folder-del:hover {
+    border-color: #ef4444 !important;
+    box-shadow: 0 0 12px rgba(239,68,68,.4) !important;
+}
+</style>
+<style id="muStructureBorderUnify">
+/* Add note / Add folder / Delete / Archive: one shared border strength in every theme. */
+body #btnNewCategory, body #btnNewFolder, body #btnArchivedNotes {
+    border-style: solid !important;
+    border-width: 1px !important;
+    border-color: currentColor !important;
+    border-color: color-mix(in srgb, currentColor 70%, transparent) !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,.3) !important;
+}
+body #btnDeleteMenu {
+    border-style: solid !important;
+    border-width: 1px !important;
+    border-color: rgba(239,68,68,.7) !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,.3) !important;
+}
+body #btnNewCategory:hover, body #btnNewFolder:hover, body #btnArchivedNotes:hover {
+    border-color: currentColor !important;
+}
+body #btnDeleteMenu:hover {
+    border-color: #ef4444 !important;
+}
+</style>
+<style id="muNoAnimModal">
+.advanced-modal.mu-no-anim, .advanced-modal.mu-no-anim .advanced-card { animation: none !important; }
+</style>
+<style id="muNoEntryAnim">
+/* No fade/pop-in on dialogs: they appear instantly, so there is no flash/jump on entry.
+   Covers every dialog opened through the shared popup (settings, choosers, pickers,
+   tools...), the theme picker, and the Ocean-style note viewer. */
+.advanced-modal, .advanced-card,
+.theme-picker-overlay.open, .theme-picker-sheet,
+.mu-viewer-backdrop, .mu-viewer:not(.mu-vs-retro) .mu-viewer-card {
+    animation: none !important;
+}
 </style>
 </body>
 </html>
