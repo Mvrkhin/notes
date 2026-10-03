@@ -7465,7 +7465,7 @@ window.mu_syncHtmlBg = function(){
             // gone on other devices/syncs instead of resurrecting on the next pull.
             const folderTombstones = loadFolderTombstones();
             const pack = async (list) => {
-                const raw = JSON.stringify({ v: 1, ts: Date.now(), folders: customFolders, notes: list, tombstones, folderTombstones });
+                const raw = JSON.stringify({ v: 1, ts: Date.now(), folders: customFolders, pinnedFolders: (window.MU_FolderPins ? window.MU_FolderPins.list() : []), pinnedFoldersTs: (window.MU_FolderPins && window.MU_FolderPins.ts ? window.MU_FolderPins.ts() : 0), notes: list, tombstones, folderTombstones });
                 return await cloudCompress(raw);
             };
             const fits = (p) => p.data.length <= budget;
@@ -8051,6 +8051,7 @@ window.mu_syncHtmlBg = function(){
                 return true;
             };
             (data.folders || []).forEach(f => mu_ensureFolder(f, 0));
+            try{ if(window.MU_FolderPins) window.MU_FolderPins.applyRemote(data.pinnedFolders, data.pinnedFoldersTs); }catch(e){}
             (data.notes || []).forEach(cloudItem => {
                 if (!cloudItem || typeof cloudItem !== 'object' || typeof cloudItem.folder !== 'string' || !cloudItem.folder) return;
                 const localNote = categories.find(c => c.id === cloudItem.id);
@@ -9997,7 +9998,7 @@ window.mu_syncHtmlBg = function(){
                 scheduleCloudBackup();
                 return true;
             } catch (error) {
-                showToast('ذخیره پوشه‌ها انجام نشد.');
+                showToast(currentLang === 'fa' ? 'ذخیره پوشه‌ها انجام نشد.' : 'Could not save folders.');
                 return false;
             }
         }
@@ -10606,7 +10607,7 @@ window.mu_syncHtmlBg = function(){
             }
 
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                alert('دستگاه/مرورگر شما از ضبط صدا پشتیبانی نمی‌کند.');
+                alert(currentLang === 'fa' ? 'دستگاه/مرورگر شما از ضبط صدا پشتیبانی نمی‌کند.' : 'Your device/browser does not support audio recording.');
                 return;
             }
 
@@ -10640,7 +10641,7 @@ window.mu_syncHtmlBg = function(){
 
                 mediaRecorder.start();
             } catch (err) {
-                alert('دسترسی به میکروفون داده نشد.');
+                alert(currentLang === 'fa' ? 'دسترسی به میکروفون داده نشد.' : 'Microphone access was not granted.');
             }
         }
 
@@ -11999,7 +12000,12 @@ window.mu_syncHtmlBg = function(){
            change happened.
            --------------------------------------------------------------- */
         window.__muHistory = window.__muHistory || {};
-        const MU_HISTORY_LIMIT = 60;
+        // Undo/Redo depth: 5 steps back and 5 steps forward. The stack always holds the CURRENT state
+        // plus at most 5 older ones, so memory per note is bounded to 6 snapshots (it used to be 60 full
+        // innerHTML copies per note, which got heavy for large notes). Redo steps only ever come from
+        // undoing, so 5 undo steps also means at most 5 redo steps.
+        const MU_UNDO_STEPS = 5;
+        const MU_HISTORY_LIMIT = MU_UNDO_STEPS + 1;
 
         function mu_historyInit(id, html) {
             if (!window.__muHistory[id]) {
@@ -12016,7 +12022,7 @@ window.mu_syncHtmlBg = function(){
             // standard undo/redo behavior.
             h.stack = h.stack.slice(0, h.index + 1);
             h.stack.push(html);
-            if (h.stack.length > MU_HISTORY_LIMIT) h.stack.shift();
+            while (h.stack.length > MU_HISTORY_LIMIT) h.stack.shift();
             h.index = h.stack.length - 1;
             mu_updateUndoRedoButtons(id);
         }
@@ -12064,6 +12070,49 @@ window.mu_syncHtmlBg = function(){
             mu_applyHistoryState(id);
             showToast(fa ? '↷ یک مرحله جلو رفت.' : '↷ Stepped forward.');
         };
+
+        /* Undo/Redo history lives only while the app is open and in use: it is never written to storage,
+           and it is also dropped when the person leaves the app (switches to another app / locks the
+           phone / closes the tab) so coming back starts with a clean history. The note that is open keeps
+           its CURRENT text as the new starting point, so whatever is typed after returning can still be undone.
+           Leaving the app to pick a file (e.g. inserting an image) does not count - that would wipe the
+           history in the middle of editing. */
+        let mu_filePickerUntil = 0;
+        function mu_historyResetAll() {
+            const hadIds = Object.keys(window.__muHistory || {});
+            window.__muHistory = {};
+            hadIds.forEach(function (id) { mu_updateUndoRedoButtons(id); });
+            try {
+                if (activeOpenId) {
+                    const el = document.getElementById('text-' + activeOpenId);
+                    if (el) mu_historyInit(activeOpenId, el.innerHTML);
+                }
+            } catch (e) {}
+        }
+        window.mu_historyResetAll = mu_historyResetAll;
+        document.addEventListener('click', function (e) {
+            const t = e.target;
+            if (t && t.tagName === 'INPUT' && t.type === 'file') mu_filePickerUntil = Date.now() + 180000;
+        }, true);
+        ['change', 'cancel'].forEach(function (ev) {
+            document.addEventListener(ev, function (e) {
+                const t = e.target;
+                if (t && t.tagName === 'INPUT' && t.type === 'file') mu_filePickerUntil = 0;
+            }, true);
+        });
+        let mu_historyStale = false;
+        document.addEventListener('visibilitychange', function () {
+            if (document.visibilityState === 'hidden') {
+                if (Date.now() < mu_filePickerUntil) return;
+                mu_historyStale = true;
+                // after the other "app went to background" handlers (which may still save the open note)
+                setTimeout(function () { if (mu_historyStale && document.visibilityState === 'hidden') { mu_historyStale = false; mu_historyResetAll(); } }, 0);
+            } else if (mu_historyStale) {
+                mu_historyStale = false;
+                mu_historyResetAll();
+            }
+        });
+        window.addEventListener('pagehide', function () { mu_historyResetAll(); });
 
         async function saveCategory(id) {
             const item = categories.find(c => c.id === id);
@@ -12160,6 +12209,7 @@ window.mu_syncHtmlBg = function(){
             if (document.visibilityState === 'hidden') flushActiveEditorSave();
         });
         window.addEventListener('beforeunload', flushActiveEditorSave);
+        window.addEventListener('pagehide', flushActiveEditorSave);
 
         document.addEventListener('input', (event) => {
             const textBox = event.target.closest?.('.text-box');
@@ -14672,6 +14722,7 @@ window.mu_syncHtmlBg = function(){
                     const importedFolders = Array.isArray(data.folders) ? data.folders.filter(f => typeof f === 'string' && f.trim()) : [];
                     [...new Set(importedFolders.filter(f => f !== 'همه' && f !== 'All' && f !== DEFAULT_FOLDER).map(f => f.trim()))]
                         .forEach(f => { if (!folders.includes(f)) folders.push(f); clearFolderTombstone(f); });
+                    try{ if(window.MU_FolderPins) window.MU_FolderPins.importList(data.pinnedFolders); }catch(e){}
                     categories.push(...incoming);
                     saveToLocalStorage();
                     saveFoldersToLocalStorage();
@@ -14788,7 +14839,7 @@ window.mu_syncHtmlBg = function(){
                     delete c.password;
                     return c;
                 });
-                return JSON.stringify({ categories: jsonItems, folders: (opts && opts.allFolders) ? [...new Set([DEFAULT_FOLDER, ...folders, ...folderSet])] : [DEFAULT_FOLDER, ...folderSet.filter(f => f !== DEFAULT_FOLDER)] }, null, 2);
+                return JSON.stringify({ categories: jsonItems, folders: (opts && opts.allFolders) ? [...new Set([DEFAULT_FOLDER, ...folders, ...folderSet])] : [DEFAULT_FOLDER, ...folderSet.filter(f => f !== DEFAULT_FOLDER)], pinnedFolders: (window.MU_FolderPins ? window.MU_FolderPins.list() : []) }, null, 2);
             }
             if (type === 'md') {
                 const out = safeItems.map((item, index) => {
@@ -16299,15 +16350,26 @@ ${body}
                 const foldersJson = jsLiteral(JSON.stringify(folders.filter(f => f !== DEFAULT_FOLDER)));
                 seedLines += `
                         localStorage.setItem('app_categories_v13', ${categoriesJson});
-                        localStorage.setItem('app_folders_v13', ${foldersJson});`;
+                        localStorage.setItem('app_folders_v13', ${foldersJson});
+                        localStorage.setItem('app_pinned_folders_v1', ${jsLiteral(JSON.stringify(window.MU_FolderPins ? window.MU_FolderPins.list() : []))});`;
             }
             if (mode === 'everything') {
                 // Only this mode carries the AI provider settings (including the API key)
                 // into the exported file, and only via this explicit, deliberate seed —
                 // never as a byproduct of cloning whatever happened to be on screen.
-                const aiSettingsJson = jsLiteral(JSON.stringify(MarkhinAI.getSettings()));
-                seedLines += `
+                if (window.MarkhinVault && MarkhinVault.isEnabled()) {
+                    // Vault on: carry only the ciphertext (needs the key password to open) — never the plain key.
+                    const vaultEnv = await MarkhinVault.exportEnvelope();
+                    if (vaultEnv) {
+                        seedLines += `
+                        localStorage.setItem('markhin_vault_on_v1', '1');
+                        localStorage.setItem('markhin_vault_env_v1', ${jsLiteral(JSON.stringify(vaultEnv))});`;
+                    }
+                } else {
+                    const aiSettingsJson = jsLiteral(JSON.stringify(MarkhinAI.getSettings()));
+                    seedLines += `
                         localStorage.setItem('${MarkhinAI.KEY}', ${aiSettingsJson});`;
+                }
             }
             let dataScript = seedLines ? `
                 <script data-markhin-seed="1">
@@ -16573,6 +16635,35 @@ ${body}
         }
 
         function noteAgeDays(item){return Math.max(0,(Date.now()-(Date.parse(item.lastEdited)||Date.now()))/86400000)}
+
+        // Same numbers the Note DNA panel shows, as plain data (used by the AI tool get_note_dna).
+        function mu_getNoteDNA(item, kwLimit){
+            const rawText=(item.text||item.html||'').replace(/<[^>]*>/g,' ');
+            const trimmed=rawText.replace(/\s+/g,' ').trim();
+            const stats=computeTextStats(rawText);
+            const words=stats.words;
+            const wSet=kgWordSet(item);
+            const uniqueWords=wSet.size;
+            const richness=words?Math.min(100,Math.round((uniqueWords/words)*100)):0;
+            const freq={};
+            (trimmed.toLowerCase().match(/[\p{L}\p{N}]{2,}/gu)||[]).forEach(w=>{ if(!KG_STOPWORDS.has(w)) freq[w]=(freq[w]||0)+1; });
+            const lim=Math.max(1,Math.min(50,parseInt(kwLimit,10)||10));
+            const topKeywords=Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,lim).map(([word,count])=>({word,count}));
+            const readMins=Math.max(1,Math.round(words/200));
+            return {
+                id:item.id, name:item.name,
+                words:words, uniqueWords:uniqueWords, readMinutes:readMins, readLengthPercent:Math.min(100,Math.round((readMins/15)*100)),
+                sentencesApprox:stats.sentences,
+                text:{ charsWithSpaces:stats.charsWithSpace, charsNoSpaces:stats.charsNoSpace, spaces:stats.spaces, allCharacters:stats.totalChars, avgWordLength:stats.avgWordLength },
+                languagesAndDigits:{ persianWords:stats.faWords, persianLetters:stats.faLetters, englishWords:stats.enWords, englishLetters:stats.enLetters, digits:stats.digits },
+                symbolsAndEmoji:{ symbols:stats.symbols, uniqueSymbols:stats.distinctSymbols, symbolOnlyTokens:stats.symbolOnlyWords, emojiCount:stats.emojiCount, uniqueEmoji:stats.distinctEmojiCount },
+                content:{ images:(item.html||'').match(/<img\b/gi)?.length||0, links:(item.html||'').match(/<a\b/gi)?.length||0 },
+                info:{ approxAgeDays:Math.round(noteAgeDays(item)*10)/10, lastEdited:item.lastEdited||'', folder:item.folder||'' },
+                vocabularyRichnessPercent:richness,
+                topKeywords:topKeywords,
+                tags:Array.isArray(item.tags)?item.tags.slice():[]
+            };
+        }
 
         function openNoteDNA(id){
             const item=categories.find(c=>c.id===id);if(!item)return;
@@ -18238,7 +18329,7 @@ function mcLiveTitle(id, value){
         const pinIcon = item.pinned ? '📌 ' : '';
         const favIcon = item.favorite ? '⭐ ' : '';
         const decoyIcon = item.fakeContent ? '🎭 ' : '';
-        titleEl.innerHTML = escapeHtml(lockIcon) + window.mu_flagIcons(item) + escapeHtml(decoyIcon + (value || ''));
+        titleEl.innerHTML = escapeHtml(lockIcon) + (window.mu_flagIconsList||window.mu_flagIcons)(item) + escapeHtml(decoyIcon + (value || ''));
     }
 }
 function mcCommitTitle(id){
@@ -18274,7 +18365,7 @@ function mcCommitTitle(id){
         const pinIcon = item.pinned ? '📌 ' : '';
         const favIcon = item.favorite ? '⭐ ' : '';
         const decoyIcon = item.fakeContent ? '🎭 ' : '';
-        titleEl.innerHTML = escapeHtml(lockIcon) + window.mu_flagIcons(item) + escapeHtml(decoyIcon + item.name);
+        titleEl.innerHTML = escapeHtml(lockIcon) + (window.mu_flagIconsList||window.mu_flagIcons)(item) + escapeHtml(decoyIcon + item.name);
     }
 }
 // These run from inline onclick/oninput attributes in the note template,
@@ -18688,13 +18779,14 @@ function markhinDash_noteRowHtml(item, opts){
     opts=opts||{};
     const fa=currentLang==='fa';
     const flagsA=(isNoteLocked(item)?'🔒 ':''); const flagsB=(item.archived?'📦 ':'')+(item.fakeContent?'🎭 ':'')+(markhinDash_isGhostActive(item)?'👻 ':'')+(markhinDash_isCapsuleActive(item)?'⏳ ':'');
-    const snip=isNoteLocked(item)?(fa?'یادداشت قفل‌شده':'Locked note'):mu_snippet(item,[]);
+    const noPv=!!(item.titleHidden||item.fakeContent||markhinDash_isCapsuleActive(item)||(typeof mu_getNotePreviewEnabled==='function'&&!mu_getNotePreviewEnabled()));
+    const snip=isNoteLocked(item)?(fa?'یادداشت قفل‌شده':'Locked note'):(noPv?'':mu_snippet(item,[]));
     const tagsHtml=(item.tags||[]).slice(0,6).map(t=>'<span class="markhin-tag">#'+escapeHtml(t)+'</span>').join('');
     const meta=opts.metaLabel?`<span class="markhin-dash-meta">${opts.metaLabel}</span>`:'';
     const actionHtml=opts.actionLabel?`<button type="button" class="btn-main markhin-dash-row-action" data-row-action="1">${escapeHtml(opts.actionLabel)}</button>`:'';
     return `<div class="markhin-smart-item" data-id="${escapeHtml(item.id)}">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
-            <b style="min-width:0">${escapeHtml(flagsA)}${window.mu_flagIcons(item)}${escapeHtml(flagsB+String(item.name||''))}${meta}</b>
+            <b style="min-width:0">${escapeHtml(flagsA)}${(window.mu_flagIconsList||window.mu_flagIcons)(item)}${escapeHtml(flagsB+(item.titleHidden?'•••••':String(item.name||'')))}${meta}</b>
             ${actionHtml}
         </div>
         ${snip?`<div class="snippet">${escapeHtml(snip)}</div>`:''}
@@ -18715,9 +18807,20 @@ function markhinDash_bindRows(container, opts){
         };
     });
 }
-function markhinDash_openNote(id){
+async function markhinDash_openNote(id){
     closeAdvancedModal();
-    const ok=mu_forceOpenNote(id);
+    // Bug fix: a note picked from the dashboard that is not in the folder / search currently shown was
+    // "opened" but never drawn, so nothing happened. Switch to All (and clear the search) first if needed.
+    try{
+        const it=categories.find(c=>String(c.id)===String(id));
+        if(it && !getVisibleCategories().some(c=>c.id===it.id)){
+            currentFolder=DEFAULT_FOLDER;
+            if(!getVisibleCategories().some(c=>c.id===it.id)){ const si=document.getElementById('searchInput'); if(si) si.value=''; }
+        }
+    }catch(_){}
+    // Bug fix: mu_forceOpenNote is async, so `ok` used to be a Promise (always truthy) and the scroll ran
+    // before a locked note's password prompt was even answered. Wait for the real result.
+    const ok=await mu_forceOpenNote(id);
     if(ok){ setTimeout(()=>{ const el=document.getElementById('container-'+id); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); },90); }
 }
 window.markhinDash_openNote=markhinDash_openNote;
@@ -18741,7 +18844,7 @@ function markhinDash_showList(kind, value){
     else if(kind==='fake'){ list=notes.filter(x=>x.fakeContent); title=`🎭 ${fa?'محتوای فریب‌دهنده':'Decoy content'}`; }
     else if(kind==='ghost'){ list=notes.filter(markhinDash_isGhostActive); title=`👻 ${fa?'Ghost Note های فعال':'Active Ghost Notes'}`; }
     else if(kind==='capsule'){ list=notes.filter(markhinDash_isCapsuleActive); title=`⏳ ${fa?'کپسول‌های زمانی فعال':'Active Time Capsules'}`; }
-    else if(kind==='folder'){ list=notes.filter(x=> value ? window.mu_inFolder(x,value) : !x.folder); title=`📁 ${escapeHtml(value||(fa?'بدون پوشه':'No folder'))}`; }
+    else if(kind==='folder'){ list=notes.filter(x=> value ? window.mu_inFolder(x,value) : (window.mu_noteFolders ? window.mu_noteFolders(x).filter(f=>f&&f!==DEFAULT_FOLDER).length===0 : !x.folder)); title=`📁 ${escapeHtml(value||(fa?'بدون پوشه':'No folder'))}`; }
     else if(kind==='archived'){ list=allItems().filter(isArchived); title=`📦 ${fa?'بایگانی':'Archive'}`; }
     else { list=notes; title=fa?'همه یادداشت‌ها':'All notes'; }
 
@@ -18801,9 +18904,12 @@ window.markhinDash_pickNoteToArchive=markhinDash_pickNoteToArchive;
 function markhinDashboardMain(){
     const fa=currentLang==='fa';
     const notes=markhinDash_notes();
-    const words=notes.reduce((n,x)=>n+markhinDash_wordCount(x),0);
-    const chars=notes.reduce((n,x)=>n+computeTextStats(String(x.text||'')).charsWithSpace,0);
-    const tagCounts={}; notes.forEach(x=>(x.tags||[]).forEach(t=>{tagCounts[t]=(tagCounts[t]||0)+1;}));
+    const _wc=new Map(); notes.forEach(x=>_wc.set(x,markhinDash_wordCount(x)));
+    const wcOf=x=>_wc.has(x)?_wc.get(x):markhinDash_wordCount(x);
+    const words=notes.reduce((n,x)=>n+wcOf(x),0);
+    const chars=notes.reduce((n,x)=>n+computeTextStats(String(x.text||(x.html?x.html.replace(/<[^>]+>/g,' '):'')||'')).charsWithSpace,0);
+    // Object.create(null): a tag/folder literally named "constructor", "toString"... must not hit Object.prototype.
+    const tagCounts=Object.create(null); notes.forEach(x=>(x.tags||[]).forEach(t=>{tagCounts[t]=(tagCounts[t]||0)+1;}));
     const tags=Object.keys(tagCounts).sort((a,b)=>tagCounts[b]-tagCounts[a]);
     const folders=[...new Set(notes.map(x=>x.folder).filter(Boolean))];
     const pinnedN=notes.filter(x=>x.pinned).length;
@@ -18814,53 +18920,71 @@ function markhinDashboardMain(){
     const capsuleN=notes.filter(markhinDash_isCapsuleActive).length;
     const archivedN=allItems().filter(isArchived).length;
     const avgWords=notes.length?Math.round(words/notes.length):0;
-    const longest=notes.slice().sort((a,b)=>markhinDash_wordCount(b)-markhinDash_wordCount(a))[0];
+    const longest=notes.slice().sort((a,b)=>wcOf(b)-wcOf(a))[0];
     const recent=notes.slice().sort((a,b)=>(Date.parse(b.lastEdited)||0)-(Date.parse(a.lastEdited)||0)).slice(0,5);
     const maxTagCount=tags.length?tagCounts[tags[0]]:1;
 
     const statCard=(icon,label,val,onclick)=>`<div class="markhin-dashboard-item${onclick?' markhin-dash-clickable':''}"${onclick?` onclick="${onclick}"`:''}>${icon?icon+' ':''}${label}<b>${val}</b></div>`;
 
+    // ---- Reorganised layout: stats / collections / folders / tags / recent, as collapsible sections ----
+    const noteFoldersOf=x=>{ try{ return ((window.mu_noteFolders?window.mu_noteFolders(x):[x.folder])||[]).filter(f=>f&&f!==DEFAULT_FOLDER); }catch(_){ return x.folder?[x.folder]:[]; } };
+    const folderCounts=Object.create(null); let noFolderN=0;
+    notes.forEach(x=>{ const fl=noteFoldersOf(x); if(!fl.length) noFolderN++; fl.forEach(f=>{ folderCounts[f]=(folderCounts[f]||0)+1; }); });
+    const folderNames=Object.keys(folderCounts).sort((a,b)=>folderCounts[b]-folderCounts[a]);
+
+    const sec=(icon,title,badge,body,open)=>`<details class="mdb-sec"${open?' open':''}><summary><span>${icon} ${title}</span>${badge===''?'':`<em>${badge}</em>`}</summary><div class="mdb-body">${body}</div></details>`;
+
     const heroGrid=[
         statCard('',fa?'یادداشت‌ها':'Notes',notes.length),
         statCard('',fa?'کلمات':'Words',words),
         statCard('',fa?'حروف':'Characters',chars),
-        statCard('📁',fa?'پوشه‌ها':'Folders',folders.length),
+        statCard('',fa?'میانگین کلمات':'Avg words',avgWords),
     ].join('');
 
-    const actionGrid=[
+    const collections=[
         statCard('📌',fa?'پین‌شده':'Pinned',pinnedN,"markhinDash_showList('pinned')"),
         statCard('⭐',fa?'علاقه‌مندی':'Favorite',favN,"markhinDash_showList('favorite')"),
         statCard('🔒',fa?'قفل‌شده':'Locked',lockedN,"markhinDash_showList('locked')"),
-        statCard('🎭',fa?'فریب‌دهنده':'Decoy',fakeN,"markhinDash_showList('fake')"),
         statCard('📦',fa?'بایگانی':'Archived',archivedN,"markhinDash_showList('archived')"),
-        statCard('👻',fa?'Ghost فعال':'Active Ghost',ghostN,ghostN?"markhinDash_showList('ghost')":''),
-        statCard('⏳',fa?'کپسول زمانی':'Time Capsule',capsuleN,capsuleN?"markhinDash_showList('capsule')":''),
-        statCard('#',fa?'تگ‌ها':'Tags',tags.length),
-        statCard('📝',fa?'میانگین کلمات':'Avg words',avgWords),
+        fakeN?statCard('🎭',fa?'فریب‌دهنده':'Decoy',fakeN,"markhinDash_showList('fake')"):'',
+        ghostN?statCard('👻',fa?'Ghost فعال':'Active Ghost',ghostN,"markhinDash_showList('ghost')"):'',
+        capsuleN?statCard('⏳',fa?'کپسول زمانی':'Time Capsule',capsuleN,"markhinDash_showList('capsule')"):'',
     ].join('');
 
-    const tagCloudHtml=tags.length
-        ? tags.map(t=>{const c=tagCounts[t];const ratio=c/maxTagCount;const size=(11+ratio*9).toFixed(1);const op=(0.6+ratio*0.4).toFixed(2);
-            return `<span class="markhin-tag markhin-dash-tag" style="font-size:${size}px;opacity:${op}" onclick="markhinDash_showList('tag',${JSON.stringify(t)})">#${escapeHtml(t)} <small>${c}</small></span>`;}).join('')
-        : `<span style="opacity:.5;font-size:11px">${fa?'هنوز تگی ثبت نشده.':'No tags yet.'}</span>`;
+    const chip=(attr,val,label,n)=>`<button type="button" class="mdb-chip" ${attr}="${escapeHtml(val)}"><bdi>${label}</bdi> <small>${n}</small></button>`;
+    const folderChips=folderNames.map(f=>chip('data-dfolder',f,'📁 '+escapeHtml(f),folderCounts[f])).join('')
+        +(noFolderN&&folderNames.length?chip('data-dfolder','',fa?'بدون پوشه':'No folder',noFolderN):'');
+
+    const TAG_MAX=30;
+    const tagChips=tags.slice(0,TAG_MAX).map(t=>{const c=tagCounts[t];const size=(11+(c/maxTagCount)*7).toFixed(1);
+        return `<button type="button" class="mdb-chip tag" style="font-size:${size}px" data-dtag="${escapeHtml(t)}"><bdi>#${escapeHtml(t)}</bdi> <small>${c}</small></button>`;}).join('')
+        +(tags.length>TAG_MAX?`<span class="mdb-note">+${tags.length-TAG_MAX} ${fa?'تگ دیگر (با جستجوی #تگ پیدا می‌شوند)':'more tags (find them with #tag search)'}</span>`:'');
 
     const recentHtml=recent.length
         ? recent.map(x=>markhinDash_noteRowHtml(x,{metaLabel:new Date(Date.parse(x.lastEdited)||Date.now()).toLocaleDateString(fa?'fa-IR':'en-US')})).join('')
         : `<div class="markhin-smart-empty">${fa?'یادداشتی وجود ندارد.':'No notes yet.'}</div>`;
-
     const longestHtml=longest
-        ? `<div class="markhin-smart-item" data-id="${escapeHtml(longest.id)}"><b>🏆 ${escapeHtml(longest.name||'')}</b><div class="snippet">${fa?'طولانی‌ترین یادداشت':'Longest note'} — ${markhinDash_wordCount(longest)} ${fa?'کلمه':'words'}</div></div>`
+        ? `<div class="markhin-smart-item" data-id="${escapeHtml(longest.id)}"><b>🏆 ${escapeHtml(longest.titleHidden?'•••••':(longest.name||''))}</b><div class="snippet">${fa?'طولانی‌ترین یادداشت':'Longest note'} — ${markhinDash_wordCount(longest)} ${fa?'کلمه':'words'}</div></div>`
         : '';
 
     showAdvanced(markhinDash_headHtml(`📊 ${fa?'داشبورد Markhin Note':'Markhin Note Dashboard'}`,false)+
-        `<div class="markhin-dashboard-grid">${heroGrid}</div>`+
-        `<p class="dna-section-title" style="margin-top:16px">${fa?'میانبرها':'Quick filters'}</p>`+
-        `<div class="markhin-dashboard-grid">${actionGrid}</div>`+
-        `<p class="dna-section-title" style="margin-top:16px">${fa?'ابر تگ‌ها — روی هرکدام بزن':'Tag cloud — tap to filter'}</p>`+
-        `<div class="markhin-tag-cloud">${tagCloudHtml}</div>`+
-        (recent.length?`<p class="dna-section-title" style="margin-top:16px">${fa?'اخیراً ویرایش‌شده':'Recently edited'}</p><div class="markhin-smart-results">${recentHtml}</div>`:'')+
-        (longestHtml?`<p class="dna-section-title" style="margin-top:16px">${fa?'رکورد':'Record'}</p><div class="markhin-smart-results">${longestHtml}</div>`:'')
+        `<div class="markhin-dashboard-grid mdb-grid">${heroGrid}</div>`+
+        `<p class="dna-section-title" style="margin-top:16px">${fa?'دسته‌بندی‌ها — روی هرکدام بزن':'Collections — tap to open'}</p>`+
+        `<div class="markhin-dashboard-grid mdb-grid">${collections}</div>`+
+        `<div class="mdb-secs">`+
+        (folderChips?sec('📁',fa?'پوشه‌ها':'Folders',folderNames.length,`<div class="mdb-chips">${folderChips}</div>`,true):'')+
+        sec('#',fa?'تگ‌ها':'Tags',tags.length,tags.length?`<div class="mdb-chips">${tagChips}</div>`:`<span class="mdb-note">${fa?'هنوز تگی ثبت نشده.':'No tags yet.'}</span>`,tags.length>0&&tags.length<=12)+
+        sec('🕘',fa?'اخیراً ویرایش‌شده':'Recently edited',recent.length,`<div class="markhin-smart-results">${recentHtml}</div>`,true)+
+        (longestHtml?sec('🏆',fa?'رکورد':'Record','',`<div class="markhin-smart-results">${longestHtml}</div>`,false):'')+
+        `</div>`
     );
+    {
+        const _card=document.getElementById('advancedCard');
+        if(_card){
+            _card.querySelectorAll('[data-dtag]').forEach(b=>{ b.onclick=()=>markhinDash_showList('tag',b.dataset.dtag); });
+            _card.querySelectorAll('[data-dfolder]').forEach(b=>{ b.onclick=()=>markhinDash_showList('folder',b.dataset.dfolder); });
+        }
+    }
     document.getElementById('advancedCard')?.classList.add('kg-wide');
     markhinDash_bindRows(document.getElementById('advancedCard'));
 }
@@ -21014,7 +21138,7 @@ window.renderButtons = function(filtered){
         if(b.className !== wantClass) b.className = wantClass;
         b.setAttribute('aria-expanded', activeOpenId===item.id ? 'true':'false');
         b.style.animationDelay = window.MarkhinNoteDeleteMode ? '0s' : '';
-        const titleHtml = escapeHtml(isNoteLocked(item)?'🔒 ':'') + window.mu_flagIcons(item) + escapeHtml((item.fakeContent?'🎭 ':'')+(item.titleHidden ? '•••••' : mu_isolateNumbers(String(item.name||''))));
+        const titleHtml = escapeHtml(isNoteLocked(item)?'🔒 ':'') + (window.mu_flagIconsList||window.mu_flagIcons)(item) + escapeHtml((item.fakeContent?'🎭 ':'')+(item.titleHidden ? '•••••' : mu_isolateNumbers(String(item.name||''))));
         const metaLines = (item.titleHidden || !mu_getNotePreviewEnabled()) ? [] : mu_notePreviewLinesArr(item);
         const wantHtml = '<span class="note-item-title'+(item.titleHidden?' is-masked':'')+'" dir="auto">'+titleHtml+'</span>'
             + (metaLines.length ? '<span class="note-item-meta" data-pv="'+encodeURIComponent(JSON.stringify(metaLines))+'">'+metaLines.map(l=>'<span class="note-item-meta-line" dir="auto">'+escapeHtml(l)+'</span>').join('')+'</span>' : '');
@@ -21487,6 +21611,9 @@ window.moveFolderOrder = function(name, dir){
                   + '<button type="button" class="markhin-move-menu-btn mu-sel-flag'+(_allFav?' mu-on':'')+'" id="muSelFav" title="'+(_allFav?(fa?'حذف از فیوریت':'Remove from Favorites'):(fa?'افزودن به فیوریت':'Add to Favorites'))+'">'+_ic('<path d="M12 3.6l2.5 5.2 5.7.8-4.1 4 1 5.7L12 16.6l-5.1 2.7 1-5.7-4.1-4 5.7-.8L12 3.6z"/>')+'</button>'
                   + '<button type="button" class="markhin-move-menu-btn mu-sel-flag" id="muSelDup" title="'+(fa?'کپی یادداشت':'Duplicate')+'">'+_ic('<rect x="8.5" y="8.5" width="11.5" height="11.5" rx="3"/><path d="M15.5 8.5V6.8A2.8 2.8 0 0 0 12.7 4H6.8A2.8 2.8 0 0 0 4 6.8v5.9a2.8 2.8 0 0 0 2.8 2.8h1.7"/><path d="M14.25 11.9v4.7M11.9 14.25h4.7"/>')+'</button>';
         }
+        if(count >= 1){
+            html += '<button type="button" class="markhin-move-menu-btn mu-sel-flag" id="muSelLock" title="'+(fa?'رمزگذاری':'Lock')+'" aria-label="'+(fa?'رمزگذاری':'Lock')+'"><svg class="mu-ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="5" y="10.5" width="14" height="9.5" rx="2.5"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></svg></button>';
+        }
         if(count === 1){
             html += '<button type="button" class="markhin-move-menu-btn" id="muSelMoveUp" title="'+(fa?'جابجایی به بالا':'Move up')+'">▲</button>'
                   + '<button type="button" class="markhin-move-menu-btn" id="muSelMoveDown" title="'+(fa?'جابجایی به پایین':'Move down')+'">▼</button>';
@@ -21496,12 +21623,23 @@ window.moveFolderOrder = function(name, dir){
         }
         html += '<button type="button" class="markhin-move-menu-btn" id="muSelCancel" title="'+(fa?'انصراف':'Cancel')+'">✖</button></span>';
         bar.innerHTML = html;
+        // Lock / Pin buttons only appear while they still make sense: as soon as a picked note is
+        // already locked (has a password) the lock icon is left out, and as soon as a picked note
+        // is already pinned the pin icon is left out.
+        try{
+            const _its = Array.from(window.MarkhinSelectedNoteIds).map(id=>categories.find(c=>String(c.id)===id)).filter(Boolean);
+            if(_its.some(i=>isNoteLocked(i))){ const _b = bar.querySelector('#muSelLock'); if(_b) _b.remove(); }
+            if(_its.some(i=>i.pinned) && !_its.every(i=>i.pinned)){ const _b = bar.querySelector('#muSelPin'); if(_b) _b.remove(); }
+            if(_its.some(i=>i.favorite) && !_its.every(i=>i.favorite)){ const _b = bar.querySelector('#muSelFav'); if(_b) _b.remove(); }
+        }catch(e){}
 
         const idsArr = Array.from(window.MarkhinSelectedNoteIds);
         const pinBtn = document.getElementById('muSelPin');
         if(pinBtn) pinBtn.onclick = ()=>mu_bulkSelectedFlag('pinned');
         const favBtn = document.getElementById('muSelFav');
         if(favBtn) favBtn.onclick = ()=>mu_bulkSelectedFlag('favorite');
+        const lockBtn = document.getElementById('muSelLock');
+        if(lockBtn) lockBtn.onclick = ()=>{ if(typeof window.mu_bulkLockSelected === 'function') window.mu_bulkLockSelected(); };
         const dupBtn = document.getElementById('muSelDup');
         if(dupBtn) dupBtn.onclick = mu_bulkDuplicateSelected;
         const upBtn = document.getElementById('muSelMoveUp');
@@ -21528,6 +21666,74 @@ window.moveFolderOrder = function(name, dir){
         showToast(key==='pinned'
             ? (setTo ? (fa?'📌 پین شد':'📌 Pinned') : (fa?'📌 پین برداشته شد':'📌 Unpinned'))
             : (setTo ? (fa?'⭐ به فیوریت اضافه شد':'⭐ Added to Favorites') : (fa?'⭐ از فیوریت حذف شد':'⭐ Removed from Favorites')));
+    };
+    // Lock (password-protect) every picked note with ONE password. The password is typed once
+    // (and repeated once for confirmation when more than one note is picked, so a typo can't
+    // lock many notes behind a password nobody knows), then an optional hint is asked once and
+    // shared by all of them. Notes that are already locked are skipped (they keep their own
+    // password). Cancelling any dialog leaves the selection untouched.
+    window.mu_bulkLockSelected = async function(){
+        const fa = currentLang === 'fa';
+        const items = Array.from(window.MarkhinSelectedNoteIds).map(id=>categories.find(c=>String(c.id)===id)).filter(Boolean);
+        if(!items.length) return;
+        const targets = items.filter(i=>!isNoteLocked(i));
+        const skipped = items.length - targets.length;
+        if(!targets.length){
+            showToast(fa ? '🔒 همهٔ یادداشت‌های انتخاب‌شده از قبل رمز دارند' : '🔒 All selected notes are already locked');
+            return;
+        }
+        const pass = await promptStyledText({
+            title: fa ? (targets.length > 1 ? 'رمزگذاری '+targets.length+' یادداشت' : 'رمزگذاری یادداشت') : (targets.length > 1 ? 'Lock '+targets.length+' notes' : 'Lock note'),
+            placeholder: i18n[currentLang].promptPassLock,
+            type: 'password',
+            okText: fa ? 'قفل کن' : 'Lock'
+        });
+        if(!pass || pass.trim() === '') return;
+        const password = pass.trim();
+        if(targets.length > 1){
+            const again = await promptStyledText({
+                title: fa ? 'تکرار رمز' : 'Repeat password',
+                placeholder: fa ? 'رمز را دوباره وارد کنید' : 'Enter the password again',
+                type: 'password',
+                okText: fa ? 'تأیید' : 'Confirm'
+            });
+            if(again === null || again === undefined) return;
+            if(again.trim() !== password){
+                showToast(fa ? 'رمزها یکسان نبودند؛ چیزی قفل نشد' : 'Passwords did not match; nothing was locked');
+                return;
+            }
+        }
+        const hint = (await promptStyledText({
+            title: fa ? 'راهنمای رمز (اختیاری)' : 'Password hint (optional)',
+            placeholder: i18n[currentLang].promptHint,
+            autoDir: true,
+            okText: fa ? 'باشه' : 'OK'
+        })) || '';
+        let done = 0, failed = 0;
+        for(const item of targets){
+            try{
+                item.encrypted = await encryptNotePayload(password, item.html || '', item.text || '');
+                item.hint = hint.trim();
+                item.isDecoy = false;
+                noteSessionKeys.set(item.id, password);
+                if(window.mu_touchMeta) window.mu_touchMeta(item);
+                done++;
+            }catch(err){ console.error(err); failed++; }
+        }
+        saveToLocalStorage();
+        mu_exitNoteSelectMode();
+        renderApp(activeOpenId);
+        let msg;
+        if(fa){
+            msg = '🔒 ' + done + ' یادداشت رمزگذاری شد';
+            if(skipped) msg += ' (' + skipped + ' مورد از قبل قفل بود)';
+            if(failed) msg += ' — ' + failed + ' مورد ناموفق';
+        } else {
+            msg = '🔒 ' + done + ' note' + (done === 1 ? '' : 's') + ' locked';
+            if(skipped) msg += ' (' + skipped + ' already locked)';
+            if(failed) msg += ' — ' + failed + ' failed';
+        }
+        showToast(msg);
     };
     // Duplicate every picked note (copies are appended, unpinned/unfavorited), then close selection mode.
     window.mu_bulkDuplicateSelected = function(){
@@ -21608,6 +21814,154 @@ window.moveFolderOrder = function(name, dir){
    A ✖ button (or a tap outside the folder row/bar) exits the mode
    and clears the selection without deleting or moving anything.
    --------------------------------------------------------------- */
+/* ---------------------------------------------------------------
+   Pinned folders. A pinned folder is shown first in the folder row (right after
+   the root "All" folder) with a pin mark. Pin it from folder multi-select
+   (long-press a folder -> pin button in the floating bar) or through the AI tool
+   pin_folder. The pinned set is stored on its own (app_pinned_folders_v1) and the
+   `folders` array itself is kept sorted [All, ...pinned, ...others], so the order
+   also survives every existing save/backup path. Pinned folders can only be
+   reordered among pinned ones, and the others only among the others.
+   --------------------------------------------------------------- */
+(function(){
+    var KEY = 'app_pinned_folders_v1';
+    var pins = [];
+    try{ var raw = JSON.parse(localStorage.getItem(KEY) || '[]'); if(Array.isArray(raw)) pins = raw.filter(function(x){ return typeof x === 'string' && x; }); }catch(e){}
+    var ready = false;
+    setTimeout(function(){ ready = true; }, 4000);
+
+    // When the pin list last changed on this device (ms). Travels with the cloud backup so an
+    // un-pin made on one device is applied on the others instead of being re-added from a stale list.
+    var TS_KEY = 'app_pinned_folders_ts_v1';
+    var pinsTs = 0;
+    try{ pinsTs = Number(localStorage.getItem(TS_KEY)) || 0; }catch(e){}
+    function touchTs(){ pinsTs = Date.now(); try{ localStorage.setItem(TS_KEY, String(pinsTs)); }catch(e){} }
+
+    function savePins(silent){
+        try{ localStorage.setItem(KEY, JSON.stringify(pins)); }catch(e){}
+        if(!silent && typeof scheduleCloudBackup === 'function'){ try{ scheduleCloudBackup(); }catch(e){} }
+    }
+    function isPinned(name){ return !!name && name !== DEFAULT_FOLDER && pins.indexOf(String(name)) >= 0; }
+
+    // Drops pins of folders that no longer exist (deleted). Only once startup has finished loading folders.
+    function cleanStale(){
+        if(!ready){ if(Array.isArray(folders) && folders.length > 1) ready = true; else return; }
+        var np = pins.filter(function(p){ return folders.indexOf(p) >= 0; });
+        if(np.length !== pins.length){ pins = np; savePins(); }
+    }
+    // Keeps `folders` as [All, ...pinned, ...others] (stable inside each group).
+    function sortFolders(){
+        if(!Array.isArray(folders) || folders.length < 2) return false;
+        var rest = folders.filter(function(f){ return f !== DEFAULT_FOLDER; });
+        var p = rest.filter(function(f){ return pins.indexOf(f) >= 0; });
+        var u = rest.filter(function(f){ return pins.indexOf(f) < 0; });
+        var next = (folders.indexOf(DEFAULT_FOLDER) >= 0 ? [DEFAULT_FOLDER] : []).concat(p, u);
+        var same = next.length === folders.length && next.every(function(f, i){ return f === folders[i]; });
+        if(same) return false;
+        folders.splice.apply(folders, [0, folders.length].concat(next));
+        return true;
+    }
+    function markTabs(){
+        var c = document.getElementById('foldersContainer');
+        if(!c) return;
+        c.querySelectorAll('.folder-wrapper').forEach(function(w){
+            var n = w.dataset ? w.dataset.folder : '';
+            w.classList.toggle('folder-pinned', isPinned(n));
+        });
+    }
+    // Pin (v=true) or unpin (v=false) one or many folders. Returns true if anything changed.
+    function setPinned(names, v){
+        var changed = false;
+        (Array.isArray(names) ? names : [names]).forEach(function(n){
+            n = String(n || '');
+            if(!n || n === DEFAULT_FOLDER || folders.indexOf(n) < 0) return;
+            var i = pins.indexOf(n);
+            if(v && i < 0){ pins.push(n); changed = true; }
+            else if(!v && i >= 0){ pins.splice(i, 1); changed = true; }
+        });
+        if(!changed) return false;
+        touchTs();
+        savePins();
+        sortFolders();
+        try{ saveFoldersToLocalStorage(); }catch(e){}
+        try{ renderFolders(); }catch(e){}
+        return true;
+    }
+    function renamePin(oldName, newName){
+        var i = pins.indexOf(oldName);
+        if(i < 0) return;
+        pins[i] = newName;
+        touchTs();
+        savePins();
+    }
+    // Restore pins from a backup / cloud payload. Only folders that exist are accepted.
+    function importList(list, onlyIfEmpty){
+        if(!Array.isArray(list)) return;
+        if(onlyIfEmpty && pins.length) return;
+        var changed = false;
+        list.forEach(function(n){
+            if(typeof n === 'string' && n && n !== DEFAULT_FOLDER && folders.indexOf(n) >= 0 && pins.indexOf(n) < 0){ pins.push(n); changed = true; }
+        });
+        if(changed) savePins(true);
+    }
+    // Cloud merge: the side with the newer pin-change time wins, so un-pins propagate too.
+    // A backup written before pin timestamps existed keeps the old behaviour (only fills an empty list).
+    function applyRemote(list, ts){
+        ts = Number(ts) || 0;
+        if(!Array.isArray(list)) return;
+        if(!ts){ importList(list, true); return; }
+        if(ts <= pinsTs) return;
+        var next = [];
+        list.forEach(function(n){
+            if(typeof n === 'string' && n && n !== DEFAULT_FOLDER && folders.indexOf(n) >= 0 && next.indexOf(n) < 0) next.push(n);
+        });
+        pinsTs = ts;
+        try{ localStorage.setItem(TS_KEY, String(pinsTs)); }catch(e){}
+        var same = next.length === pins.length && next.every(function(n){ return pins.indexOf(n) >= 0; });
+        if(same) return;
+        pins = next;
+        savePins(true);
+        sortFolders();
+        try{ saveFoldersToLocalStorage(); }catch(e){}
+        try{ renderFolders(); }catch(e){}
+    }
+    window.MU_FolderPins = {
+        ts: function(){ return pinsTs; },
+        applyRemote: applyRemote,
+        isPinned: isPinned,
+        set: setPinned,
+        list: function(){ return pins.slice(); },
+        rename: renamePin,
+        importList: importList
+    };
+
+    var _origRF = window.renderFolders;
+    window.renderFolders = function(){
+        try{ cleanStale(); sortFolders(); }catch(e){}
+        var r = _origRF.apply(this, arguments);
+        try{ markTabs(); }catch(e){}
+        return r;
+    };
+
+    // Reordering never crosses the pinned / not-pinned boundary.
+    var _origMove = window.moveFolderOrder;
+    if(typeof _origMove === 'function'){
+        window.moveFolderOrder = function(name, dir){
+            var i = folders.indexOf(name), j = i + dir;
+            if(i > 0 && j > 0 && j < folders.length && isPinned(folders[i]) !== isPinned(folders[j])){
+                showToast(currentLang === 'fa' ? '📌 پوشهٔ پین‌شده فقط بین پین‌شده‌ها جابه‌جا می‌شود' : '📌 Pinned folders can only be moved among pinned folders');
+                return;
+            }
+            return _origMove.apply(this, arguments);
+        };
+    }
+
+    var st = document.createElement('style');
+    st.id = 'muPinnedFoldersCss';
+    st.textContent = '';
+    (document.head || document.documentElement).appendChild(st);
+})();
+
 (function(){
     window.MarkhinFolderSelectMode = false;
     window.MarkhinSelectedFolderNames = new Set();
@@ -21678,7 +22032,8 @@ window.moveFolderOrder = function(name, dir){
                 mark.className = 'folder-select-mark';
                 wrap.insertBefore(mark, wrap.firstChild);
             }
-            mark.textContent = picked ? '✅' : '⬜';
+            mark.textContent = '';
+            mark.classList.toggle('on', picked);
             const btn = wrap.querySelector('.folder-tab');
             if(btn){
                 btn.onclick = (e)=>{ e.preventDefault(); e.stopPropagation(); mu_toggleFolderSelection(name); };
@@ -21699,6 +22054,11 @@ window.moveFolderOrder = function(name, dir){
         const count = window.MarkhinSelectedFolderNames.size;
         let html = '<span class="mu-select-bar-count">'+(fa ? (count+' پوشه انتخاب شده') : (count+' selected'))+'</span>'
             + '<span class="mu-select-bar-actions">';
+        if(count >= 1 && window.MU_FolderPins){
+            const _pNames = Array.from(window.MarkhinSelectedFolderNames);
+            const _allP = _pNames.length > 0 && _pNames.every(n => window.MU_FolderPins.isPinned(n));
+            html += '<button type="button" class="markhin-move-menu-btn mu-sel-flag'+(_allP?' mu-on':'')+'" id="muFolderSelPin" title="'+(_allP?(fa?'برداشتن پین':'Unpin'):(fa?'پین کردن':'Pin'))+'"><svg class="mu-ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 3.8h6l-.9 5.3 2.9 3.1v1.9H7v-1.9l2.9-3.1L9 3.8z"/><path d="M12 14.1v6.1"/></svg></button>';
+        }
         if(count === 1){
             html += '<button type="button" class="markhin-move-menu-btn" id="muFolderSelMoveRight" title="'+(fa?'جابجایی به راست':'Move right')+'">▶</button>'
                   + '<button type="button" class="markhin-move-menu-btn" id="muFolderSelMoveLeft" title="'+(fa?'جابجایی به چپ':'Move left')+'">◀</button>';
@@ -21708,12 +22068,26 @@ window.moveFolderOrder = function(name, dir){
         }
         html += '<button type="button" class="markhin-move-menu-btn" id="muFolderSelCancel" title="'+(fa?'انصراف':'Cancel')+'">✖</button></span>';
         bar.innerHTML = html;
+        // Same rule for folders: when the picked folders are a mix of pinned and unpinned, the pin icon is left out (all pinned -> it shows and unpins them).
+        try{
+            if(window.MU_FolderPins && (function(){ const _ns = Array.from(window.MarkhinSelectedFolderNames); return _ns.some(n=>window.MU_FolderPins.isPinned(n)) && !_ns.every(n=>window.MU_FolderPins.isPinned(n)); })()){
+                const _b = bar.querySelector('#muFolderSelPin'); if(_b) _b.remove();
+            }
+        }catch(e){}
 
         const namesArr = Array.from(window.MarkhinSelectedFolderNames);
         const rightBtn = document.getElementById('muFolderSelMoveRight');
         if(rightBtn) rightBtn.onclick = ()=>{ moveFolderOrder(namesArr[0], -1); mu_applyFolderSelectUI(); };
         const leftBtn = document.getElementById('muFolderSelMoveLeft');
         if(leftBtn) leftBtn.onclick = ()=>{ moveFolderOrder(namesArr[0], 1); mu_applyFolderSelectUI(); };
+        const pinBtn = document.getElementById('muFolderSelPin');
+        if(pinBtn) pinBtn.onclick = ()=>{
+            const _fa = currentLang === 'fa';
+            const setTo = !namesArr.every(n => window.MU_FolderPins.isPinned(n));
+            window.MU_FolderPins.set(namesArr, setTo);
+            mu_exitFolderSelectMode();
+            showToast(setTo ? (_fa ? '📌 پوشه پین شد' : '📌 Folder pinned') : (_fa ? 'پین پوشه برداشته شد' : 'Folder unpinned'));
+        };
         const delBtn = document.getElementById('muFolderSelDeleteAll');
         if(delBtn) delBtn.onclick = mu_bulkDeleteSelectedFolders;
         const cancelBtn = document.getElementById('muFolderSelCancel');
@@ -22695,6 +23069,161 @@ function mu_normalizeMaxTokens(v){
 // defined" on click and silently did nothing. Exposing it on window fixes it.
 window.mu_normalizeMaxTokens = mu_normalizeMaxTokens;
 
+/* ============================================================================
+   MarkhinVault — password-encrypted storage for the AI provider settings
+   (which include the API keys).
+   password -> PBKDF2-SHA-256 -> AES-256-GCM. Only ciphertext is persisted (in
+   IndexedDB). The password is never stored; the derived key and the decrypted
+   settings live only in memory for this tab, so they are gone on reload/lock.
+   A tiny non-secret flag in localStorage tells the app that the vault is on, so
+   MarkhinAI.getSettings() can stay synchronous.
+   ========================================================================== */
+const MarkhinVault = window.MarkhinVault = (function(){
+    const HINT = 'markhin_vault_on_v1';
+    const ENV_LS = 'markhin_vault_env_v1';   // ciphertext seeded by an "everything" export
+    const REC = 'ai_settings';
+    const STORE = 'kv';
+    const ITER = 250000, HASH = 'SHA-256', ALG = 'AES-GCM';
+    const DB = 'markhin_vault_v1'
+        + (window.__MU_ACCT_ID ? '_acct_' + window.__MU_ACCT_ID : '')
+        + (window.__MU_SCOPE_ID ? '_s_' + window.__MU_SCOPE_ID : '');
+    let key = null, salt = null, cache = null, lastEnv = null;
+    let chain = Promise.resolve();
+
+    const b2s = u8 => {
+        let s = '';
+        for(let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
+        return btoa(s);
+    };
+    const s2b = str => {
+        const bin = atob(String(str || ''));
+        const u = new Uint8Array(bin.length);
+        for(let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+        return u;
+    };
+    const lsGet = k => { try{ return localStorage.getItem(k); }catch(e){ return null; } };
+
+    function derive(password, slt){
+        if(!(window.crypto && crypto.subtle)) return Promise.reject(new Error('NO_CRYPTO'));
+        return crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey'])
+            .then(m => crypto.subtle.deriveKey(
+                { name:'PBKDF2', salt:slt, iterations:ITER, hash:HASH },
+                m, { name:ALG, length:256 }, false, ['encrypt', 'decrypt']));
+    }
+
+    function openDb(){
+        return new Promise((res, rej) => {
+            if(!window.indexedDB){ rej(new Error('NO_IDB')); return; }
+            let r;
+            try{ r = indexedDB.open(DB, 1); }catch(e){ rej(new Error('NO_IDB')); return; }
+            r.onupgradeneeded = () => { r.result.createObjectStore(STORE); };
+            r.onsuccess = () => res(r.result);
+            r.onerror = () => rej(new Error('IDB_OPEN'));
+            r.onblocked = () => rej(new Error('IDB_BLOCKED'));
+        });
+    }
+    function idbOp(mode, fn){
+        return openDb().then(db => new Promise((res, rej) => {
+            let out;
+            const tx = db.transaction(STORE, mode);
+            const rq = fn(tx.objectStore(STORE));
+            if(rq) rq.onsuccess = () => { out = rq.result; };
+            tx.oncomplete = () => { db.close(); res(out); };
+            tx.onerror = () => { db.close(); rej(new Error('IDB_TX')); };
+            tx.onabort = () => { db.close(); rej(new Error('IDB_ABORT')); };
+        }));
+    }
+    const idbGet = k => idbOp('readonly', st => st.get(k));
+    const idbSet = (k, v) => idbOp('readwrite', st => st.put(v, k));
+    const idbDel = k => idbOp('readwrite', st => st.delete(k));
+
+    async function writeNow(k, slt, obj){
+        if(!k || obj === null) return;
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const pt = new TextEncoder().encode(JSON.stringify(obj));
+        const ct = await crypto.subtle.encrypt({ name:ALG, iv }, k, pt);
+        const env = { v:1, alg:ALG, kdf:'PBKDF2', hash:HASH, iterations:ITER,
+            salt:b2s(slt), iv:b2s(iv), ciphertext:b2s(new Uint8Array(ct)) };
+        await idbSet(REC, env);
+        lastEnv = env;
+    }
+    // Writes are queued so the newest snapshot always lands last. The key and data are
+    // captured now, so locking right after a save cannot lose that save.
+    function persist(){
+        const k = key, slt = salt, obj = cache === null ? null : JSON.parse(JSON.stringify(cache));
+        chain = chain.catch(() => {}).then(() => writeNow(k, slt, obj));
+        return chain;
+    }
+    function lock(){ key = null; salt = null; cache = null; }
+
+    return {
+        isEnabled(){ return lsGet(HINT) === '1'; },
+        isUnlocked(){ return !!key && cache !== null; },
+        getCache(){ return cache; },
+        setCache(obj){ if(key) cache = obj; },
+        persist,
+        lock,
+
+        // Turn the vault on: encrypt `settings` with `password`, and only flag
+        // the vault as enabled once the ciphertext is safely written.
+        async enable(password, settings){
+            salt = crypto.getRandomValues(new Uint8Array(16));
+            key = await derive(password, salt);
+            cache = JSON.parse(JSON.stringify(settings));
+            try{
+                await persist();
+                try{ localStorage.setItem(HINT, '1'); }
+                catch(e){ throw new Error('NO_LS'); }
+            }catch(e){
+                try{ await idbDel(REC); }catch(_){}
+                lock();
+                throw e;
+            }
+        },
+
+        async unlock(password){
+            let env = null;
+            try{ env = await idbGet(REC); }catch(e){ env = null; }
+            if(!env){
+                // An "everything" export carries the ciphertext in localStorage; move it into IndexedDB.
+                const raw = lsGet(ENV_LS);
+                if(raw){
+                    try{ env = JSON.parse(raw); }catch(e){ env = null; }
+                    if(env){
+                        try{ await idbSet(REC, env); localStorage.removeItem(ENV_LS); }catch(e){}
+                    }
+                }
+            }
+            if(!env) throw new Error('NO_DATA');
+            if(env.v !== 1 || env.alg !== ALG || env.kdf !== 'PBKDF2' || env.hash !== HASH || env.iterations !== ITER){
+                throw new Error('BAD_FORMAT');
+            }
+            const slt = s2b(env.salt);
+            const k = await derive(password, slt);
+            let obj;
+            try{
+                const pt = await crypto.subtle.decrypt({ name:ALG, iv:s2b(env.iv) }, k, s2b(env.ciphertext));
+                obj = JSON.parse(new TextDecoder().decode(pt));
+            }catch(e){ throw new Error('BAD_PASSWORD'); }
+            key = k; salt = slt; cache = obj; lastEnv = env;
+        },
+
+        // Forgotten password: delete the encrypted copy. The keys are gone.
+        async reset(){
+            lock();
+            lastEnv = null;
+            try{ await idbDel(REC); }catch(e){}
+            try{ localStorage.removeItem(HINT); localStorage.removeItem(ENV_LS); }catch(e){}
+        },
+
+        // Ciphertext only — safe to put in an exported file.
+        async exportEnvelope(){
+            if(lastEnv) return lastEnv;
+            try{ return await idbGet(REC); }catch(e){ return null; }
+        }
+    };
+})();
+
 const MarkhinAI = window.MarkhinAI = {
     KEY:'markhin_ai_settings_v2',
     OLD_KEY:'markhin_ai_settings_v1',
@@ -22723,15 +23252,35 @@ const MarkhinAI = window.MarkhinAI = {
     },
 
     getSettings(){
-        let s = safeParseJSON(localStorage.getItem(this.KEY)||'null', null);
-        if(!s) s = this._migrateOld() || { activeId:'openai', builtins:{}, customProviders:[] };
+        let s;
+        if(window.MarkhinVault && MarkhinVault.isEnabled()){
+            // Vault on: the only copy of the settings is the decrypted one held in memory
+            // (an empty default while locked, so no key is available until unlocked).
+            const c = MarkhinVault.isUnlocked() ? MarkhinVault.getCache() : null;
+            s = c ? JSON.parse(JSON.stringify(c)) : { activeId:'openai', builtins:{}, customProviders:[] };
+        } else {
+            s = safeParseJSON(localStorage.getItem(this.KEY)||'null', null);
+            if(!s) s = this._migrateOld() || { activeId:'openai', builtins:{}, customProviders:[] };
+        }
         if(!s.builtins) s.builtins = {};
         if(!Array.isArray(s.customProviders)) s.customProviders = [];
         if(!s.activeId) s.activeId = 'openai';
         return s;
     },
-    saveSettings(s){ try{ localStorage.setItem(this.KEY, JSON.stringify(s)); }catch(e){} },
-    clear(){ try{ localStorage.removeItem(this.KEY); localStorage.removeItem(this.OLD_KEY); }catch(e){} },
+    saveSettings(s){
+        if(window.MarkhinVault && MarkhinVault.isEnabled()){
+            // Never write while locked (would overwrite the encrypted copy with empty defaults).
+            if(!MarkhinVault.isUnlocked()) return;
+            MarkhinVault.setCache(JSON.parse(JSON.stringify(s)));
+            MarkhinVault.persist().catch(()=>{});
+            return;
+        }
+        try{ localStorage.setItem(this.KEY, JSON.stringify(s)); }catch(e){}
+    },
+    clear(){
+        try{ localStorage.removeItem(this.KEY); localStorage.removeItem(this.OLD_KEY); }catch(e){}
+        if(window.MarkhinVault) MarkhinVault.reset();
+    },
 
     // Speaking-style ("لحن") preference — deliberately its own tiny
     // localStorage slot rather than a field on `s` above, so it survives
@@ -22863,6 +23412,7 @@ const MarkhinAI = window.MarkhinAI = {
     },
 
     isConfigured(){ const p=this.getActiveProvider(); return !!(p && p.apiKey); },
+    isLocked(){ return !!(window.MarkhinVault && MarkhinVault.isEnabled() && !MarkhinVault.isUnlocked()); },
 
     // Turns a raw {promptTokens, completionTokens} usage reading (as
     // reported by chat()'s opts.onUsage) into a displayable summary: adds
@@ -22913,7 +23463,9 @@ const MarkhinAI = window.MarkhinAI = {
         const p = this.getActiveProvider();
         const fa = currentLang==='fa';
         if(!p) throw new Error(fa ? 'ارائه‌دهنده انتخاب‌شده پیدا نشد.' : 'Selected provider was not found.');
-        if(!p.apiKey) throw new Error(fa ? 'کلید API تنظیم نشده است.' : 'API key is not set.');
+        if(!p.apiKey) throw new Error((window.MarkhinVault && MarkhinVault.isEnabled() && !MarkhinVault.isUnlocked())
+            ? (fa ? 'کلیدها قفل هستند؛ در تنظیمات AI قفل را باز کن.' : 'API keys are locked; unlock them in AI settings.')
+            : (fa ? 'کلید API تنظیم نشده است.' : 'API key is not set.'));
         const maxTokens = opts.maxTokens || 500;
         const tools0 = Array.isArray(opts.tools) && opts.tools.length ? opts.tools : null;
         let tools = tools0;
@@ -23150,7 +23702,7 @@ const MarkhinAI = window.MarkhinAI = {
             // ceiling — turnMaxTokens/closingMaxTokens below were raised
             // to match, so there's still real room left for the reply.
             if(opts.thinking && p.id === 'anthropic' && maxTokens >= 2048){
-                body.thinking = { type:'enabled', budget_tokens: Math.max(2048, Math.min(maxTokens - 1024, 32000)) };
+                body.thinking = { type:'enabled', budget_tokens: Math.max(1024, Math.min(maxTokens - 1024, 32000)) };
             }
             if(tools){
                 // The Markhin note-management tools, plus Anthropic's own
@@ -23189,7 +23741,7 @@ const MarkhinAI = window.MarkhinAI = {
             // tools, since there's no follow-up turn to replay them into)
             // so runAiTurn can attach them to the assistant turn it stores
             // in convo — see the thinking-block replay logic above.
-            const thinkingBlocks = blocks.filter(b=>b.type==='thinking').map(b=>({ type:'thinking', thinking:b.thinking||'', signature:b.signature||'' }));
+            const thinkingBlocks = blocks.filter(b=>b.type==='thinking' || b.type==='redacted_thinking').map(b=> b.type==='redacted_thinking' ? ({ type:'redacted_thinking', data:b.data||'' }) : ({ type:'thinking', thinking:b.thinking||'', signature:b.signature||'' }));
             if(!tools) return text;
             const toolCalls = blocks.filter(b=>b.type==='tool_use').map(b=>({ id:b.id, name:b.name, input:b.input||{} }));
             // Upgrade: surface whether Anthropic cut this reply off by
@@ -23311,7 +23863,7 @@ const MarkhinAI = window.MarkhinAI = {
         // Upgrade: same higher ceiling as the non-streaming path above —
         // see the comment there.
         if(opts.thinking && p.id === 'anthropic' && maxTokens >= 2048){
-            body.thinking = { type:'enabled', budget_tokens: Math.max(2048, Math.min(maxTokens - 1024, 32000)) };
+            body.thinking = { type:'enabled', budget_tokens: Math.max(1024, Math.min(maxTokens - 1024, 32000)) };
         }
         if(tools){
             // Same native web_search addition as the non-streaming path —
@@ -23343,8 +23895,9 @@ const MarkhinAI = window.MarkhinAI = {
         const blocks = {};
         while(true){
             const { done, value } = await reader.read();
-            if(done) break;
-            buf += decoder.decode(value, { stream:true });
+            if(done){ buf += decoder.decode() + '\n\n'; }
+            else { buf += decoder.decode(value, { stream:true }); }
+            buf = buf.replace(/\r\n/g, '\n');
             let sep;
             while((sep = buf.indexOf('\n\n')) >= 0){
                 const chunk = buf.slice(0, sep);
@@ -23383,6 +23936,8 @@ const MarkhinAI = window.MarkhinAI = {
                         // to make a tool call (see the aMessages builder
                         // above / mAiOnDelta in the chat widget).
                         blocks[evt.index] = { type:'thinking', thinking:'', signature:'' };
+                    } else if(cbType === 'redacted_thinking'){
+                        blocks[evt.index] = { type:'redacted_thinking', data: evt.content_block.data || '' };
                     } else {
                         blocks[evt.index] = { type: cbType || 'other', text:'', json:'' };
                     }
@@ -23414,6 +23969,7 @@ const MarkhinAI = window.MarkhinAI = {
                     throw new Error('Anthropic: ' + ((evt.error && evt.error.message) || 'stream error'));
                 }
             }
+            if(done) break;
         }
         // A custom "Anthropic-style" base URL that doesn't actually speak
         // real Anthropic SSE (a non-streaming-capable proxy that still
@@ -23444,7 +24000,7 @@ const MarkhinAI = window.MarkhinAI = {
             catch(e){ input = { __mai_malformed__: true, __mai_raw__: String(b.json || '').slice(0, 300) }; }
             return { id:b.id, name:b.name, input };
         });
-        const thinkingBlocks = Object.keys(blocks).map(k=>blocks[k]).filter(b=>b.type==='thinking').map(b=>({ type:'thinking', thinking:b.thinking||'', signature:b.signature||'' }));
+        const thinkingBlocks = Object.keys(blocks).map(k=>blocks[k]).filter(b=>b.type==='thinking' || b.type==='redacted_thinking').map(b=> b.type==='redacted_thinking' ? ({ type:'redacted_thinking', data:b.data||'' }) : ({ type:'thinking', thinking:b.thinking||'', signature:b.signature||'' }));
         // Upgrade: same truncation signal as the non-streaming path — see
         // the comment there.
         const truncated = stopReason === 'max_tokens';
@@ -23497,8 +24053,8 @@ const MarkhinAI = window.MarkhinAI = {
         const toolAcc = {};
         while(true){
             const { done, value } = await reader.read();
-            if(done) break;
-            buf += decoder.decode(value, { stream:true });
+            if(done){ buf += decoder.decode() + '\n'; }
+            else { buf += decoder.decode(value, { stream:true }); }
             let nl;
             while((nl = buf.indexOf('\n')) >= 0){
                 const line = buf.slice(0, nl).trim();
@@ -23529,7 +24085,14 @@ const MarkhinAI = window.MarkhinAI = {
                 }
                 if(Array.isArray(delta.tool_calls)){
                     delta.tool_calls.forEach(tc=>{
-                        const i = tc.index != null ? tc.index : 0;
+                        let i = tc.index != null ? tc.index : 0;
+                        // Some OpenAI-compatible providers (Gemini's among them) reuse one index for
+                        // several parallel calls. A different id on an occupied slot means a NEW call:
+                        // give it its own slot instead of gluing names/arguments together.
+                        if(tc.id && toolAcc[i] && toolAcc[i].id && toolAcc[i].id !== tc.id){
+                            const known = Object.keys(toolAcc).find(function(k){ return toolAcc[k].id === tc.id; });
+                            i = (known !== undefined) ? known : ('x' + Object.keys(toolAcc).length);
+                        }
                         if(!toolAcc[i]) toolAcc[i] = { id:'', name:'', args:'' };
                         if(tc.id) toolAcc[i].id = tc.id;
                         if(tc.function){
@@ -23539,6 +24102,7 @@ const MarkhinAI = window.MarkhinAI = {
                     });
                 }
             }
+            if(done) break;
         }
         // Same reasoning as the Anthropic stream: if the response came
         // back 200 OK but we never actually parsed one real SSE event out
@@ -23803,7 +24367,167 @@ window.runSmartSearch = mu_openSmartSearchModal;
 // click creates it and remembers its id; later clicks (Test or the final
 // Create & select) update that same entry instead of creating another one.
 let mu_pendingNewProviderId = null;
+/* ---- MarkhinVault UI: setup / unlock dialog + status row in AI settings ---- */
+/* ---- MarkhinVault help text (shown inside the password dialog) ---- */
+function mu_vaultHelpHtml(fa, open){
+    const li = t => `<li style="margin:4px 0">${t}</li>`;
+    const body = fa ? `
+        <p style="margin:6px 0"><b>این رمز چیست؟</b><br>رمزی است که فقط برای قفل کردن کلیدهای API (مثل کلید OpenAI یا Gemini) استفاده می‌شود. با رمز یادداشت‌ها جداست و به آن‌ها ربطی ندارد.</p>
+        <p style="margin:6px 0"><b>چه چیزی رمز می‌شود؟</b><br>همه‌ی تنظیمات AI، شامل کلید همه‌ی ارائه‌دهنده‌ها، مدل‌ها و آدرس‌ها. رمزنگاری با AES-256 انجام می‌شود و فقط نسخه‌ی رمزشده در IndexedDB مرورگر می‌ماند. رمز و کلیدِ بازشده هیچ‌وقت ذخیره نمی‌شوند.</p>
+        <p style="margin:6px 0"><b>چه زمانی رمز می‌پرسد؟</b><br>اولین باری که بعد از باز کردن برنامه بخواهی از AI استفاده کنی یا تنظیمات AI را باز کنی. بعد از آن تا وقتی برنامه را نبسته‌ای یا دکمه‌ی «قفل کردن» را نزده‌ای، دوباره نمی‌پرسد.</p>
+        <p style="margin:6px 0"><b>اگر رمز را فراموش کنم؟</b><br>رمز قابل بازیابی نیست، چون جایی ذخیره نشده. در پنجره‌ی باز کردن قفل، لینک «رمز را فراموش کرده‌ام» کلیدهای ذخیره‌شده را پاک می‌کند و باید دوباره واردشان کنی (یا از سایت سرویس‌دهنده کلید جدید بگیری). یادداشت‌هایت آسیبی نمی‌بینند.</p>
+        <p style="margin:6px 0"><b>خروجی HTML و بکاپ</b><br>اگر رمزنگاری روشن باشد، در خروجی «everything» فقط نسخه‌ی رمزشده‌ی کلیدها می‌رود، نه خود کلید. فایل خروجی هم برای استفاده از AI همین رمز را می‌خواهد. هر کسی که فایل را داشته باشد می‌تواند آفلاین رمز را حدس بزند، پس رمز قوی انتخاب کن.</p>
+        <p style="margin:6px 0"><b>رمز خوب چه شکلی است؟</b></p>
+        <ul style="margin:0;padding-inline-start:18px">
+            ${li('حداقل ۱۲ کاراکتر یا یک جمله‌ی طولانی که فقط خودت می‌دانی')}
+            ${li('تکراری یا شبیه رمز حساب‌های دیگر نباشد')}
+            ${li('تاریخ تولد، اسم، شماره‌تلفن و رمزهایی مثل 123456 را نزن')}
+            ${li('رمز را در یک مدیر رمز (password manager) یا جای امن بنویس')}
+        </ul>
+        <p style="margin:8px 0 0"><b>محدودیت‌ها</b><br>رمزنگاری از کلیدهای ذخیره‌شده محافظت می‌کند. وقتی قفل باز است، کلید در حافظه‌ی همین صفحه است و کدی که در همین صفحه اجرا شود می‌تواند به آن برسد. بنابراین برنامه را فقط از منبع مطمئن باز کن و بعد از کار با AI در جای عمومی «قفل کردن» را بزن. اگر مرورگر داده‌ی سایت را پاک کند (مثلاً با پاک‌کردن حافظه)، نسخه‌ی رمزشده هم از بین می‌رود و باید کلیدها را دوباره وارد کنی.</p>`
+    : `
+        <p style="margin:6px 0"><b>What is this password?</b><br>A password used only to lock your API keys (OpenAI, Gemini, etc.). It is separate from your note passwords and has nothing to do with them.</p>
+        <p style="margin:6px 0"><b>What gets encrypted?</b><br>All AI settings, including every provider's key, model and base URL. Encryption is AES-256, and only the encrypted copy stays in the browser's IndexedDB. The password and the decrypted keys are never saved.</p>
+        <p style="margin:6px 0"><b>When will it ask?</b><br>The first time after opening the app that you use AI or open AI settings. After that it will not ask again until you close the app or tap "Lock now".</p>
+        <p style="margin:6px 0"><b>What if I forget it?</b><br>It cannot be recovered because it is stored nowhere. On the unlock screen, the "I forgot the password" link deletes the saved keys and you enter them again (or create new ones at your provider). Your notes are not affected.</p>
+        <p style="margin:6px 0"><b>HTML export and backups</b><br>With encryption on, an "everything" export carries only the encrypted copy of the keys, never the keys themselves. The exported file needs this same password to use AI. Anyone who has that file can try to guess the password offline, so choose a strong one.</p>
+        <p style="margin:6px 0"><b>What makes a good password?</b></p>
+        <ul style="margin:0;padding-inline-start:18px">
+            ${li('At least 12 characters, or a long phrase only you know')}
+            ${li('Not reused from, or similar to, other accounts')}
+            ${li('No birthdays, names, phone numbers, or passwords like 123456')}
+            ${li('Keep it in a password manager or another safe place')}
+        </ul>
+        <p style="margin:8px 0 0"><b>Limits</b><br>Encryption protects the saved keys. While unlocked, the key is in this page\'s memory and any code running in this same page could reach it. So only open the app from a trusted source, and tap "Lock now" after using AI on a shared device. If the browser clears site data, the encrypted copy is lost too and you will need to enter your keys again.</p>`;
+    return `<details ${open ? 'open' : ''} style="margin:8px 0;border:1px solid rgba(128,128,128,.35);border-radius:10px;padding:8px 12px;font-size:12px;line-height:1.9">
+        <summary style="cursor:pointer;font-weight:600">${fa ? '❓ راهنمای کامل رمز کلیدها' : '❓ Full help: key password'}</summary>
+        <div style="margin-top:6px;opacity:.92">${body}</div>
+    </details>`;
+}
+
+function mu_vaultDialog(mode){
+    return new Promise(resolve => {
+        const fa = currentLang === 'fa';
+        const setup = mode === 'setup';
+        const uid = 'mvd' + Date.now() + Math.random().toString(36).slice(2, 6);
+        const modalEl = document.getElementById('advancedModal');
+        let settled = false, resetArmed = false;
+        const finish = v => {
+            if (settled) return;
+            settled = true;
+            if (modalEl) modalEl.removeEventListener('click', outsideClick, true);
+            closeAdvancedModal();
+            resolve(v);
+        };
+        const outsideClick = e => { if (e.target === modalEl) finish(false); };
+        if (modalEl) modalEl.addEventListener('click', outsideClick, true);
+
+        const errMsg = e => {
+            const m = String((e && e.message) || e);
+            if (m === 'BAD_PASSWORD') return fa ? 'رمز اشتباه است.' : 'Wrong password.';
+            if (m === 'NO_DATA') return fa ? 'داده‌ی رمزشده پیدا نشد (شاید مرورگر آن را پاک کرده). گزینه‌ی «فراموش کرده‌ام» را بزن و کلیدها را دوباره وارد کن.' : 'No encrypted data was found (the browser may have cleared it). Use the "forgot" link and enter your keys again.';
+            if (m === 'BAD_FORMAT') return fa ? 'فرمت داده‌ی رمزشده پشتیبانی نمی‌شود.' : 'Unsupported encrypted data format.';
+            if (m === 'NO_CRYPTO') return fa ? 'Web Crypto در این مرورگر در دسترس نیست.' : 'Web Crypto is not available in this browser.';
+            if (/IDB|NO_LS/.test(m)) return fa ? 'ذخیره‌سازی IndexedDB در این مرورگر در دسترس نیست؛ کلیدها بدون تغییر ماندند.' : 'IndexedDB storage is unavailable here; your keys were left unchanged.';
+            return m;
+        };
+
+        const title = setup ? (fa ? 'رمزنگاری کلیدهای API' : 'Encrypt API keys') : (fa ? 'باز کردن قفل کلیدها' : 'Unlock API keys');
+        const desc = setup
+            ? (fa ? 'یک رمز انتخاب کن. کلیدها با AES-256 رمز می‌شوند و فقط نسخه‌ی رمزشده در IndexedDB می‌ماند. برای استفاده از AI هر بار که برنامه را باز می‌کنی یک بار رمز لازم است. اگر رمز را فراموش کنی، کلیدها قابل بازیابی نیستند و باید دوباره واردشان کنی.'
+                  : 'Choose a password. Keys are encrypted with AES-256 and only the encrypted copy stays in IndexedDB. You enter the password once each time you open the app and use AI. If you forget it the keys cannot be recovered — you would have to enter them again.')
+            : (fa ? 'برای استفاده از AI رمز کلیدها را وارد کن.' : 'Enter the key password to use AI.');
+
+        showAdvanced(`
+            <div class="advanced-head">
+                <h3 style="margin:0">${setup ? '🔐' : '🔒'} ${escapeHtml(title)}</h3>
+                <button class="btn-main" type="button" id="${uid}_x">✕</button>
+            </div>
+            <p style="opacity:.7;font-size:12px;line-height:1.9">${escapeHtml(desc)}</p>
+            ${mu_vaultHelpHtml(fa, setup)}
+            <div class="markhin-filename-row">
+                <input type="password" id="${uid}_p1" class="markhin-filename-input" placeholder="${escapeHtml(setup ? (fa ? 'رمز جدید (حداقل ۶ کاراکتر)' : 'New password (min 6 chars)') : (fa ? 'رمز کلیدها' : 'Key password'))}" maxlength="512" autocomplete="${setup ? 'new-password' : 'current-password'}" spellcheck="false">
+            </div>
+            ${setup ? `<div class="markhin-filename-row"><input type="password" id="${uid}_p2" class="markhin-filename-input" placeholder="${escapeHtml(fa ? 'تکرار رمز' : 'Repeat password')}" maxlength="512" autocomplete="new-password" spellcheck="false"></div>` : ''}
+            <p id="${uid}_err" style="color:#e5534b;font-size:12px;line-height:1.8;min-height:18px;margin:6px 0"></p>
+            <div class="markhin-filename-actions">
+                <button class="btn-main image-export-all-btn" type="button" id="${uid}_ok">${setup ? (fa ? '🔐 رمزنگاری و ذخیره' : '🔐 Encrypt & save') : (fa ? '🔓 باز کردن' : '🔓 Unlock')}</button>
+            </div>
+            ${setup ? '' : `<p style="text-align:center;margin-top:10px"><a href="#" id="${uid}_reset" style="font-size:11px;opacity:.6">${fa ? 'رمز را فراموش کرده‌ام (حذف کلیدهای ذخیره‌شده)' : 'I forgot the password (delete saved keys)'}</a></p>`}
+        `);
+
+        const $ = s => document.getElementById(uid + s);
+        const p1 = $('_p1'), p2 = $('_p2'), ok = $('_ok'), err = $('_err'), x = $('_x'), reset = $('_reset');
+        if (p1) p1.focus();
+        if (x) x.onclick = () => finish(false);
+
+        const submit = async () => {
+            if (!ok || ok.disabled) return;
+            err.textContent = '';
+            const pw = p1 ? p1.value : '';
+            try {
+                ok.disabled = true;
+                if (setup) {
+                    if (pw.length < 6) { err.textContent = fa ? 'رمز باید حداقل ۶ کاراکتر باشد.' : 'Password must be at least 6 characters.'; return; }
+                    if (!p2 || pw !== p2.value) { err.textContent = fa ? 'دو رمز یکسان نیستند.' : 'The two passwords do not match.'; return; }
+                    // Read the current (plaintext) settings BEFORE the vault flag flips on.
+                    await window.MarkhinVault.enable(pw, MarkhinAI.getSettings());
+                    // Only after the ciphertext is safely written do we drop the plaintext copies.
+                    try { localStorage.removeItem(MarkhinAI.KEY); localStorage.removeItem(MarkhinAI.OLD_KEY); } catch (e) {}
+                    finish(true);
+                } else {
+                    if (!pw) return;
+                    await window.MarkhinVault.unlock(pw);
+                    finish(true);
+                }
+            } catch (e) {
+                err.textContent = errMsg(e);
+            } finally {
+                if (!settled) ok.disabled = false;
+            }
+        };
+        if (ok) ok.onclick = submit;
+        [p1, p2].forEach(el => { if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); submit(); } }); });
+
+        if (reset) reset.onclick = async e => {
+            e.preventDefault();
+            if (!resetArmed) {
+                resetArmed = true;
+                reset.textContent = fa ? 'برای تأیید دوباره بزن — کلیدهای ذخیره‌شده پاک می‌شوند' : 'Tap again to confirm — saved keys will be deleted';
+                reset.style.opacity = '1';
+                reset.style.color = '#e5534b';
+                return;
+            }
+            await window.MarkhinVault.reset();
+            finish(false);
+        };
+    });
+}
+
+function mu_vaultRowHtml(fa){
+    const V = window.MarkhinVault;
+    const on = !!(V && V.isEnabled());
+    const text = on
+        ? (fa ? '🔐 کلیدها با رمز رمزنگاری شده‌اند (AES-256، ذخیره در IndexedDB)' : '🔐 Keys are password-encrypted (AES-256, stored in IndexedDB)')
+        : (fa ? '⚠️ کلیدها بدون رمز ذخیره شده‌اند' : '⚠️ Keys are stored without a password');
+    const btn = on
+        ? `<button class="btn-main" type="button" onclick="window.MarkhinVault.lock();closeAdvancedModal();">🔒 ${fa ? 'قفل کردن' : 'Lock now'}</button>`
+        : `<button class="btn-main" type="button" onclick="mu_vaultSetup()">🔐 ${fa ? 'رمزنگاری کلیدها' : 'Encrypt keys'}</button>`;
+    return `<div class="markhin-ai-settings-row" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap"><span style="font-size:12px;line-height:1.8">${text}</span>${btn}</div>`;
+}
+
+function mu_vaultSetup(){
+    mu_vaultDialog('setup').then(() => mu_openAiSettingsModal());
+}
+window.mu_vaultDialog = mu_vaultDialog;
+window.mu_vaultSetup = mu_vaultSetup;
+window.mu_vaultRowHtml = mu_vaultRowHtml;
+
 function mu_openAiSettingsModal(){
+    if(window.MarkhinVault && MarkhinVault.isEnabled() && !MarkhinVault.isUnlocked()){
+        mu_vaultDialog('unlock').then(ok => { if(ok) mu_openAiSettingsModal(); });
+        return;
+    }
     mu_pendingNewProviderId = null;
     const fa = currentLang==='fa';
     const s = MarkhinAI.getSettings();
@@ -23820,8 +24544,9 @@ function mu_openAiSettingsModal(){
     showAdvanced(`
         <div class="advanced-head"><h3>⚙️ ${fa?'تنظیمات هوش مصنوعی':'AI Settings'}</h3><button class="btn-main" onclick="closeAdvancedModal()">✕</button></div>
         <p style="opacity:.65;font-size:11px;line-height:1.9">${fa
-            ? 'کلید API فقط در localStorage همین مرورگر ذخیره می‌شود و فقط به آدرس همان سرویس ارسال می‌شود؛ به هیچ سرور دیگری فرستاده نمی‌شود. یادداشت‌های رمزدار هرگز به AI فرستاده نمی‌شوند مگر این‌که با دکمه 🔒 داخل MARKHIN AI باز/آنلاک شده باشند. می‌تونی هر تعداد ارائه‌دهنده دلخواه (هر API سازگاری) اضافه کنی.'
-            : 'Your API key is stored only in this browser\'s localStorage and is sent only to the provider you pick — never anywhere else. Locked notes are never sent to AI unless unlocked via the 🔒 button in MARKHIN AI. Add as many providers as you like, any compatible API.'}</p>
+            ? 'کلید API فقط در همین مرورگر ذخیره می‌شود و فقط به آدرس همان سرویس ارسال می‌شود؛ به هیچ سرور دیگری فرستاده نمی‌شود. یادداشت‌های رمزدار هرگز به AI فرستاده نمی‌شوند مگر این‌که با دکمه 🔒 داخل MARKHIN AI باز/آنلاک شده باشند. می‌تونی هر تعداد ارائه‌دهنده دلخواه (هر API سازگاری) اضافه کنی.'
+            : 'Your API key is stored only in this browser and is sent only to the provider you pick — never anywhere else. Locked notes are never sent to AI unless unlocked via the 🔒 button in MARKHIN AI. Add as many providers as you like, any compatible API.'}</p>
+        ${mu_vaultRowHtml(fa)}
         <div class="markhin-ai-settings-row">
             <label>${fa?'ارائه‌دهنده':'Provider'}</label>
             <select id="muAiProvider" onchange="mu_onProviderPick(this.value)">
@@ -25607,7 +26332,10 @@ const MU_AI = (function(){
         const el = document.getElementById('markhinAiChatSub');
         if(!el) return;
         const fa = currentLang === 'fa';
-        if(MarkhinAI.isConfigured()){
+        if(MarkhinAI.isLocked()){
+            el.textContent = fa ? '🔒 کلیدها قفل هستند — برای باز کردن بزن' : '🔒 Keys are locked — tap to unlock';
+            el.classList.add('mAi-sub-off');
+        } else if(MarkhinAI.isConfigured()){
             const p = MarkhinAI.getActiveProvider();
             el.textContent = (fa ? '🟢 متصل به ' : '🟢 Connected to ') + (p ? p.name : '');
             el.classList.remove('mAi-sub-off');
@@ -26652,13 +27380,15 @@ const MU_AI = (function(){
         { name:'set_note_preview', description:"Control the note list's preview line app-wide. When on, every note in the list shows a short plain-text snippet of its own content under its title (so the list can be scanned without opening each note); when off, only the title shows. You can turn it on/off (enabled) and/or choose how many lines each preview may take (lines, 1 to 5). Use this whenever the user asks to show/hide, turn on/off, or enable/disable note previews/snippets in the list, or to make previews longer/shorter. Pass at least one of enabled or lines; if only lines is given while previews are off, previews are turned on too.", parameters:{ type:'object', properties:{ enabled:{ type:'boolean', description:'true = show the preview snippet under every note. false = title only.' }, lines:{ type:'integer', minimum:1, maximum:5, description:'How many lines each preview may take in the list (1-5).' } } } },
         { name:'get_app_settings', description:"Read the app's CURRENT settings in one call: Lite version (on/off), visual theme, interface language, note viewer style (the window that opens with the \"View note\" button), note-list preview (on/off + number of lines) and the list display order (sort mode), together with every value each setting accepts. Call this first whenever the user asks what a setting is right now, asks to see/list the settings, or asks for a change whose current state you do not know (e.g. \"toggle it\", \"switch it back\"). Never guess a setting's state.", parameters:{ type:'object', properties:{} } },
         { name:'set_lite_mode', description:"Turn the app's Lite version (نسخه سبک / حالت سبک / لایت) on or off - the same switch as Settings > Lite version. ON: switches the theme to Oceanic (the current theme is remembered), stops every infinite animation, moving effect, glass blur and heavy shadow so the app runs lighter on weak phones, and LOCKS theme changes. OFF: restores the previous theme and all effects. Notes and data are never touched. Use whenever the user asks to enable/disable/turn on/turn off the light or lite mode. After turning it ON, tell the user briefly that the theme became Oceanic and that theme changes stay locked until Lite is turned off.", parameters:{ type:'object', properties:{ enabled:{ type:'boolean', description:'true = turn Lite version on. false = turn it off.' } }, required:['enabled'] } },
-        { name:'set_viewer_style', description:"Change the look of the note viewer window that opens with the \"View note\" (نمایش یادداشت) button - Settings > Note viewer style (سبک کادر نمایش یادداشت). Two styles: retro = the old Windows error-dialog look (the default), ocean = the Ocean look. Use whenever the user asks to change the style/model/shape of the note display frame or viewer (مدل نمایش یادداشت، سبک کادر نمایش، ویندوزی/قدیمی، اقیانوسی).", parameters:{ type:'object', properties:{ style:{ type:'string', enum:['retro','ocean'], description:'retro = old Windows error-dialog look (default). ocean = Ocean look.' } }, required:['style'] } },
+        { name:'set_viewer_style', description:"Change the look of the note viewer window that opens with the \"View note\" (نمایش یادداشت) button - Settings > Note viewer style (سبک کادر نمایش یادداشت). Three options: ask = ask every time (the default - pressing View note shows a picker with Ocean / Windows 95), ocean = always the Ocean look, retro = always the Windows 95 look. Use whenever the user asks to change the style/model/shape of the note display frame or viewer (مدل نمایش یادداشت، سبک کادر نمایش، ویندوزی/قدیمی، اقیانوسی).", parameters:{ type:'object', properties:{ style:{ type:'string', enum:['ask','ocean','retro'], description:'ask = ask each time (default). ocean = Ocean look. retro = Windows 95 look.' } }, required:['style'] } },
+        { name:'open_note_viewer', description:"Open the read-only note viewer window (the same window the \"View note\" / نمایش یادداشت button opens) for ONE specific note, right now, optionally in a chosen look: ocean = Ocean look (اقیانوسی), retro = Windows 95 look (ویندوز ۹۵). The style applies to THIS opening only - it does NOT change the saved Settings > Note viewer style (use set_viewer_style for that). If style is omitted, the user's saved viewer style is used (and if that is \"ask\", the app shows its own Ocean / Windows 95 picker first). Use whenever the user asks to open / show / display / view a note (باز کن، نشون بده، نمایش بده، نمایش یادداشت) - especially with a look such as \"ویندوزی\", \"ویندوز ۹۵\", \"قدیمی\", \"اقیانوسی\". Works on password-locked notes too: the app itself asks the USER for the password in its own dialog (you never see it or the note's content), so just call it and tell the user to enter their password. Notes under an active Time Capsule cannot be opened. If you only need to read a note's text yourself, use get_note instead.", parameters:{ type:'object', properties:{ note:{ type:'string', description:'The id or title of the note to open.' }, style:{ type:'string', enum:['ocean','retro'], description:'Look of the viewer for this opening: ocean = Ocean, retro = Windows 95. Omit to use the saved viewer style.' } }, required:['note'] } },
         { name:'set_list_sort_mode', description:"Change the notes list's DISPLAY ORDER setting (the \"ترتیب نمایش / Sort by\" dropdown under the list). This is a view setting: it changes how the list is shown and does not rewrite any note's manual position - use sort_notes or move_note_position instead when the user wants the manual order itself rewritten. Modes: manual (custom / drag order), alpha_asc (name A to Z / آ تا ی), alpha_desc (name Z to A / ی تا آ), created_desc (date created, newest first), created_asc (date created, oldest first), edited_desc (last edited, newest first), edited_asc (last edited, oldest first). If the user says only \"newest\" or \"oldest\" and it is unclear whether they mean creation date or last-edit date, ask which one.", parameters:{ type:'object', properties:{ mode:{ type:'string', enum:['manual','alpha_asc','alpha_desc','created_desc','created_asc','edited_desc','edited_asc'] } }, required:['mode'] } },
         { name:'export_notes', description:'Export note(s) to a real downloadable file — this actually triggers the download, the same as tapping the app\'s own export buttons, with no extra menus for the user to click through. Formats: "json" (full structured backup), "csv", "md" (Markdown), "txt" (plain text), "html" (a clean, standalone, readable HTML page of just the note content — NOT the app itself; distinct from the app\'s separate full-app-snapshot HTML backup), "pdf", "docx" (Word), "png" or "jpg" (an image of one note\'s content). Archive formats (always the whole vault, the note argument is ignored for them): "zip" = the complete bundle (JSON backup plus one JSON per note, CSV, Markdown, TXT, DOCX and a README in one ZIP, the same as the bundle export button; pass include to choose parts); "zip_txt", "zip_md", "zip_json", "zip_html", "zip_docx" = a ZIP with every note as its own file of that type plus one combined file (the same as the Individual files (ZIP) option of each export); "app_html" = the full-app HTML snapshot backup (app_mode "data" = app plus all notes and folders, "clean" = blank app; a snapshot that contains the API key is deliberately not something you can create). In these archive formats locked notes appear only as encrypted or marker entries, never as readable text, exactly as with the matching export buttons in the app. Locked notes are always excluded from the regular formats unless already unlocked this session.', parameters:{ type:'object', properties:{ format:{ type:'string', enum:['json','csv','md','txt','html','pdf','docx','png','jpg','zip','zip_txt','zip_md','zip_json','zip_html','zip_docx','app_html'], description:'Export file format. Regular formats: json, csv, md, txt, html, pdf, docx, png, jpg. Archive formats that always cover the whole vault: zip (complete bundle), zip_txt / zip_md / zip_json / zip_html / zip_docx (one file per note plus one combined file), app_html (full-app HTML snapshot).' }, note:{ type:'string', description:'Id or title of a single note to export. Omit to export every exportable note at once (not available for png/jpg — those are always a single note).' }, filename:{ type:'string', description:'Optional file name, without extension. A sensible default is generated if omitted.' }, include:{ type:'array', items:{ type:'string', enum:['json','csv','md','txt','docx','readme'] }, description:'Only for format zip: which parts to put inside the bundle. Omit to include all of them.' }, app_mode:{ type:'string', enum:['data','clean'], description:'Only for format app_html: data (default) = the app plus every note and folder, without the API key; clean = a blank copy of the app with no notes. A snapshot that contains the API key is intentionally not available through this tool.' } }, required:['format'] } },
         { name:'create_file', description:'Create a brand-new file out of content YOU write right now (not an existing note) and send it to the user as a real downloadable file right in this chat — e.g. "write a poem/list/report and give it to me as a txt/json/csv/html/markdown file". The download (or share sheet, inside Telegram) starts immediately using the same robust delivery pipeline as the app\'s own exports. Use this instead of export_notes whenever the content does not already exist as a note. For "json", the content is validated as real JSON and pretty-printed; invalid JSON is rejected back to you with an error so you can fix and retry.', parameters:{ type:'object', properties:{ filename:{ type:'string', description:'File name, without extension. A sensible default is generated if omitted.' }, format:{ type:'string', enum:['txt','json','csv','html','md'], description:'File type to create: txt (plain text), json (validated/pretty-printed JSON), csv (comma-separated values), html (a full HTML page; if you only provide a body fragment a minimal wrapper is added automatically), md (Markdown source).' }, content:{ type:'string', description:'The exact file content.' } }, required:['format','content'] } },
         { name:'open_app_view', description:'Open one of the app\'s special screens or panels for the user, exactly like tapping its button. Recognize this even when the user names it phonetically/in Finglish or with an approximate translation — e.g. "نولدج گراف", "نالج گراف", "knowledge graf", "شبکه دانش", or "گراف" all mean knowledge_graph; "رندوم پرتال"/"پرتال تصادفی" mean random_portal; "داشبورد"/"آمار" mean dashboard; "جستجو"/"سرچ" mean search. The views note_dna and share_note work on ONE specific note, so the note parameter (id or title) is required for them; locked notes cannot be used with them.', parameters:{ type:'object', properties:{ view:{ type:'string', enum:['knowledge_graph','random_portal','settings','morse_tool','binary_tool','archived_notes','pinned_notes','favorite_notes','dashboard','search','ghost_notes','capsule_notes','note_dna','share_note','cloud_backup'], description:'knowledge_graph = the graph view of how notes connect to each other. random_portal = jumps to a random note. settings = opens the app Settings sheet (Lite version, note viewer style). morse_tool = the Morse code converter. binary_tool = the binary code converter. archived_notes = the archive list. pinned_notes = list of pinned notes. favorite_notes = list of favorite notes. dashboard = the statistics dashboard (note/word/character/folder/tag counts and the pinned, favorite, locked, decoy, archived, ghost and time-capsule counts). search = the app search window (supports tag:, folder:, is:pinned, is:favorite, "exact phrase" and -exclude). ghost_notes = list of notes with an active Ghost Note timer. capsule_notes = list of notes with an active Time Capsule. note_dna = the Note DNA analysis window of one note (needs note). share_note = the share-format picker (TXT/Markdown/HTML/PDF/image) for one note (needs note). cloud_backup = the Telegram Cloud Backup panel (only available when the app runs inside Telegram).' }, note:{ type:'string', description:'The id or title of the note. Required for note_dna and share_note; ignored for every other view.' } }, required:['view'] } },
         { name:'get_knowledge_graph', description:'Read the same connection data the Knowledge Graph screen shows: for each note (locked and archived notes excluded) its strongest links to other notes (up to 3), with a similarity score and the shared tags/words that justify each link, plus which notes are isolated and which are the most connected. Use this when the user asks which notes are related, what the knowledge graph shows, or about the connections of one note (pass note). This tool only gathers the facts - explain them in your own words. To actually show the graph screen use open_app_view.', parameters:{ type:'object', properties:{ note:{ type:'string', description:'Optional id or title of one note: return only its connections.' }, all_words:{ type:'boolean', description:'Default false: each connection lists at most 8 shared words plus moreSharedWords (how many were left out). Set true ONLY after the user has confirmed they want the complete list of shared words.' } } } },
         { name:'compare_notes', description:'Compare two or more notes and get structured facts about what they share and how they differ: common tags, common significant words (the closest thing to shared "DNA"/theme between them), whether they\'re in the same folder, and each note\'s pinned/favorite/archived status, word count, and last-edited date. Use this whenever the user asks to compare notes or find what they have in common. This tool only gathers the facts — write the actual comparison for the user yourself, in your own words, from the returned data.', parameters:{ type:'object', properties:{ notes:{ type:'array', items:{ type:'string' }, description:'Ids or titles of the notes to compare — at least two.' } }, required:['notes'] } },
+        { name:'get_note_dna', description:'Read the full Note DNA analysis of one or more notes - exactly the data the DNA panel shows: word count, unique words, read time, approximate sentence count, character counts (with/without spaces, spaces, all characters, average word length), Persian/English word and letter counts and digits, symbol and emoji counts, number of images and links, approximate age in days, last-edited date, folder, vocabulary richness percent, the top keywords with how many times each appears, and the tags. Use this whenever the user asks about a note\'s DNA, its statistics, its keywords, how rich or long it is, or wants DNA of several notes compared. Locked notes cannot be analysed. This tool only gathers the facts - explain them in your own words. To actually show the DNA panel on screen use open_app_view with view note_dna.', parameters:{ type:'object', properties:{ notes:{ type:'array', items:{ type:'string' }, description:'Ids or titles of the notes to analyse (up to 20).' }, note:{ type:'string', description:'Id or title of a single note (alternative to notes).' }, keywords_limit:{ type:'integer', description:'How many top keywords to return per note (default 10, max 50).' } } } },
         { name:'get_dashboard_stats', description:'Get an overview of the user\'s whole notes vault: total/archived/locked note counts, total word count, per-folder note counts, per-tag note counts, and the actual lists (names) of which notes are currently pinned and which are favorite. Use this whenever the user asks something like which notes are favorite/pinned, wants stats about their notes as a whole, or asks what the dashboard shows.', parameters:{ type:'object', properties:{} } },
         { name:'get_note', description:'Get a single note\'s full, complete body text plus its metadata (folder, tags, pinned/favorite/archived, last-edited, titleHistory). find_notes only returns a short 180-character snippet — call this instead whenever you actually need the whole content: to read it back in full, summarize it accurately, translate it, quote exact figures/steps from it, or otherwise reason over the real text rather than a preview. The returned titleHistory array lists every title this note has ever had, oldest first — use it to answer "what was this note\'s title before?"/"what have I called this note?"; you never need it just to reference the note by an old title, since the note reference argument on every tool already resolves past titles automatically.', parameters:{ type:'object', properties:{ note:{ type:'string', description:'The id or title of the note.' } }, required:['note'] } },
         { name:'duplicate_note', description:'Create an exact copy of an existing note (same content, folder, and tags) under a new title. The original note is left completely untouched. Use this for "duplicate/clone/copy this note" requests, or as a safe first step before heavily rewriting a note the user wants to keep a backup of.', parameters:{ type:'object', properties:{ note:{ type:'string', description:'The id or title of the note to duplicate.' }, new_name:{ type:'string', description:'Title for the new copy. If omitted, "<original name> (copy)" is used.' } }, required:['note'] } },
@@ -26670,6 +27400,7 @@ const MU_AI = (function(){
         { name:'delete_all_folders', description:'Permanently delete EVERY folder in the app, in one single action. Notes that were filed inside those folders are kept and never touched — they simply become unfiled, exactly like deleting a single folder with manage_folder, just applied to all folders at once. Only call this when the user has unmistakably and explicitly asked to delete ALL of their folders (e.g. "delete every folder", "wipe all my folders", "پاک کن همه پوشه‌هام برای همیشه") — never for deleting a single folder (use manage_folder\'s delete action for that), and never on your own initiative. This always shows the user a real themed dialog where they themselves must type the exact word "OK" (case does not matter) to actually go through with it; if they type anything else, leave it blank, or cancel, nothing is deleted and the tool reports that the user did not confirm.', parameters:{ type:'object', properties:{}, required:[] } },
         { name:'delete_everything', description:'Permanently and irreversibly erase ALL of the user\'s notes, AND ALL of their folders, in one single action — the same as the "حذف دائمی همه یادداشت‌ها و پوشه‌ها" button\'s third option (یادداشت‌ها و پوشه‌ها). Only call this when the user has unmistakably and explicitly asked to wipe everything at once — notes and folders together (e.g. "delete everything forever", "همه چیز رو پاک کن، یادداشت‌ها و پوشه‌ها") — never when they only mention notes or only folders (use delete_all_notes or delete_all_folders for those), and never on your own initiative. This always shows the user a real themed dialog where they themselves must type the exact word "OK" (case does not matter) to actually go through with it; if they type anything else, leave it blank, or cancel, nothing is deleted and the tool reports that the user did not confirm.', parameters:{ type:'object', properties:{}, required:[] } },
         { name:'manage_folder', description:'Create a brand-new empty folder, rename an existing folder (every note inside moves with it), or delete a folder (its notes are kept but become unfiled, exactly like the app\'s own folder-delete button — nothing inside is lost). If you are not sure a folder exists (including an empty one), call list_folders first instead of guessing. The app remembers folder renames, so if the user later refers to a folder by a name it used to have before being renamed, any folder-name input anywhere (here or in create_note/move_note_to_folder/bulk_update_notes/etc.) still resolves to the right folder automatically — you do not need to track old names yourself.', parameters:{ type:'object', properties:{ action:{ type:'string', enum:['create','rename','delete'], description:'Which folder operation to perform.' }, folder:{ type:'string', description:'For create: the new folder\'s name. For rename/delete: the existing folder\'s current name.' }, new_name:{ type:'string', description:'The folder\'s new name. Required when action is "rename", ignored otherwise.' } }, required:['action','folder'] } },
+        { name:'pin_folder', description:"Pin or unpin a FOLDER (one of the folder tabs above the notes list) - the same as long-pressing a folder, selecting it and tapping the pin button. Pinned folders are shown first in the folder row (right after \"All\") with a 📌 mark. Use whenever the user asks to pin / unpin a folder (پین کردن پوشه، پین پوشه رو بردار). This is for FOLDERS only - to pin a NOTE use set_pinned. The root \"All\" folder cannot be pinned. list_folders reports every folder's current pinned state, so call it first if you are unsure of the folder's exact name or current state.", parameters:{ type:'object', properties:{ folder:{ type:'string', description:'Name of the folder to pin or unpin.' }, pinned:{ type:'boolean', description:'true = pin the folder, false = unpin it.' } }, required:['folder','pinned'] } },
         { name:'set_note_style', description:'Change a single note\'s display font family and/or font size — a per-note cosmetic style, separate from the app\'s overall visual theme.', parameters:{ type:'object', properties:{ note:{ type:'string', description:'The id or title of the note.' }, font_family:{ type:'string', description:'A CSS font-family value to apply, e.g. "Georgia", "monospace", "Tahoma". Omit to leave unchanged.' }, font_size:{ type:'number', description:'Font size in pixels (roughly 10-32 is sensible). Omit to leave unchanged.' } }, required:['note'] } },
         { name:'set_decay_level', description:'Manually set a note\'s "decay" staleness badge (Active/Dormant/Forgotten/Ancient — a purely cosmetic indicator of how old/untouched a note looks), or reset it back to automatic so the app derives it from how long the note has gone unedited again.', parameters:{ type:'object', properties:{ note:{ type:'string', description:'The id or title of the note.' }, level:{ type:'integer', enum:[0,1,2,3], description:'0=Active, 1=Dormant, 2=Forgotten, 3=Ancient. Required unless reset_to_automatic is true.' }, reset_to_automatic:{ type:'boolean', description:'If true, remove the manual override and let the app compute the decay level automatically from the note\'s last-edited date; level is ignored.' } }, required:['note'] } },
         { name:'bulk_update_notes', description:'Apply one change to every note matching a filter at once, instead of calling a single-note tool repeatedly — e.g. "archive all notes in Old Stuff", "add the tag done to every note tagged draft", "pin every note about budgets". At least one filter (folder, tag, or query) is required, precisely to avoid accidentally hitting the entire vault; filters combine with AND when more than one is given. Locked notes are never affected.', parameters:{ type:'object', properties:{ folder:{ type:'string', description:'Only match notes in this folder.' }, tag:{ type:'string', description:'Only match notes that already have this tag.' }, query:{ type:'string', description:'Only match notes whose title or body contains this text.' }, action:{ type:'string', enum:['add_tag','remove_tag','archive','unarchive','pin','unpin','favorite','unfavorite','move_to_folder'], description:'The change to apply to every matching note.' }, value:{ type:'string', description:'Required for add_tag/remove_tag (the tag text) and move_to_folder (destination folder name, or empty/"none" to unfile). Not used for the other actions.' } }, required:['action'] } },
@@ -28145,8 +28876,25 @@ const MU_AI = (function(){
                     if(typeof window.mu_setViewerStyle !== 'function') return { ok:false, error: fa ? 'تنظیم سبک نمایش در دسترس نیست.' : 'Viewer style setting is unavailable right now.' };
                     const prevSt = window.mu_getViewerStyle();
                     if(window.MU_Lite && MU_Lite.setViewerStyle) MU_Lite.setViewerStyle(st); else window.mu_setViewerStyle(st);
-                    showToast(fa ? ('🪟 سبک کادر نمایش یادداشت: ' + (st === 'retro' ? 'قدیمی (ویندوزی)' : 'اقیانوسی')) : ('🪟 Note viewer style: ' + (st === 'retro' ? 'Retro' : 'Ocean')));
+                    showToast(fa ? ('🪟 سبک کادر نمایش یادداشت: ' + (st === 'retro' ? 'ویندوز ۹۵' : (st === 'ask' ? 'انتخاب هر بار' : 'اقیانوسی'))) : ('🪟 Note viewer style: ' + (st === 'retro' ? 'Windows 95' : (st === 'ask' ? 'Ask each time' : 'Ocean'))));
                     return { ok:true, data:{ style: window.mu_getViewerStyle(), previous: prevSt, changed: prevSt !== st } };
+                }
+                case 'open_note_viewer': {
+                    const item = mAiResolveNote(input.note);
+                    if(!item) return notFound;
+                    const vs = String(input.style || '').trim().toLowerCase();
+                    if(vs && vs !== 'ocean' && vs !== 'retro') return { ok:false, error: fa ? 'سبک باید ocean (اقیانوسی) یا retro (ویندوز ۹۵) باشد.' : 'style must be "ocean" or "retro".' };
+                    if(item.unlockAt && Date.now() < Number(item.unlockAt)) return { ok:false, error: fa ? 'این یادداشت کپسول زمانی فعال دارد و تا رسیدن زمان باز شدنش قابل نمایش نیست.' : 'This note has an active Time Capsule and cannot be opened until its unlock time.' };
+                    if(typeof window.mu_openNoteViewer !== 'function') return { ok:false, error: fa ? 'کادر نمایش یادداشت در دسترس نیست.' : 'The note viewer is unavailable right now.' };
+                    const needsPass = mAiIsLockedForAi(item);
+                    let effective = vs;
+                    if(!effective){ try{ effective = window.mu_getViewerStyle ? window.mu_getViewerStyle() : 'ocean'; }catch(e){ effective = 'ocean'; } }
+                    // Not awaited on purpose: for a locked note the viewer waits for the USER to type the
+                    // password, and the tool result must not block on that. The password never reaches the AI.
+                    try{
+                        Promise.resolve(window.mu_openNoteViewer(item.id, vs || undefined)).catch(function(){});
+                    }catch(e){ return { ok:false, error: fa ? 'باز کردن کادر نمایش ناموفق بود.' : 'Could not open the note viewer.' }; }
+                    return { ok:true, data:{ id:item.id, name:item.name, style: effective || 'ocean', style_picker_shown: (!vs && effective === 'ask'), password_prompt_shown: needsPass } };
                 }
                 case 'set_list_sort_mode': {
                     const opts = (typeof MU_NOTE_SORT_OPTIONS !== 'undefined') ? MU_NOTE_SORT_OPTIONS : [];
@@ -28460,15 +29208,40 @@ const MU_AI = (function(){
                         sameFolder
                     } };
                 }
+                case 'get_note_dna': {
+                    if(typeof mu_getNoteDNA !== 'function' || typeof computeTextStats !== 'function' || typeof kgWordSet !== 'function') return { ok:false, error: fa ? 'تحلیل DNA الان در دسترس نیست.' : 'Note DNA is unavailable right now.' };
+                    let refs = Array.isArray(input.notes) ? input.notes.slice() : [];
+                    if(input.note) refs.push(input.note);
+                    refs = refs.map(r => String(r || '').trim()).filter(Boolean);
+                    if(!refs.length) return { ok:false, error: fa ? 'حداقل یک یادداشت (note یا notes) لازم است.' : 'At least one note is required (the note or notes parameter).' };
+                    if(refs.length > 20) return { ok:false, error: fa ? 'حداکثر ۲۰ یادداشت در هر درخواست.' : 'At most 20 notes per request.' };
+                    const dnaOut = [];
+                    for(const ref of refs){
+                        const it = mAiResolveNote(ref);
+                        if(!it) return { ok:false, error: (fa ? 'یادداشتی پیدا نشد: ' : 'No matching note found: ') + ref };
+                        if(mAiIsLockedForAi(it)) return { ok:false, error: (fa ? 'این یادداشت قفل است: ' : 'This note is locked: ') + (it.name || ref) };
+                        const d = mu_getNoteDNA(it, input.keywords_limit);
+                        d.info.lastEdited = mAiDualDateLabel(it.lastEdited);
+                        d.flags = { pinned: !!it.pinned, favorite: !!it.favorite, archived: !!it.archived };
+                        dnaOut.push(d);
+                    }
+                    return { ok:true, data:{ count: dnaOut.length, notes: dnaOut } };
+                }
                 case 'get_dashboard_stats': {
                     const all = categories.filter(c => !c.isDecoy && (!isNoteLocked(c) || unlockedQaIds.includes(c.id)));
                     const activeList = all.filter(c => !isArchived(c));
                     const archivedList = all.filter(c => isArchived(c));
                     const pinned = activeList.filter(c => c.pinned).map(c => ({ id:c.id, name:c.name, folder:c.folder || '' }));
                     const favorite = activeList.filter(c => c.favorite).map(c => ({ id:c.id, name:c.name, folder:c.folder || '' }));
-                    const folderCounts = {};
-                    activeList.forEach(c => { const f = c.folder || (fa ? '(بدون پوشه)' : '(no folder)'); folderCounts[f] = (folderCounts[f] || 0) + 1; });
-                    const tagCounts = {};
+                    const folderCounts = Object.create(null);
+                    activeList.forEach(c => {
+                        // a note can live in several folders: count it in each (same as the dashboard screen)
+                        let fl = [];
+                        try{ fl = ((window.mu_noteFolders ? window.mu_noteFolders(c) : [c.folder]) || []).filter(x => x && x !== DEFAULT_FOLDER); }catch(_){ fl = c.folder ? [c.folder] : []; }
+                        if(!fl.length) fl = [fa ? '(بدون پوشه)' : '(no folder)'];
+                        fl.forEach(f => { folderCounts[f] = (folderCounts[f] || 0) + 1; });
+                    });
+                    const tagCounts = Object.create(null);
                     activeList.forEach(c => (c.tags || []).forEach(t => { tagCounts[t] = (tagCounts[t] || 0) + 1; }));
                     const totalWords = activeList.reduce((sum, c) => sum + mu_countWords(mu_notePlainText(c) || ''), 0);
                     const lockedCount = categories.filter(c => isNoteLocked(c) && !unlockedQaIds.includes(c.id)).length;
@@ -28606,10 +29379,23 @@ const MU_AI = (function(){
                             noteCount: inFolder.length,
                             archivedCount: inFolder.filter(c => isArchived(c)).length,
                             lockedCount: inFolder.filter(c => isNoteLocked(c) && !unlockedQaIds.includes(c.id)).length,
-                            isEmpty: inFolder.length === 0
+                            isEmpty: inFolder.length === 0,
+                            pinned: !!(window.MU_FolderPins && window.MU_FolderPins.isPinned(f))
                         };
                     });
                     return { ok:true, data };
+                }
+                case 'pin_folder': {
+                    const pfName = String(input.folder || '').trim();
+                    if(!pfName || pfName === DEFAULT_FOLDER) return { ok:false, error: fa ? 'نام پوشه نامعتبر است (پوشهٔ «همه» قابل پین نیست).' : 'Invalid folder name (the root "All" folder cannot be pinned).' };
+                    if(typeof input.pinned !== 'boolean') return { ok:false, error: fa ? 'مقدار pinned باید true یا false باشد.' : 'pinned must be true or false.' };
+                    const pfReal = mAiFindExistingFolder(pfName);
+                    if(!pfReal) return { ok:false, error: fa ? 'پوشه‌ای با این نام پیدا نشد.' : 'No folder with that name was found.' };
+                    if(!window.MU_FolderPins) return { ok:false, error: fa ? 'قابلیت پین پوشه در دسترس نیست.' : 'Folder pinning is unavailable right now.' };
+                    const pfWas = window.MU_FolderPins.isPinned(pfReal);
+                    window.MU_FolderPins.set([pfReal], input.pinned);
+                    showToast(input.pinned ? (fa ? '📌 پوشه پین شد' : '📌 Folder pinned') : (fa ? 'پین پوشه برداشته شد' : 'Folder unpinned'));
+                    return { ok:true, data:{ folder:pfReal, pinned: window.MU_FolderPins.isPinned(pfReal), previous: pfWas, changed: pfWas !== input.pinned } };
                 }
                 case 'manage_folder': {
                     const action = String(input.action || '').toLowerCase();
@@ -28637,6 +29423,7 @@ const MU_AI = (function(){
                         const existingTarget = mAiFindExistingFolder(newName, { strict:true });
                         if(existingTarget && existingTarget !== folderName) return { ok:false, error: fa ? `پوشه‌ای با نام «${existingTarget}» از قبل وجود دارد.` : `A folder named "${existingTarget}" already exists.` };
                         folders = folders.map(f => f === folderName ? newName : f);
+                        try{ if(window.MU_FolderPins) window.MU_FolderPins.rename(folderName, newName); }catch(e){}
                         categories.forEach(c => { if(window.mu_inFolder(c, folderName)) { window.mu_renameFolderInNote(c, folderName, newName); } });
                         if(currentFolder === folderName) currentFolder = newName;
                         mAiRecordFolderRename(folderName, newName);
@@ -30869,7 +31656,8 @@ const MU_AI = (function(){
         if(text && text.length <= 300 && !mAiPendingAttachments.length){
             const MAI_IMG_NOUN_RE = /(عکس|تصویر|نقاشی|illustrations?|images?|pictures?|photos?|artworks?|drawings?|wallpapers?)/i;
             const MAI_IMG_VERB_RE = /(بساز|بکش|طراحی\s*کن|تصویرسازی\s*کن|درست\s*کن|تولید\s*کن|ایجاد\s*کن|generate|create|make|draw|design|produce)/i;
-            if(MAI_IMG_NOUN_RE.test(text) && MAI_IMG_VERB_RE.test(text)){
+            const MAI_NOTE_WORDS_RE = /(یادداشت|نوت(?![\u0600-\u06FF])|پوشه|یادآور|برچسب|\bnotes?\b|\bfolders?\b|\btags?\b|\breminders?\b)/i;
+            if(MAI_IMG_NOUN_RE.test(text) && MAI_IMG_VERB_RE.test(text) && !MAI_NOTE_WORDS_RE.test(text)){
                 // Light cleanup so the trigger words themselves (which
                 // only tell us the person wants an image, and add nothing
                 // about what should be *in* it) don't dilute the prompt
@@ -31024,6 +31812,10 @@ const MU_AI = (function(){
         // any other event can run, so a stray double Enter/click on the
         // same text still can't fire this twice for the same message.
 
+        if(MarkhinAI.isLocked()){
+            window.mu_vaultDialog('unlock').then(ok => { if(ok){ try{ showToast(fa ? 'کلیدها باز شد؛ پیامت را دوباره بفرست.' : 'Keys unlocked — send your message again.'); }catch(e){} } });
+            return;
+        }
         if(!MarkhinAI.isConfigured()){
             mAiHistory.push({ id: mAiNextId(), ts: Date.now(), role: 'assistant', content: fa
                 ? '⚠️ برای شروع گفتگو، اول یک کلید API وارد کن. روی ⚙️ بالای صفحه بزن و هر ارائه‌دهنده‌ای که دوست داری (OpenAI، Anthropic، OpenRouter یا هر سرویس سازگار دیگر) رو انتخاب و کلیدشو وارد کن.'
@@ -31138,6 +31930,10 @@ const MU_AI = (function(){
            app-generated warning instead of silently showing a reply that
            just stops mid-sentence. Reset per attempt inside runAiTurn. */
         let mAiLastReplyTruncated = false;
+        /* True once any tool call actually executed for this message. A retry re-runs the whole
+           turn, so after this flips it must not be used for empty/garbled replies (that would
+           create duplicate notes, repeat deletes, etc). */
+        let mAiToolsRanInTurn = false;
 
         /* Accumulates token usage across every MarkhinAI.chat() call made
            for this one user message — a turn can involve several calls
@@ -31446,6 +32242,8 @@ const MU_AI = (function(){
                 + '- Semantic search: when the user describes a note by meaning ("that note I wrote about missing my student days") even if its exact words may not be in it, first expand the concept yourself into 15-30 related terms (synonyms, close concepts, typical words, situations and emotions; Persian and, where useful, English) and pass them with the query to semantic_search_notes. Then judge the returned passages by real meaning and present only the notes that truly fit, with a short reason why. If the results are weak, also look at overviewOfOtherNotes or search again with different terms. For a plain exact-word lookup keep using find_notes.\n'
                 + '- get_knowledge_graph returns only the first 8 shared words per connection. If moreSharedWords is greater than 0, share those 8, say how many more exist, and ASK the user whether they want the full list; only after they explicitly confirm call it again with all_words=true and give the full list. Never request all words without that confirmation.\n'
                 + '- When the user asks which notes are related or what the knowledge graph shows, call get_knowledge_graph (it returns the same data as the graph screen); to show the screen itself use open_app_view. open_app_view can also open the Morse tool, the binary tool, the archive, pinned notes, favorites, the statistics dashboard (view dashboard), the search window (view search), the lists of active Ghost Notes (ghost_notes) and Time Capsules (capsule_notes), the Note DNA analysis (note_dna) and the share-format picker (share_note) of one specific note (pass its id or title in the note parameter), and the Telegram Cloud Backup panel (cloud_backup, only works inside Telegram).\n'
+                + '- وقتی کاربر درباره‌ی DNA یک یادداشت، آمار، کلمات کلیدی، غنای واژگان یا طول آن می‌پرسد (یا می‌خواهد DNA چند یادداشت را مقایسه کند)، get_note_dna را صدا بزن؛ همه‌ی اعدادی را که پنل DNA نشان می‌دهد برمی‌گرداند و تو آن را با زبان خودت توضیح می‌دهی. یادداشت‌های قفل‌شده قابل تحلیل نیستند.\n'
+                + '- When the user asks about a note\'s DNA, statistics, keywords, vocabulary richness or length (or wants the DNA of several notes compared), call get_note_dna: it returns every number the DNA panel shows (words, unique words, read time, sentences, characters, Persian/English counts, symbols/emoji, images/links, age, folder, richness %, top keywords with counts, tags) for up to 20 notes, and you explain it in your own words. Locked notes cannot be analysed. To show the DNA panel itself use open_app_view with view note_dna.\n'
                 + '- For comparing notes or "what do these have in common", call compare_notes first and then write the actual comparison yourself from the data it returns (common tags, common words, same folder or not); for overall stats or which notes are pinned/favorite, use get_dashboard_stats.\n'
                 + '- When you need the full content of more than one note (e.g. "summarize everything in folder X" or "compare these three"), call get_notes once with the whole list instead of calling get_note repeatedly; when creating several new notes at once, use bulk_create_notes instead of multiple create_note calls. When the user asks whether they have duplicate/overlapping notes or wants their vault "cleaned up", call find_duplicate_notes to get candidates, then suggest merge_notes or delete_note based on the result — never merge or delete anything yourself without the user\'s explicit confirmation.\n'
                 + '- Only the recent part of this conversation is directly visible to you each turn, not its full history. If the user refers to something from earlier in this same chat that you cannot see above — "what was my first message to you", "what did we talk about at the start", "what did you say about X earlier" — never guess or claim you don\'t know; always call get_chat_history first (mode "first" for the earliest messages, "search" for a specific topic, "range" for a specific slice) and answer from what it actually returns. If the user has cleared this conversation before, the tool correctly returns nothing from before that point — in that case tell them honestly that the earlier conversation was cleared and is not available, rather than inventing anything.\n'
@@ -31592,6 +32390,7 @@ const MU_AI = (function(){
                     // name/content at all. Refuse to execute it and tell the model
                     // plainly so it retries within this same turn instead of the
                     // action just silently not happening.
+                    if(!(call.input && call.input.__mai_malformed__)) mAiToolsRanInTurn = true;
                     const result = (call.input && call.input.__mai_malformed__)
                         ? { ok:false, error: fa
                             ? 'ورودیِ این فراخوانیِ ابزار به‌خاطر محدودیت طول پاسخ، ناقص/خراب دریافت شد (معمولاً وقتی متن طولانی مثل یک یادداشت یا شعر کامل داخل یک فراخوانی نوشته می‌شود). همین کار را دوباره امتحان کن. اگر باز هم ناقص شد، آن را به چند مرحله کوچک‌تر تقسیم کن — مثلاً create_note را با محتوای خالی یا کوتاه بزن، بعد با یک یا چند فراخوانی edit_note_content (mode: "append") بقیه متن را اضافه کن.'
@@ -31611,6 +32410,21 @@ const MU_AI = (function(){
                     const closing = await MarkhinAI.chat(convo.concat([{ role:'user', content: closingPrompt }]), { maxTokens: closingMaxTokens, onDelta: mAiOnDelta, signal: mAiJob.ctl.signal, thinking: mu_useThinking, onUsage: mAiOnUsage });
                     mAiThrowIfStopped(mAiJob);
                     finalText = String(closing || '').trim();
+                }
+            }
+            // Some models end a tool-calling turn with NO closing text. Replaying the whole turn would
+            // re-run the tools, so ask once for the closing summary instead.
+            if(!String(finalText || '').trim() && convo.some(function(m){ return m.role === 'tool_result'; })){
+                mAiStreamText = '';
+                try {
+                    const closingFb = await MarkhinAI.chat(convo.concat([{ role:'user', content: fa
+                        ? 'بر اساس نتایج ابزارهای بالا، الان یک پاسخ نهایی و کوتاه به کاربر بده (بدون فراخوانی ابزار دیگر).'
+                        : 'Based on the tool results above, give the user a final, concise answer now (do not call any more tools).' }]),
+                        { maxTokens: closingMaxTokens, onDelta: mAiOnDelta, signal: mAiJob.ctl.signal, thinking: false, onUsage: mAiOnUsage });
+                    mAiThrowIfStopped(mAiJob);
+                    finalText = String(closingFb || '').trim();
+                } catch(fbErr){
+                    if(fbErr && fbErr.userStopped) throw fbErr;
                 }
             }
             return finalText;
@@ -31636,7 +32450,7 @@ const MU_AI = (function(){
                 lastErr = null;
                 // Guard: a broken completion that is just a huge run of random letters/digits
                 // (no spaces) is treated like an empty one and retried instead of shown.
-                if(attemptNum < 2 && /[A-Za-z0-9+\/=_-]{400,}/.test(String(finalText || ''))){ finalText = ''; continue; }
+                if(attemptNum < 2 && !mAiToolsRanInTurn && /[A-Za-z0-9+\/=_-]{400,}/.test(String(finalText || ''))){ finalText = ''; continue; }
                 if(finalText && finalText.trim()) break;
                 // Genuinely empty completion with no error thrown — some
                 // providers occasionally do this (a safety-filter hiccup,
@@ -31644,7 +32458,7 @@ const MU_AI = (function(){
                 // like a transient failure instead of accepting it and
                 // permanently recording a blank turn; only give up and
                 // fall through to the placeholder once attempts run out.
-                if(attemptNum < 2) continue;
+                if(attemptNum < 2 && !mAiToolsRanInTurn) continue;
                 break;
             } catch(err){
                 lastErr = err;
@@ -31677,7 +32491,9 @@ const MU_AI = (function(){
             // send time, a second apart, so they read in the natural
             // order they represent and the timestamp/"Nth message" tools
             // described in the system prompt keep working correctly.
-            const replyParts = mAiGotEmpty ? [finalText || (fa ? '(پاسخ خالی دریافت شد)' : '(received an empty response)')] : mAi_splitReply(finalText);
+            const replyParts = mAiGotEmpty ? [finalText || (mAiToolsRanInTurn
+                ? (fa ? '✅ درخواستت اجرا شد، ولی مدل متن توضیحی برنگرداند.' : '✅ Your request was carried out, but the model returned no explanatory text.')
+                : (fa ? '(پاسخ خالی دریافت شد)' : '(received an empty response)'))] : mAi_splitReply(finalText);
             const mAiPushTs = Date.now();
             // Token count/cost estimate for this whole turn (every
             // MarkhinAI.chat() call made above, tool loop included) —
@@ -32607,7 +33423,7 @@ html[dir="rtl"] .mu-viewer-progress>i{margin-left:auto;transform-origin:right ce
 .mu-viewer-body [data-mu-at]{direction:ltr!important;text-align:left!important;unicode-bidi:normal!important}
 </style>
 <script id="muNoteViewerJs">
-// Read-only note viewer style: 'retro' (default, old Windows error dialog) or 'ocean'.
+// Read-only note viewer style: 'ask' (default: pick each time), 'ocean' or 'retro' (Windows 95).
 window.mu_getViewerStyle = function(){
     try { var v = localStorage.getItem('markhin_viewer_style_v1'); return (v === 'retro' || v === 'ocean' || v === 'ask') ? v : 'ask'; } catch(e){ return 'ask'; }
 };
@@ -33663,5 +34479,211 @@ body #btnDeleteMenu:hover {
     animation: none !important;
 }
 </style>
+<style id="muSelBarFit">
+/* ---- Long-press selection bars (notes + folders): never spill out of their frame. ----
+   Root cause: the bar is position:fixed with left:50%, so its shrink-to-fit width was capped at
+   half the screen while its buttons are flex:none -> they overflowed the rounded frame.
+   Now the bar is as wide as its content (up to the screen width) and wraps onto a second row
+   if there are too many buttons; buttons are a little smaller. */
+body .markhin-note-select-bar{
+  width:max-content !important;
+  max-width:calc(100vw - 16px) !important;
+  box-sizing:border-box !important;
+  flex-wrap:wrap !important;
+  justify-content:center !important;
+  gap:4px 6px !important;
+  padding:6px 8px !important;
+}
+body .markhin-note-select-bar .mu-select-bar-actions{
+  flex:0 1 auto !important;
+  flex-wrap:wrap !important;
+  justify-content:center !important;
+  gap:5px !important;
+  max-width:100% !important;
+}
+body .markhin-note-select-bar .markhin-move-menu-btn:not(.markhin-move-menu-btn-danger){
+  width:34px !important;height:34px !important;min-width:34px !important;min-height:34px !important;font-size:14px !important;
+}
+body .markhin-note-select-bar .markhin-move-menu-btn.markhin-move-menu-btn-danger{
+  min-width:0 !important;height:34px !important;min-height:34px !important;padding:0 10px !important;
+  font-size:12px !important;border-radius:11px !important;white-space:nowrap !important;
+}
+body .markhin-note-select-bar #muFolderSelPin .mu-ic,
+body .markhin-note-select-bar #muSelLock .mu-ic{color:#7cf6ff !important;stroke:#7cf6ff !important}
+body .markhin-note-select-bar #muFolderSelPin .mu-ic{color:#ff5d73 !important;stroke:#ff5d73 !important}
+body .markhin-note-select-bar #muFolderSelPin.mu-on{background:rgba(255,93,115,.18) !important;border-color:rgba(255,93,115,.6) !important}
+body .markhin-note-select-bar #muFolderSelPin.mu-on .mu-ic{fill:#ff5d73 !important;fill-opacity:.95 !important}
+@media (max-width:400px){
+  body .markhin-note-select-bar .markhin-move-menu-btn:not(.markhin-move-menu-btn-danger){
+    width:31px !important;height:31px !important;min-width:31px !important;min-height:31px !important;
+  }
+  body .markhin-note-select-bar .markhin-move-menu-btn.markhin-move-menu-btn-danger{height:31px !important;min-height:31px !important;padding:0 8px !important}
+  body .markhin-note-select-bar .mu-sel-flag .mu-ic{width:14px !important;height:14px !important}
+  body .markhin-note-select-bar .mu-select-bar-actions{gap:4px !important}
+}
+
+/* ---- Folder tabs: the select mark and the pin icon never overlap the folder name. ----
+   Both are now small fixed-size drawn shapes (no emoji glyphs, whose width varies by font),
+   laid out in a single non-wrapping row: [mark] [pin] name. */
+.folder-wrapper.folder-pinned .folder-tab::before{
+  content:"";display:inline-block;flex:none;width:11px;height:11px;margin:0;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ff5d73' stroke='%23ff5d73' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 3.8h6l-.9 5.3 2.9 3.1v1.9H7v-1.9l2.9-3.1L9 3.8z'/%3E%3Cpath d='M12 14.1v6.1' fill='none'/%3E%3C/svg%3E") center/contain no-repeat;
+}
+#foldersContainer .folder-tab{white-space:nowrap !important;flex-wrap:nowrap !important;align-items:center !important}
+#foldersContainer.folder-select-mode .folder-wrapper{gap:4px !important;flex-wrap:nowrap !important}
+#foldersContainer.folder-select-mode .folder-tab{padding:8px 11px !important;font-size:11.5px !important;gap:4px !important}
+#foldersContainer.folder-select-mode .folder-wrapper.folder-pinned .folder-tab::before{width:10px;height:10px}
+.folder-select-mark{
+  position:relative !important;flex:none !important;display:inline-block !important;box-sizing:border-box;
+  width:15px;height:15px;margin:0 !important;border-radius:50%;
+  border:1.6px solid rgba(255,255,255,.55);background:transparent;
+  font-size:0 !important;line-height:0 !important;overflow:hidden;
+}
+.folder-select-mark.on{background:#34d399;border-color:#34d399}
+.folder-select-mark.on::after{
+  content:"";position:absolute;left:4px;top:1.2px;width:4px;height:7px;
+  border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg);
+}
+</style>
+
+<style id="muUnpinDirectCss">
+/* Direct unpin: the filled pin icon on a note row / folder tab is itself a tap target. */
+.mu-unpin-hit{cursor:pointer;pointer-events:auto;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:transform .12s ease,opacity .12s ease}
+.mu-unpin-hit:active{transform:scale(.8);opacity:.7}
+.markhin-smart-item b .mu-unpin-hit{display:inline-block;vertical-align:middle;padding:7px 3px;margin:-7px 0;margin-inline-end:.1em}
+.markhin-smart-item b .mu-unpin-hit .mu-flag-ic{pointer-events:none;margin-inline-end:.15em}
+.note-item-title .mu-unpin-hit{display:inline-block;vertical-align:middle;padding:7px 3px;margin:-7px 0;margin-inline-end:.1em}
+.note-item-title .mu-unpin-hit .mu-flag-ic{pointer-events:none;margin-inline-end:.15em}
+#foldersContainer .folder-tab .mu-unpin-hit.folder{display:inline-flex;flex:none;align-items:center;justify-content:center;box-sizing:content-box;width:11px;height:11px;padding:7px;margin:-7px}
+#foldersContainer .folder-tab .mu-unpin-hit.folder svg{width:11px;height:11px;display:block;pointer-events:none}
+#foldersContainer.folder-select-mode .folder-tab .mu-unpin-hit.folder{width:10px;height:10px}
+#foldersContainer.folder-select-mode .folder-tab .mu-unpin-hit.folder svg{width:10px;height:10px}
+.folder-wrapper.folder-pinned .folder-tab.mu-pin-x-on::before{display:none !important}
+</style>
+<style id="muDashLayoutCss">
+.mdb-secs{margin-top:14px;display:flex;flex-direction:column;gap:8px}
+.mdb-sec{border:1px solid var(--panel-border);border-radius:12px;background:rgba(0,0,0,.14);overflow:hidden}
+.mdb-sec>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px 13px;font-size:13px;font-weight:700;-webkit-tap-highlight-color:transparent}
+.mdb-sec>summary::-webkit-details-marker{display:none}
+.mdb-sec>summary::after{content:"";width:7px;height:7px;border:solid currentColor;border-width:0 2px 2px 0;transform:rotate(45deg);opacity:.55;transition:transform .15s ease;flex:none}
+.mdb-sec[open]>summary::after{transform:rotate(-135deg)}
+.mdb-sec>summary em{margin-inline-start:auto;font-style:normal;font-size:11px;font-weight:700;opacity:.8;padding:1px 8px;border-radius:999px;background:rgba(255,255,255,.1)}
+.mdb-body{padding:2px 12px 12px}
+.mdb-chips{display:flex;flex-wrap:wrap;gap:7px}
+.mdb-chip{font:inherit;font-size:12px;color:inherit;cursor:pointer;padding:6px 11px;border-radius:999px;border:1px solid var(--panel-border);background:rgba(255,255,255,.06);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;touch-action:manipulation}
+.mdb-chip small{opacity:.65;font-size:.85em;margin-inline-start:2px}
+.mdb-chip:active{transform:scale(.96)}
+.mdb-note{font-size:11px;opacity:.55}
+.markhin-dashboard-grid.mdb-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.markhin-dashboard-grid.mdb-grid>.markhin-dashboard-item:last-child:nth-child(odd){grid-column:1/-1}
+@media(min-width:700px){.markhin-dashboard-grid.mdb-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.markhin-dashboard-grid.mdb-grid>.markhin-dashboard-item:last-child:nth-child(odd){grid-column:auto}}
+.mdb-chip bdi{unicode-bidi:isolate}
+</style>
+<script id="muUnpinDirectJs">
+(function(){
+  var PIN_SVG='<svg viewBox="0 0 24 24" fill="#ff5d73" stroke="#ff5d73" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 3.8h6l-.9 5.3 2.9 3.1v1.9H7v-1.9l2.9-3.1L9 3.8z"/><path d="M12 14.1v6.1" fill="none"/></svg>';
+  function isFa(){ try{ return currentLang==='fa'; }catch(e){ return true; } }
+  function favTitle(){ return isFa() ? 'حذف از فیوریت' : 'Remove from Favorites'; }
+  function unpinTitle(){ return isFa() ? 'برداشتن پین' : 'Unpin'; }
+
+  // Note rows: same icons as before, but the pin is wrapped so it can be tapped.
+  window.mu_flagIconsList=function(item){
+    var out='';
+    if(item && item.pinned){
+      var t=unpinTitle();
+      out+='<span class="mu-unpin-hit note" role="button" data-unpin="note" title="'+t+'" aria-label="'+t+'">'+window.mu_flagIc('pin')+'</span>';
+    }
+    if(item && item.favorite){
+      var ft=favTitle();
+      out+='<span class="mu-unpin-hit note" role="button" data-unpin="fav" title="'+ft+'" aria-label="'+ft+'">'+window.mu_flagIc('fav')+'</span>';
+    }
+    return out;
+  };
+
+  // Folder tabs: a real element replaces the decorative ::before pin on pinned folders.
+  function syncFolderPins(){
+    var c=document.getElementById('foldersContainer');
+    if(!c || !window.MU_FolderPins) return;
+    c.querySelectorAll('.folder-wrapper').forEach(function(w){
+      var b=w.querySelector('.folder-tab'); if(!b) return;
+      var on=window.MU_FolderPins.isPinned(w.dataset.folder);
+      var s=b.querySelector('.mu-unpin-hit');
+      if(on && !s){
+        s=document.createElement('span');
+        s.className='mu-unpin-hit folder'; s.setAttribute('role','button'); s.setAttribute('data-unpin','folder');
+        s.innerHTML=PIN_SVG;
+        b.insertBefore(s,b.firstChild);
+      }
+      if(s){ if(!on){ s.remove(); s=null; } else { s.title=unpinTitle(); s.setAttribute('aria-label',s.title); } }
+      b.classList.toggle('mu-pin-x-on', !!on);
+    });
+  }
+  var _prevRF=window.renderFolders;
+  if(typeof _prevRF==='function'){
+    window.renderFolders=function(){
+      var r=_prevRF.apply(this,arguments);
+      try{ syncFolderPins(); }catch(e){}
+      return r;
+    };
+  }
+  setTimeout(function(){ try{ syncFolderPins(); }catch(e){} },0);
+  window.addEventListener('load',function(){ try{ syncFolderPins(); }catch(e){} });
+
+  // Bug fix: the pin/favorite button inside an open note only patched its own header button, so the
+  // note's row in the list kept the old icon and sort position until some other action re-rendered it.
+  var _prevToggle=window.mcToggleFlag;
+  if(typeof _prevToggle==='function'){
+    window.mcToggleFlag=function(id,key){
+      var r=_prevToggle.apply(this,arguments);
+      try{ if(typeof window.renderButtons==='function') window.renderButtons(); }catch(_){}
+      return r;
+    };
+  }
+
+  // Remember which dashboard list is open, so unpinning from inside it can refresh it.
+  var _dashKind=null,_dashVal;
+  var _prevSL=window.markhinDash_showList;
+  if(typeof _prevSL==='function'){
+    window.markhinDash_showList=function(kind,value){ _dashKind=kind; _dashVal=value; return _prevSL.apply(this,arguments); };
+  }
+
+  // One delegated handler (capture phase so the row/tab's own open/switch click never fires).
+  document.addEventListener('click',function(e){
+    var t=e.target; if(!t || !t.closest) return;
+    var h=t.closest('.mu-unpin-hit'); if(!h) return;
+    // While selecting / deleting, a tap keeps its normal meaning (select / etc.).
+    if(window.MarkhinNoteSelectMode || window.MarkhinFolderSelectMode || window.MarkhinNoteDeleteMode || (typeof isDeleteFolderMode!=='undefined' && isDeleteFolderMode)) return;
+    var kind=h.getAttribute('data-unpin');
+    if(kind==='note' || kind==='fav'){
+      var flag=(kind==='fav') ? 'favorite' : 'pinned';
+      var wrap=h.closest('.note-btn-wrap');
+      var drow=wrap?null:h.closest('.markhin-smart-item');
+      if(!wrap && !drow) return;
+      var id=String(wrap ? wrap.dataset.id : drow.dataset.id);
+      var item=(typeof categories!=='undefined') ? categories.find(function(c){ return String(c.id)===id; }) : null;
+      if(!item || !item[flag]) return;
+      e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
+      if(typeof window.mcToggleFlag==='function') window.mcToggleFlag(item.id,flag); // saves + toast + header button + list refresh
+      if(drow){
+        // Inside a dashboard list: the matching list drops the note, every other list just loses the icon.
+        if(_dashKind===flag && h.closest('#mdShowListBody') && typeof window.markhinDash_showList==='function') window.markhinDash_showList(flag);
+        else h.remove();
+        try{
+          var card=document.getElementById('advancedCard');
+          var stat=card && card.querySelector('.markhin-dashboard-item[onclick*="showList(\''+flag+'\')"] b');
+          if(stat) stat.textContent=String(categories.filter(function(c){ return c[flag] && !c.archived; }).length);
+        }catch(_){}
+      }
+    } else if(kind==='folder'){
+      var fw=h.closest('.folder-wrapper'); if(!fw || !window.MU_FolderPins) return;
+      var name=fw.dataset.folder;
+      if(!window.MU_FolderPins.isPinned(name)) return;
+      e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
+      window.MU_FolderPins.set([name],false);
+      try{ showToast(isFa() ? 'پین پوشه برداشته شد' : 'Folder unpinned'); }catch(_){}
+    }
+  },true);
+})();
+</script>
 </body>
 </html>
