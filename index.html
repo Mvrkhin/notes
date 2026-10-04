@@ -34567,11 +34567,18 @@ html.mu-soft.mu-zoom-on .mAi-messages{touch-action:pan-x pan-y}
 /* Software zoom is a transform on <body> (origin top-left), so the browser's own scroller pans it in both axes. */
 html.mu-soft-zoomed,html.mu-soft-zoomed body{overflow:visible !important}
 html.mu-soft-pinch,html.mu-soft-pinch body{overflow:hidden !important}
+/* While pinching in Telegram (software zoom) the sticky top bar is taken out of sticky positioning, so the
+   changing scale / scroll can't make it jitter or drift; it simply sits in its natural place at the top
+   (the page is also jumped to the top when the pinch starts, see initSoftPinch). Sticky returns afterwards. */
+html.mu-soft-pinch .header-nav,html.mu-soft-zoomed .header-nav{position:relative !important;top:auto !important;transition:none !important;will-change:transform}
 /* Black-flash fix: while the zoom level is changing (and while zoomed in) the full-screen blurred / animated theme
    layers are frozen and their glass blur is dropped, so the GPU is not asked to re-raster them at every scale. */
 html.mu-zooming body[class*="theme-"]::before,html.mu-zooming body[class*="theme-"]::after,
 html.mu-zoomed body[class*="theme-"]::before,html.mu-zoomed body[class*="theme-"]::after{animation:none !important;transition:none !important;filter:none !important;opacity:0 !important}
 html.mu-zooming *,html.mu-zooming *::before,html.mu-zooming *::after{-webkit-backdrop-filter:none !important;backdrop-filter:none !important}
+/* The small top navigation bar keeps its blur while the zoom/scroll "busy" window is active; dropping it there made the
+   blur vanish for ~0.4-0.7s every time a finger was lifted after scrolling or pinching (the bar is tiny, so keeping it is cheap). */
+html.mu-zooming .header-nav{-webkit-backdrop-filter:blur(15px) !important;backdrop-filter:blur(15px) !important}
 #muZoomPill{position:fixed;left:10px;top:10px;z-index:2147483000;display:none;padding:7px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.25);background:rgba(0,0,0,.72);color:#fff;font:600 12px/1 system-ui,sans-serif;direction:ltr;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;box-shadow:0 2px 10px rgba(0,0,0,.4)}
 </style>
 <script id="muLiteScript">
@@ -34650,6 +34657,26 @@ html.mu-zooming *,html.mu-zooming *::before,html.mu-zooming *::after{-webkit-bac
   // Software zoom: scale <body> from its top corner (like a browser's visual-viewport zoom the layout does NOT
   // reflow), and let the browser's own scroller pan it. (fx, fy) = screen point to keep fixed; (ax, ay) = the
   // page point that should sit under it (defaults to whatever is under it right now).
+  // While a pinch is in progress, keep the top navigation bar visually frozen on screen: the body is scaled and
+  // scrolled underneath it, so the bar gets the inverse transform (counter-scale + offset). Measured from the
+  // bar's untransformed layout box (offsetTop/Left/Width ignore transforms), so no layout reads are needed.
+  function pinHeader() {
+    try {
+      var h = document.querySelector('.header-nav'), bd = document.body;
+      if (!h || !bd) return;
+      if (swZ <= 1.001) { h.style.removeProperty('transform'); h.style.removeProperty('transform-origin'); return; }
+      var z = swZ, sx = window.pageXOffset || 0, sy = window.pageYOffset || 0;
+      var oT = h.offsetTop, oL = h.offsetLeft, oW = h.offsetWidth, W = bd.offsetWidth;
+      var dy = (oT + sy) / z - oT, dx, org;
+      if (isRtl()) { var r0 = W - oL - oW; dx = r0 - (r0 - sx) / z; org = '100% 0'; }
+      else { dx = (oL + sx) / z - oL; org = '0 0'; }
+      h.style.transformOrigin = org;
+      h.style.transform = 'translate(' + dx + 'px,' + dy + 'px) scale(' + (1 / z) + ')';
+    } catch (e) {}
+  }
+  function unpinHeader() {
+    try { var h = document.querySelector('.header-nav'); if (h) { h.style.removeProperty('transform'); h.style.removeProperty('transform-origin'); } } catch (e) {}
+  }
   function softApply(z, fx, fy, ax, ay) {
     z = Math.max(1, Math.min(5, z));
     if (z < 1.03) z = 1;
@@ -34667,6 +34694,7 @@ html.mu-zooming *,html.mu-zooming *::before,html.mu-zooming *::after{-webkit-bac
       root.classList.toggle('mu-zoomed', z > 1.02);
     }
     jumpTo(scrollXFor(ax, z, fx), ay * z - fy);
+    if (swZ > 1.001) pinHeader(); else unpinHeader();
     updatePill();
   }
   function pageScale() {
@@ -34791,15 +34819,30 @@ html.mu-zooming *,html.mu-zooming *::before,html.mu-zooming *::after{-webkit-bac
   function endSoftPinch() {
     swStart = null;
     root.classList.remove('mu-soft-pinch');
+    // No jump when the fingers lift: while the page stays zoomed the bar stays pinned exactly where it was
+    // (re-pinned on every scroll, see below); it only goes back to normal sticky at 100%.
+    if (swZ > 1.001) pinHeader(); else unpinHeader();
     try { if (document.body) document.body.style.removeProperty('will-change'); } catch (e) {}
     pulse(350);
   }
   function initSoftPinch() {
     if (initSoftPinch.done) return; initSoftPinch.done = true;
+    // While zoomed in (software zoom) keep the navigation bar glued to the top of the screen as the page scrolls.
+    var pinTick = false;
+    window.addEventListener('scroll', function () {
+      if (swZ <= 1.001 || pinTick) return;
+      pinTick = true;
+      requestAnimationFrame(function () { pinTick = false; if (swZ > 1.001) pinHeader(); });
+    }, { passive: true });
     document.addEventListener('touchstart', function (e) {
       if (e.touches.length !== 2 || !zoomOn() || inGraph(e.target)) return;
       if (!softMode()) { pulse(700); return; }          // native pinch: just freeze the heavy layers meanwhile
       var t = e.touches, m = pinchMid(t);
+      // Pinch starting while scrolled down: bring the page to the top so the navigation bar is in view and
+      // stays put for the whole gesture (anchor is measured AFTER the jump so the zoom stays under the fingers).
+      root.classList.add('mu-soft-pinch');
+      if ((window.pageYOffset || 0) > 0) jumpTo(window.pageXOffset || 0, 0);
+      pinHeader();
       swStart = {
         d: pinchDist(t) || 1, z: swZ,
         ax: anchorX(m[0]),                              // page point under the fingers at the start
