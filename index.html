@@ -4439,6 +4439,19 @@ setTimeout(finish,MAX)})();</script>
         
         .img-drag-wrapper:hover { border-color: rgba(255,255,255,0.45); }
 
+        /* Image alignment row. Direction is forced physical LTR so the image can never jump
+           sides when Persian or English is typed. Left-aligned: [image][text].
+           Right-aligned: [text][image]. Centered: [text][image][text]. Each side is a
+           one-line writable slot; Enter in a slot drops the caret on the line below the image. */
+        .mu-img-row { display: flex !important; flex-wrap: nowrap; align-items: center; direction: ltr !important; unicode-bidi: isolate !important; text-align: left !important; margin: 0; max-width: 100%; }
+        .text-box .mu-img-row, .mu-viewer-body .mu-img-row { unicode-bidi: isolate !important; direction: ltr !important; }
+        .mu-img-row > .img-drag-wrapper { flex: 0 1 auto; min-width: 0; margin: 7px 10px; }
+        .mu-img-side { display: block; flex: 1 1 0; min-width: 2.2em; min-height: 1.9em; direction: ltr; unicode-bidi: plaintext; overflow-wrap: anywhere; align-self: center; cursor: text; outline: none; }
+        .mu-row-l > .mu-img-side { text-align: left !important; }
+        .mu-row-r > .mu-img-side { text-align: right !important; }
+        .mu-row-c > .mu-img-side:first-child { text-align: right !important; }
+        .mu-row-c > .mu-img-side:last-child { text-align: left !important; }
+
         .img-drag-wrapper img {
             max-width: 100%;
             height: auto;
@@ -4460,7 +4473,7 @@ setTimeout(finish,MAX)})();</script>
             min-height: 1.4em;
             padding-top: 6px;
             margin-top: 4px;
-            border-top: 1px dashed rgba(255,255,255,0.25);
+            border-top: 1px solid transparent;
             cursor: text;
         }
 
@@ -4474,7 +4487,7 @@ setTimeout(finish,MAX)})();</script>
             min-height: 1.4em;
             padding-bottom: 6px;
             margin-bottom: 4px;
-            border-bottom: 1px dashed rgba(255,255,255,0.25);
+            border-bottom: 1px solid transparent;
             cursor: text;
         }
 
@@ -4486,7 +4499,7 @@ setTimeout(finish,MAX)})();</script>
             display: block;
             height: 0;
             margin: 10px 0 4px;
-            border-top: 1px dashed rgba(255,255,255,0.25);
+            border-top: 1px solid transparent;
         }
 
         /* Added when the media next to a frame line is deleted: only the dashed
@@ -4575,6 +4588,8 @@ setTimeout(finish,MAX)})();</script>
         .mu-img-lightbox-btn:hover { background: rgba(255,255,255,.22); transform: translateY(-1px); }
         .mu-img-lightbox-btn:active { transform: translateY(0) scale(.92); }
         .mu-img-lightbox-btn.mu-danger { border-color: rgba(239,68,68,.4); background: rgba(239,68,68,.16); }
+        .mu-img-lightbox-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+        .mu-img-lightbox-btn.mu-on { background: rgba(124,246,255,.28); border-color: rgba(124,246,255,.8); }
         .mu-img-lightbox-btn.mu-danger:hover { background: rgba(239,68,68,.32); }
         /* Bug fix (download button's ⬇️ icon was visually identical to the
            "move down a line" button's ⬇️, so the two were impossible to
@@ -11349,7 +11364,9 @@ window.mu_syncHtmlBg = function(){
 
             // Frame lines whose image/drawing/voice was already deleted (their dashed
             // rule came back after an earlier reload) lose just the dashed rule too.
-            const isMedia = n => !!n && n.classList && (n.classList.contains('img-drag-wrapper') || n.classList.contains('audio-wrapper'));
+            const isMedia = n => !!n && n.classList && (n.classList.contains('img-drag-wrapper') || n.classList.contains('audio-wrapper') || n.classList.contains('mu-img-row'));
+            mu_cleanImgRows(textBox);
+            mu_ensureRowBelow(textBox);
             textBox.querySelectorAll('.img-below-line').forEach(el => { if (!isMedia(el.previousElementSibling)) mu_stripFrameLineDash(el); });
             textBox.querySelectorAll('.img-above-line, .img-top-divider').forEach(el => { if (!isMedia(el.nextElementSibling)) mu_stripFrameLineDash(el); });
 
@@ -11603,6 +11620,7 @@ window.mu_syncHtmlBg = function(){
         // so each click nudges the image up or down by one line. Returns
         // false (and does nothing) if the image is already at that end.
         function mu_moveImageWrapper(wrapper, dir) {
+            if (wrapper && wrapper.parentElement && wrapper.parentElement.classList.contains('mu-img-row')) wrapper = wrapper.parentElement;
             const parent = wrapper && wrapper.parentElement;
             if (!parent) return false;
             if (dir < 0) {
@@ -11617,6 +11635,108 @@ window.mu_syncHtmlBg = function(){
             }
             return true;
         }
+
+        // ---- Image alignment ('left' | 'center' | 'right'; null = default inline) ----
+        const MU_AL_CLS = { left: 'mu-row-l', center: 'mu-row-c', right: 'mu-row-r' };
+        const MU_INLINE_TAGS = new Set(['B','STRONG','I','EM','U','S','SPAN','A','CODE']);
+        function mu_getImageAlign(wrapper) {
+            const row = wrapper && wrapper.parentElement;
+            if (!row || !row.classList || !row.classList.contains('mu-img-row')) return null;
+            for (const k in MU_AL_CLS) if (row.classList.contains(MU_AL_CLS[k])) return k;
+            return null;
+        }
+        function mu_unwrapImgRow(row) {
+            if (!row || !row.parentNode) return;
+            const frag = document.createDocumentFragment();
+            while (row.firstChild) {
+                const n = row.firstChild;
+                if (n.classList && n.classList.contains('mu-img-side')) {
+                    while (n.firstChild) frag.appendChild(n.firstChild);
+                    n.remove();
+                } else frag.appendChild(n);
+            }
+            row.parentNode.replaceChild(frag, row);
+        }
+        function mu_setImageAlign(wrapper, al) {
+            if (!wrapper || !wrapper.parentNode) return;
+            const cur = wrapper.parentElement;
+            if (cur && cur.classList && cur.classList.contains('mu-img-row')) mu_unwrapImgRow(cur);
+            if (al !== 'left' && al !== 'center' && al !== 'right') return;
+            const strip = n => { if (n.nodeType === 3 && n.data.indexOf('\u200B') > -1) { n.data = n.data.replace(/\u200B/g, ''); } return n; };
+            const takeRun = (start, dir) => {
+                const out = [];
+                let n = start;
+                while (n && ((n.nodeType === 3) || (n.nodeType === 1 && MU_INLINE_TAGS.has(n.tagName) && !n.classList.contains('img-drag-wrapper')))) {
+                    out.push(n);
+                    n = dir < 0 ? n.previousSibling : n.nextSibling;
+                }
+                if (dir < 0) out.reverse();
+                return out;
+            };
+            const row = document.createElement('div');
+            row.className = 'mu-img-row ' + MU_AL_CLS[al];
+            const mkSide = () => { const sp = document.createElement('span'); sp.className = 'mu-img-side'; return sp; };
+            const hasL = al !== 'left', hasR = al !== 'right';
+            const leftNodes = hasL ? takeRun(wrapper.previousSibling, -1) : [];
+            const rightNodes = hasR ? takeRun(wrapper.nextSibling, 1) : [];
+            wrapper.parentNode.insertBefore(row, wrapper);
+            if (hasL) { const sp = mkSide(); leftNodes.forEach(n => sp.appendChild(strip(n))); if (!sp.textContent && !sp.querySelector('*')) sp.textContent = ''; row.appendChild(sp); }
+            row.appendChild(wrapper);
+            if (hasR) { const sp = mkSide(); rightNodes.forEach(n => sp.appendChild(strip(n))); row.appendChild(sp); }
+            row.querySelectorAll('.mu-img-side').forEach(sp => { if (!sp.textContent.trim() && !sp.querySelector('img,br')) sp.textContent = ''; });
+            mu_ensureRowBelow(row.parentNode);
+        }
+        // Rows left without their image (image moved/deleted elsewhere): keep any text, drop the row.
+        function mu_cleanImgRows(root) {
+            if (!root) return;
+            root.querySelectorAll('.mu-img-row').forEach(row => {
+                if (!row.querySelector(':scope > .img-drag-wrapper')) mu_unwrapImgRow(row);
+            });
+        }
+        // Every aligned image row keeps a blank, clickable line right under it, so there is always
+        // somewhere to click and write below the image.
+        function mu_ensureRowBelow(root) {
+            if (!root || !root.querySelectorAll) return;
+            root.querySelectorAll('.mu-img-row').forEach(row => {
+                const n = row.nextElementSibling;
+                const ok = n && n.tagName === 'DIV' && !n.classList.contains('img-drag-wrapper') && !n.classList.contains('audio-wrapper') && !n.classList.contains('mu-img-row') && !n.classList.contains('img-top-divider');
+                if (!ok) row.parentNode.insertBefore(mu_createImgBelowLine(), row.nextSibling);
+            });
+        }
+        // Clicking the empty strip around the image inside the row puts the caret in the nearest side slot.
+        document.addEventListener('click', function(e) {
+            const row = e.target && e.target.classList && e.target.classList.contains('mu-img-row') ? e.target : null;
+            if (!row || !row.closest('[contenteditable="true"]')) return;
+            const sides = row.querySelectorAll(':scope > .mu-img-side');
+            if (!sides.length) return;
+            const rc = row.getBoundingClientRect();
+            const pick = (sides.length === 1) ? sides[0] : (e.clientX < rc.left + rc.width / 2 ? sides[0] : sides[sides.length - 1]);
+            const sel = window.getSelection(), g = document.createRange();
+            g.selectNodeContents(pick); g.collapse(false);
+            sel.removeAllRanges(); sel.addRange(g);
+        }, true);
+        // Enter inside a side slot = "go below the image": caret moves to the line under the row.
+        document.addEventListener('keydown', function(e) {
+            if (e.key !== 'Enter' || e.isComposing) return;
+            const sel = window.getSelection();
+            if (!sel || !sel.rangeCount) return;
+            let n = sel.anchorNode; n = n && (n.nodeType === 1 ? n : n.parentElement);
+            const side = n && n.closest && n.closest('.mu-img-side');
+            if (!side) return;
+            const row = side.parentElement;
+            const host = row && row.closest('.text-box, .mu-viewer-body');
+            if (!host) return;
+            e.preventDefault();
+            let next = row.nextElementSibling;
+            if (!next || next.classList.contains('img-drag-wrapper') || next.classList.contains('audio-wrapper') || next.classList.contains('mu-img-row') || next.classList.contains('img-top-divider')) {
+                const d = document.createElement('div'); d.innerHTML = '<br>';
+                row.parentNode.insertBefore(d, next || null); next = d;
+            }
+            const g = document.createRange();
+            try { g.selectNodeContents(next); g.collapse(true); } catch (_) { g.setStart(next, 0); g.collapse(true); }
+            sel.removeAllRanges(); sel.addRange(g);
+            try { host.dispatchEvent(new Event('input', { bubbles: true })); } catch (_) {}
+        }, true);
 
         function mu_openImageLightbox(wrapper, categoryId) {
             const img = wrapper?.querySelector('img');
@@ -11645,6 +11765,11 @@ window.mu_syncHtmlBg = function(){
                         '</div></div>' +
                         '<div class="mu-img-lightbox-group"><span class="mu-img-lightbox-group-label">' + (fa ? 'برش تصویر' : 'Crop image') + '</span><div class="mu-img-lightbox-group-buttons">' +
                             '<button type="button" class="mu-img-lightbox-btn" id="muImgLightboxCrop" title="' + (fa ? 'برش تصویر' : 'Crop image') + '">✂️</button>' +
+                        '</div></div>' +
+                        '<div class="mu-img-lightbox-group"><span class="mu-img-lightbox-group-label">' + (fa ? 'چینش تصویر' : 'Align image') + '</span><div class="mu-img-lightbox-group-buttons">' +
+                            '<button type="button" class="mu-img-lightbox-btn" id="muImgLightboxAlL" title="' + (fa ? 'چپ‌چین' : 'Align left') + '"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 10h10M4 14h16M4 18h10"/></svg></button>' +
+                            '<button type="button" class="mu-img-lightbox-btn" id="muImgLightboxAlC" title="' + (fa ? 'وسط‌چین' : 'Align center') + '"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 10h10M4 14h16M7 18h10"/></svg></button>' +
+                            '<button type="button" class="mu-img-lightbox-btn" id="muImgLightboxAlR" title="' + (fa ? 'راست‌چین' : 'Align right') + '"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M10 10h10M4 14h16M10 18h10"/></svg></button>' +
                         '</div></div>' +
                         '<button type="button" class="mu-img-lightbox-btn mu-danger" id="muImgLightboxDel" title="' + (fa ? 'حذف' : 'Delete') + '">🗑️</button>' +
                     '</div>';
@@ -11692,6 +11817,25 @@ window.mu_syncHtmlBg = function(){
                     if (cId) saveCategory(cId);
                 }
             };
+
+            const alBtns = { left: 'muImgLightboxAlL', center: 'muImgLightboxAlC', right: 'muImgLightboxAlR' };
+            const refreshAl = () => {
+                const cur = mu_getImageAlign(muImgLightboxCtx && muImgLightboxCtx.wrapper);
+                Object.keys(alBtns).forEach(k => { const b = document.getElementById(alBtns[k]); if (b) b.classList.toggle('mu-on', cur === k); });
+            };
+            Object.keys(alBtns).forEach(k => {
+                const b = document.getElementById(alBtns[k]);
+                if (!b) return;
+                b.onclick = (e) => {
+                    e.stopPropagation();
+                    if (!muImgLightboxCtx) return;
+                    const { wrapper: w, categoryId: cId } = muImgLightboxCtx;
+                    mu_setImageAlign(w, mu_getImageAlign(w) === k ? null : k);
+                    refreshAl();
+                    if (cId) autosaveCategory(cId);
+                };
+            });
+            refreshAl();
 
             ov.style.display = 'flex';
         }
@@ -11785,11 +11929,15 @@ window.mu_syncHtmlBg = function(){
         // place untouched, only the dashed rule itself disappears.
         function mu_removeMediaWrapper(wrapper) {
             if (!wrapper) return;
-            const prev = wrapper.previousElementSibling;
-            const next = wrapper.nextElementSibling;
+            let target = wrapper;
+            const pr = wrapper.parentElement;
+            if (pr && pr.classList && pr.classList.contains('mu-img-row')) target = pr;
+            const prev = target.previousElementSibling;
+            const next = target.nextElementSibling;
             if (prev && (prev.classList.contains('img-top-divider') || prev.classList.contains('img-above-line'))) mu_stripFrameLineDash(prev);
             if (next && next.classList.contains('img-below-line')) mu_stripFrameLineDash(next);
             wrapper.remove();
+            if (target !== wrapper) mu_unwrapImgRow(target);
         }
 
         async function insertImageToText(id, event) {
@@ -25628,7 +25776,7 @@ async function mu_aiTranslateNote(id) {
     const textEl = document.getElementById('text-' + id);
     if (!textEl) return;
 
-    const isMedia = (n) => n.nodeType === 1 && n.classList && (n.classList.contains('img-drag-wrapper') || n.classList.contains('audio-wrapper'));
+    const isMedia = (n) => n.nodeType === 1 && n.classList && (n.classList.contains('img-drag-wrapper') || n.classList.contains('audio-wrapper') || n.classList.contains('mu-img-row'));
     const runs = []; let curRun = null;
     Array.from(textEl.childNodes).forEach(node => {
         if (isMedia(node)) { runs.push({ media:true, node }); curRun = null; }
@@ -25938,7 +26086,8 @@ document.addEventListener('keydown', e=>{ if((e.ctrlKey||e.metaKey) && e.key.toL
 function mu2_isPreservedMedia(node){
     return node.nodeType === 1 && (
         node.classList?.contains('img-drag-wrapper') ||
-        node.classList?.contains('audio-wrapper')
+        node.classList?.contains('audio-wrapper') ||
+        node.classList?.contains('mu-img-row')
     );
 }
 
@@ -33566,6 +33715,7 @@ input[data-mu-at], textarea[data-mu-at] {
         return d === 'rtl' ? 'rtl' : 'ltr';
     }
     function markEl(el){
+        if (el.classList && el.classList.contains('mu-img-row')) { setDir(el, null); return; }
         var t = firstLine(ownText(el));
         setDir(el, t ? strongDir(t) : appDir());
     }
@@ -34223,6 +34373,44 @@ html[dir="rtl"] .mu-viewer-progress>i{margin-left:auto;transform-origin:right ce
 /* Same rule as the note editor: a line that starts with "@" or a digit (dates, @user, 3D...) and has no Persian letter before its first Latin letter stays left-to-right */
 .mu-viewer-body [data-mu-at]{direction:ltr!important;text-align:left!important;unicode-bidi:normal!important}
 </style>
+<style id="muViewerEditCss">
+/* ===== Note viewer: in-place edit mode (pencil) + add-image button ===== */
+.mu-viewer-tools-grp{display:inline-flex;align-items:center;gap:8px;direction:ltr}
+.mu-viewer-tool[hidden]{display:none!important}
+.mu-viewer-tool.is-active{background:rgba(94,205,230,.38);border-color:rgba(94,205,230,.85)}
+.mu-viewer.mu-vs-retro .mu-viewer-tool.is-active{background:repeating-conic-gradient(#c0c0c0 0% 25%,#fff 0% 50%) 0 0/2px 2px;box-shadow:inset -1px -1px #fff,inset 1px 1px #0a0a0a,inset -2px -2px #dfdfdf,inset 2px 2px #808080}
+.mu-viewer.is-editing .mu-viewer-body{cursor:text;outline:1px dashed rgba(94,205,230,.6);outline-offset:-7px;caret-color:currentColor;min-height:120px}
+.mu-viewer.is-editing .mu-viewer-body:empty::before{content:attr(data-ph);opacity:.45;pointer-events:none}
+.mu-viewer.is-editing .mu-viewer-title{cursor:text;outline:1px dashed rgba(94,205,230,.6);outline-offset:4px;border-radius:4px;min-height:1.5em;min-width:30%;caret-color:currentColor;-webkit-user-select:text;user-select:text}
+.mu-viewer.is-editing .mu-viewer-title:empty::before{content:attr(data-ph);opacity:.45}
+.mu-viewer.mu-vs-retro.is-editing .mu-viewer-title{background:#fff;color:#000;-webkit-text-fill-color:#000;padding:0 4px;outline:1px dotted #000;outline-offset:-1px;border-radius:0;text-overflow:clip}
+.mu-viewer.mu-vs-retro.is-editing .mu-viewer-body{outline-color:#000080}
+.mu-viewer.is-editing .mu-viewer-body .img-drag-wrapper{border:1px dashed rgba(94,205,230,.75)!important;cursor:default;position:relative}
+.mu-viewer.is-editing .mu-viewer-body .audio-wrapper{position:relative;padding-right:78px;border:1px dashed rgba(94,205,230,.75)}
+.mu-viewer.is-editing .mu-viewer-body .audio-wrapper>button.img-btn{display:none}
+.mu-viewer.is-editing .mu-viewer-body .mu-ed-dragging{opacity:.35}
+.mu-ed-ctl{position:absolute;z-index:6;width:30px;height:30px;padding:0;margin:0;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;border:1px solid rgba(255,255,255,.65);background:rgba(8,18,32,.82);color:#fff;line-height:0;font-size:0;cursor:pointer;touch-action:none;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
+.mu-ed-ctl svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+.mu-ed-ctl:active{transform:scale(.92)}
+.mu-ed-del{top:4px;left:4px}
+.mu-ed-move{top:4px;right:4px;cursor:grab}
+.mu-ed-size{right:4px;bottom:4px;cursor:nwse-resize}
+.mu-ed-al{width:26px;height:26px;top:4px}
+.mu-ed-al svg{width:15px;height:15px}
+.mu-ed-al-l{right:62px}
+.mu-ed-al-c{right:33px}
+.mu-ed-al-r{right:4px}
+.mu-ed-al.is-on{background:rgba(94,205,230,.6);border-color:#fff}
+.audio-wrapper>.mu-ed-del,.audio-wrapper>.mu-ed-move{top:50%;margin-top:-15px;bottom:auto}
+.audio-wrapper>.mu-ed-del{left:auto;right:42px}
+.mu-viewer.mu-vs-retro .mu-ed-ctl{border:0;border-radius:0;background:#c0c0c0;box-shadow:inset -1px -1px #0a0a0a,inset 1px 1px #fff,inset -2px -2px #808080,inset 2px 2px #dfdfdf}
+.mu-viewer.mu-vs-retro .mu-ed-ctl svg{stroke-width:2.6;stroke-linecap:butt}
+.mu-ed-ghost{position:fixed;z-index:10092;pointer-events:none;opacity:.8;width:120px!important;height:auto!important;max-height:120px;overflow:hidden;margin:0!important;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.55);line-height:0}
+.mu-ed-ghost img{width:100%!important;height:auto!important;max-height:120px;object-fit:contain}
+.mu-ed-ghost.audio-wrapper{width:170px!important;height:44px!important}
+.mu-ed-ghost .mu-ed-ctl{display:none}
+.mu-ed-drop{position:fixed;z-index:10091;pointer-events:none;background:#ff9f1c;border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.45);display:none}
+</style>
 <script id="muNoteViewerJs">
 // Read-only note viewer style: 'ask' (default: pick each time), 'ocean' or 'retro' (Windows 95).
 window.mu_getViewerStyle = function(){
@@ -34234,6 +34422,473 @@ window.mu_setViewerStyle = function(v){
 };
 (function(){
   var root=null, lastFocus=null;
+  // ===== In-place editing inside the viewer (pencil button) =====
+  function setupEdit(r){
+    var vb=r.querySelector('.mu-viewer-body'), vt=r.querySelector('.mu-viewer-title');
+    var bEdit=r.querySelector('[data-act="edit"]'), bImg=r.querySelector('[data-act="img"]'), fin=r.querySelector('.mu-ed-file');
+    var S={active:false}, ctx=null, dirty=false, saveT=null, bidiT=null, lastRange=null, queue=Promise.resolve();
+    r.__ed=S;
+    function isFa(){ try{ return currentLang==='fa'; }catch(e){ return true; } }
+    function L(f,e){ return isFa()?f:e; }
+    var IC={
+      del:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg>',
+      move:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/></svg>',
+      size:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 21h6v-6M21 21l-8-8M9 3H3v6M3 3l8 8"/></svg>',
+      alL:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 10h10M4 14h16M4 18h10"/></svg>',
+      alC:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 10h10M4 14h16M7 18h10"/></svg>',
+      alR:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M10 10h10M4 14h16M10 18h10"/></svg>'
+    };
+    function curItem(){ return ctx ? categories.find(function(c){return String(c.id)===String(ctx.id);}) : null; }
+    var ZW='\u200B';
+    function isEmptyNow(){ return !vb.textContent.replace(/[\u200B\s]/g,'') && !vb.querySelector('img,canvas,video,audio,table'); }
+    function stripZ(root){
+      var w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT), list=[], n;
+      while((n=w.nextNode())) if(n.data.indexOf(ZW)>-1) list.push(n);
+      list.forEach(function(t){ var d=t.data.replace(/\u200B/g,''); if(d) t.data=d; else t.remove(); });
+    }
+    function okSlot(n){ return n && n.nodeType===3 && /\S/.test(n.data); }
+    function ensureSlots(){
+      vb.querySelectorAll('.img-drag-wrapper').forEach(function(w){
+        if(!w.parentNode) return;
+        if(w.parentNode.classList && w.parentNode.classList.contains('mu-img-row')) return;
+        if(!okSlot(w.previousSibling)) w.parentNode.insertBefore(document.createTextNode(ZW),w);
+        if(!okSlot(w.nextSibling)) w.parentNode.insertBefore(document.createTextNode(ZW),w.nextSibling);
+      });
+    }
+
+    function markDirty(){
+      if(!S.active) return;
+      dirty=true; clearTimeout(saveT);
+      saveT=setTimeout(function(){ saveT=null; flush(false); },700);
+    }
+    function snapshot(){
+      var clone=vb.cloneNode(true);
+      clone.querySelectorAll('.mu-ed-ctl,.mu-ed-ghost').forEach(function(x){ x.remove(); });
+      stripZ(clone);
+      clone.querySelectorAll('.img-drag-wrapper').forEach(function(w){ w.classList.remove('mu-ed-dragging'); w.setAttribute('contenteditable','false'); w.setAttribute('draggable','true'); });
+      clone.querySelectorAll('.audio-wrapper').forEach(function(w){ w.setAttribute('contenteditable','false'); });
+      clone.querySelectorAll('.img-top-divider').forEach(function(w){ w.setAttribute('contenteditable','false'); });
+      var html, text;
+      if(isEmptyNow()){ html=''; text=''; }
+      else {
+        html=sanitizeHtml(clone.innerHTML);
+        try{ text=textWithVisualSpacing(vb).replace(/\u00a0/g,' '); }catch(e){ text=(vb.innerText||vb.textContent||'').replace(/\u00a0/g,' '); }
+        text=text.replace(/\u200B/g,'');
+      }
+      var nm=(vt.textContent||'').replace(/\s+/g,' ').trim();
+      var it=curItem();
+      if(!nm) nm=String((it&&it.name)||'');
+      return {html:html,text:text,name:nm};
+    }
+    async function persist(snap,final){
+      var item=curItem(); if(!item) return;
+      if(snap){
+        if(snap.name!==String(item.name||'')){
+          if(typeof mu_recordTitleHistory==='function') mu_recordTitleHistory(item,snap.name); else item.name=snap.name;
+        }
+        if(snap.html!==ctx.lastHtml){
+          try{ if(typeof autosaveTimer!=='undefined' && autosaveTimer){ clearTimeout(autosaveTimer); autosaveTimer=null; } }catch(e){}
+          if(isNoteLocked(item)){
+            var pw=(ctx.pass!=null)?ctx.pass:noteSessionKeys.get(item.id);
+            if(!pw){ alert(L('برای ویرایش این یادداشت ابتدا آن را باز کنید.','Unlock this note before editing it.')); return; }
+            item.encrypted=await encryptNotePayload(pw,snap.html,snap.text);
+            if(activeOpenId===item.id){ item.html=snap.html; item.text=snap.text; } else { item.html=''; item.text=''; }
+          } else { item.html=snap.html; item.text=snap.text; }
+          item.lastEdited=new Date().toUTCString();
+          try{ mu_historyPush(item.id,snap.html); }catch(e){}
+          ctx.lastHtml=snap.html;
+        } else if(snap.name!==ctx.lastName){ item.lastEdited=new Date().toUTCString(); }
+        ctx.lastName=snap.name;
+        saveToLocalStorage();
+        ctx.rendered=true;
+        // keep the note editor behind the viewer in sync, so its own autosave can never bring back old content
+        try{
+          var tb=document.getElementById('text-'+item.id);
+          if(tb && (!isNoteLocked(item) || activeOpenId===item.id)){ tb.innerHTML=item.html; if(typeof attachWrapperEvents==='function') attachWrapperEvents(item.id); }
+        }catch(e){}
+      }
+      if(final){ try{ renderApp(); }catch(e){} }
+    }
+    function enqueue(snap,final){ queue=queue.then(function(){ return persist(snap,final); }).catch(function(err){ console.error(err); }); }
+    function flush(final){
+      if(!ctx||!dirty) return;
+      var s=snapshot(); dirty=false; enqueue(s,!!final);
+    }
+
+    function onDelete(w){
+      var msg=(typeof i18n!=='undefined' && i18n[currentLang] && i18n[currentLang].confirmDelete) || L('حذف شود؟','Delete?');
+      if(!confirm(msg)) return;
+      mu_removeMediaWrapper(w); markDirty();
+    }
+    function mkCtl(cls,icon,label){
+      var b=document.createElement('button'); b.type='button'; b.className='mu-ed-ctl '+cls;
+      b.setAttribute('contenteditable','false'); b.setAttribute('aria-label',label); b.title=label; b.innerHTML=icon;
+      b.addEventListener('mousedown',function(e){ e.preventDefault(); });
+      return b;
+    }
+    function hasCtl(w){ return Array.prototype.some.call(w.children,function(c){ return c.classList&&c.classList.contains('mu-ed-ctl'); }); }
+    function decorate(){
+      ensureSlots();
+      vb.querySelectorAll('.img-top-divider').forEach(function(d){ d.setAttribute('contenteditable','false'); });
+      vb.querySelectorAll('.img-drag-wrapper,.audio-wrapper').forEach(function(w){
+        w.setAttribute('contenteditable','false');
+        if(hasCtl(w)) return;
+        var del=mkCtl('mu-ed-del',IC.del,L('حذف','Delete'));
+        del.addEventListener('click',function(e){ e.preventDefault(); e.stopPropagation(); onDelete(w); });
+        w.appendChild(del);
+        if(w.classList.contains('audio-wrapper')){
+          var mv=mkCtl('mu-ed-move',IC.move,L('جابجایی (بکش)','Move (drag)'));
+          mv.addEventListener('pointerdown',function(e){ startMove(e,w); });
+          w.appendChild(mv);
+        }
+        if(w.classList.contains('img-drag-wrapper') && w.querySelector('img')){
+          var sz=mkCtl('mu-ed-size',IC.size,L('تغییر اندازه (بکش)','Resize (drag)'));
+          sz.addEventListener('pointerdown',function(e){ startResize(e,w); });
+          w.appendChild(sz);
+        }
+        if(w.classList.contains('img-drag-wrapper') && w.querySelector('img')){
+          var alBtns=[];
+          function syncAl(){ var cur=mu_getImageAlign(w); alBtns.forEach(function(x){ x.b.classList.toggle('is-on',cur===x.k); }); }
+          [['left','mu-ed-al mu-ed-al-l',IC.alL,L('چپ‌چین','Align left')],
+           ['center','mu-ed-al mu-ed-al-c',IC.alC,L('وسط‌چین','Align center')],
+           ['right','mu-ed-al mu-ed-al-r',IC.alR,L('راست‌چین','Align right')]].forEach(function(d){
+            var ab=mkCtl(d[1],d[2],d[3]);
+            ab.addEventListener('click',function(e){
+              e.preventDefault(); e.stopPropagation();
+              mu_setImageAlign(w, mu_getImageAlign(w)===d[0]?null:d[0]);
+              syncAl(); markDirty();
+            });
+            w.appendChild(ab); alBtns.push({k:d[0],b:ab});
+          });
+          syncAl();
+        }
+      });
+    }
+
+    function startResize(e,w){
+      var img=w.querySelector('img'); if(!img) return;
+      e.preventDefault(); e.stopPropagation();
+      var rc=img.getBoundingClientRect(), sw=rc.width||200, sh=rc.height||sw, ratio=sw/sh, x0=e.clientX, y0=e.clientY;
+      var maxW=Math.min(1000,Math.max(80,vb.clientWidth-30));
+      var mh=parseFloat(getComputedStyle(img).maxHeight);
+      if(mh>0 && img.naturalWidth && img.naturalHeight) maxW=Math.min(maxW,mh*img.naturalWidth/img.naturalHeight);
+      maxW=Math.max(maxW,sw);
+      function mv(ev){
+        ev.preventDefault();
+        var dx=ev.clientX-x0, dy=(ev.clientY-y0)*ratio, d=Math.abs(dx)>=Math.abs(dy)?dx:dy;
+        var nw=Math.round(Math.max(60,Math.min(maxW,sw+d)));
+        img.setAttribute('width',String(nw)); img.style.width=nw+'px';
+      }
+      function up(){
+        document.removeEventListener('pointermove',mv); document.removeEventListener('pointerup',up); document.removeEventListener('pointercancel',up);
+        markDirty();
+      }
+      document.addEventListener('pointermove',mv,{passive:false});
+      document.addEventListener('pointerup',up); document.addEventListener('pointercancel',up);
+    }
+
+    function resolveTarget(x,y,w){
+      var pos=null;
+      if(document.caretRangeFromPoint){ var rg=document.caretRangeFromPoint(x,y); if(rg) pos={n:rg.startContainer,o:rg.startOffset}; }
+      else if(document.caretPositionFromPoint){ var cp=document.caretPositionFromPoint(x,y); if(cp) pos={n:cp.offsetNode,o:cp.offset}; }
+      if(!pos||!pos.n||!vb.contains(pos.n)) return null;
+      var el=pos.n.nodeType===1?pos.n:pos.n.parentElement; if(!el) return null;
+      var m=el.closest('.img-drag-wrapper,.audio-wrapper');
+      if(m&&vb.contains(m)){
+        if(m===w) return null;
+        var rc=m.getBoundingClientRect(), isA=m.classList.contains('audio-wrapper'), rtl=getComputedStyle(m).direction==='rtl';
+        var before=isA?(y<rc.top+rc.height/2):(rtl?(x>rc.left+rc.width/2):(x<rc.left+rc.width/2));
+        return {ref:m,before:before,rect:rc,audio:isA,rtl:rtl};
+      }
+      if(w.contains(pos.n)) return null;
+      return {node:pos.n,offset:pos.o};
+    }
+    function showMarker(mk,t){
+      if(!t){ mk.style.display='none'; return; }
+      var left,top,wd,ht;
+      if(t.ref){
+        var rc=t.rect;
+        if(t.audio){ left=rc.left; top=t.before?rc.top-2:rc.bottom-1; wd=rc.width; ht=3; }
+        else { left=(t.before===!t.rtl)?rc.left-2:rc.right-1; top=rc.top; wd=3; ht=rc.height; }
+      } else {
+        var rr=null;
+        try{ var rg=document.createRange(); rg.setStart(t.node,t.offset); rg.collapse(true); rr=rg.getClientRects()[0]; }catch(e){}
+        if(!rr||(!rr.height&&!rr.width)){
+          var pe=t.node.nodeType===1?t.node:t.node.parentElement;
+          if(!pe){ mk.style.display='none'; return; }
+          var pr=pe.getBoundingClientRect(); left=pr.left+2; top=pr.top; wd=3; ht=Math.min(24,pr.height||20);
+        } else { left=rr.left-1; top=rr.top; wd=3; ht=rr.height||20; }
+      }
+      mk.style.cssText='display:block;left:'+left+'px;top:'+top+'px;width:'+wd+'px;height:'+ht+'px';
+    }
+    function applyDrop(w,t){
+      if(!t) return false;
+      if(t.ref){ t.ref.parentNode.insertBefore(w,t.before?t.ref:t.ref.nextSibling); return true; }
+      try{
+        var rg=document.createRange(); rg.setStart(t.node,t.offset); rg.collapse(true);
+        rg.insertNode(w); return true;
+      }catch(e){ return false; }
+    }
+    function startMove(e,w){
+      e.preventDefault(); e.stopPropagation();
+      var ghost=w.cloneNode(true);
+      ghost.removeAttribute('id'); ghost.removeAttribute('contenteditable');
+      ghost.classList.add('mu-ed-ghost');
+      ghost.querySelectorAll('.mu-ed-ctl').forEach(function(x){ x.remove(); });
+      ghost.querySelectorAll('audio').forEach(function(a){ try{ a.removeAttribute('controls'); }catch(_){} });
+      var mk=document.createElement('div'); mk.className='mu-ed-drop';
+      document.body.appendChild(ghost); document.body.appendChild(mk);
+      w.classList.add('mu-ed-dragging');
+      var target=null, px=e.clientX, py=e.clientY, raf=0, done=false;
+      function place(){ ghost.style.left=(px+14)+'px'; ghost.style.top=(py+14)+'px'; target=resolveTarget(px,py,w); showMarker(mk,target); }
+      function loop(){
+        if(done) return;
+        var rc=vb.getBoundingClientRect(), sp=0;
+        if(py<rc.top+48) sp=-Math.min(18,(rc.top+48-py)/3+3); else if(py>rc.bottom-48) sp=Math.min(18,(py-(rc.bottom-48))/3+3);
+        if(sp){ vb.scrollTop+=sp; place(); }
+        raf=requestAnimationFrame(loop);
+      }
+      function mv(ev){ ev.preventDefault(); px=ev.clientX; py=ev.clientY; place(); }
+      function end(ev,cancel){
+        if(done) return; done=true;
+        document.removeEventListener('pointermove',mv); document.removeEventListener('pointerup',up); document.removeEventListener('pointercancel',cn);
+        cancelAnimationFrame(raf);
+        var t=target; ghost.remove(); mk.remove(); w.classList.remove('mu-ed-dragging');
+        if(!cancel && t && applyDrop(w,t)){ markDirty(); }
+      }
+      function up(ev){ end(ev,false); } function cn(ev){ end(ev,true); }
+      document.addEventListener('pointermove',mv,{passive:false});
+      document.addEventListener('pointerup',up); document.addEventListener('pointercancel',cn);
+      place(); raf=requestAnimationFrame(loop);
+    }
+
+    function placeCaretEnd(){
+      try{
+        vb.focus({preventScroll:true});
+        var rg=document.createRange(); rg.selectNodeContents(vb); rg.collapse(false);
+        var s=window.getSelection(); s.removeAllRanges(); s.addRange(rg);
+      }catch(e){}
+    }
+    function setEditable(el,on){
+      if(on){ el.setAttribute('contenteditable','true'); }
+      else el.removeAttribute('contenteditable');
+    }
+    function enter(){
+      if(S.active||!ctx||!ctx.canEdit) return;
+      S.active=true; dirty=false; lastRange=null;
+      r.classList.add('is-editing'); bEdit.classList.add('is-active'); bEdit.setAttribute('aria-pressed','true'); bImg.hidden=false;
+      if(vb.classList.contains('mu-viewer-empty')){ vb.classList.remove('mu-viewer-empty'); vb.innerHTML=''; r.classList.remove('is-empty'); }
+      vb.setAttribute('data-ph',L('اینجا بنویس…','Type here…'));
+      vt.setAttribute('data-ph',L('عنوان یادداشت','Note title'));
+      if(ctx.fallbackTitle && !String(curItem().name||'').trim()) vt.textContent='';
+      setEditable(vb,true);
+      try{ vt.contentEditable='plaintext-only'; if(vt.contentEditable!=='plaintext-only') vt.contentEditable='true'; }catch(e){ vt.setAttribute('contenteditable','true'); }
+      decorate();
+      try{ mu_ensureRowBelow(vb); }catch(e){}
+      try{ S.fit(); }catch(e){}
+      var b=snapshot(); ctx.lastHtml=b.html; ctx.lastName=String(curItem().name||'');
+      placeCaretEnd();
+    }
+    function teardownUI(){
+      try{ S.unfit&&S.unfit(); }catch(e){}
+      vb.querySelectorAll('.mu-ed-ctl').forEach(function(x){ x.remove(); });
+      stripZ(vb);
+      vb.querySelectorAll('[contenteditable]').forEach(function(n){ n.removeAttribute('contenteditable'); });
+      vb.removeAttribute('contenteditable'); vb.removeAttribute('data-ph');
+      vt.removeAttribute('contenteditable'); vt.removeAttribute('data-ph');
+      r.classList.remove('is-editing'); bEdit.classList.remove('is-active'); bEdit.setAttribute('aria-pressed','false'); bImg.hidden=true;
+      try{ var s=window.getSelection(); if(s) s.removeAllRanges(); }catch(e){}
+    }
+    function exit(){
+      if(!S.active) return;
+      clearTimeout(saveT); saveT=null;
+      var snap=dirty?snapshot():null; dirty=false;
+      S.active=false;
+      teardownUI();
+      var it=curItem();
+      var shown=snap?snap.name:String((it&&it.name)||'');
+      shown=shown.trim()||L('بدون عنوان','Untitled');
+      vt.textContent=shown;
+      try{ vt.setAttribute('dir',window.muBidiDir?window.muBidiDir(shown):'auto'); }catch(e){}
+      r.setAttribute('aria-label',shown);
+      if(isEmptyNow()){ vb.classList.add('mu-viewer-empty'); vb.textContent=L('این یادداشت خالی است.','This note is empty.'); r.classList.add('is-empty'); }
+      else { try{ if(window.muBidiMark){ vb.removeAttribute('data-mu-d'); window.muBidiMark(vb); } }catch(e){} }
+      if(snap) enqueue(snap,true); else if(ctx&&ctx.rendered) enqueue(null,true);
+    }
+    S.exit=exit;
+    S.reset=function(c){
+      clearTimeout(saveT); saveT=null; dirty=false; lastRange=null; S.active=false;
+      ctx=c; ctx.rendered=false;
+      teardownUI();
+      bEdit.hidden=!c.canEdit;
+      bEdit.setAttribute('aria-label',L('ویرایش','Edit')); bEdit.title=L('ویرایش','Edit');
+      bImg.setAttribute('aria-label',L('افزودن عکس','Add image')); bImg.title=L('افزودن عکس','Add image');
+    };
+
+    bEdit.addEventListener('click',function(e){ e.preventDefault(); if(S.active) exit(); else enter(); });
+    bImg.addEventListener('mousedown',function(e){ e.preventDefault(); });
+    bImg.addEventListener('click',function(e){ e.preventDefault(); if(S.active) fin.click(); });
+    fin.addEventListener('change',async function(){
+      var f=fin.files&&fin.files[0]; fin.value='';
+      if(!f||!S.active||!ctx) return;
+      if(f.type&&f.type.indexOf('image/')!==0) return;
+      var mediaId=null, src;
+      try{ mediaId=await mu_mediaPut(f); }catch(e){}
+      try{ src=mediaId?URL.createObjectURL(f):await mu_blobToDataUrl(f); }catch(e){ return; }
+      if(!S.active) return;
+      var w=createDraggableImageElement(src,ctx.id,mediaId);
+      w.onclick=null; w.ondragstart=null;
+      var line=mu_createImgBelowLine();
+      var inBody=lastRange && vb.contains(lastRange.startContainer);
+      if(inBody){
+        var hasAbove=true;
+        try{
+          var pre=document.createRange(); pre.selectNodeContents(vb); pre.setEnd(lastRange.startContainer,lastRange.startOffset);
+          hasAbove=!!pre.toString().replace(/[\u200B\s]/g,'') || !!pre.cloneContents().querySelector('img,canvas,video,audio,table,.img-drag-wrapper,.audio-wrapper');
+        }catch(e){}
+        var frag=document.createDocumentFragment();
+        frag.appendChild(hasAbove?mu_createImgTopDivider():mu_createImgAboveLine());
+        frag.appendChild(w); frag.appendChild(line);
+        try{ lastRange.insertNode(frag); }catch(e){ inBody=false; }
+      }
+      if(!inBody){ mu_prepareImgAboveInsertion(vb); vb.appendChild(w); vb.appendChild(line); }
+      decorate();
+      try{ vb.focus({preventScroll:true}); mu_focusImgBelowLine(line); }catch(e){}
+      try{ w.scrollIntoView({block:'nearest'}); }catch(e){}
+      markDirty();
+    });
+
+    document.addEventListener('selectionchange',function(){
+      if(!S.active) return;
+      var s=window.getSelection(); if(!s||!s.rangeCount) return;
+      var rg=s.getRangeAt(0), n=rg.startContainer;
+      if(!vb.contains(n)) return;
+      var el=n.nodeType===1?n:n.parentElement;
+      if(el&&el.closest('.img-drag-wrapper,.audio-wrapper')) return;
+      lastRange=rg.cloneRange();
+    });
+    vb.addEventListener('input',function(){
+      markDirty();
+      clearTimeout(bidiT); bidiT=setTimeout(function(){ try{ ensureSlots(); if(window.muBidiMark) window.muBidiMark(vb); }catch(e){} },200);
+    });
+    vt.addEventListener('input',markDirty);
+
+    // ===== Keyboard-aware editing: fit the viewer to the visible area, keep the caret visible,
+    // and let a finger drag anywhere outside the text scroll the note =====
+    var fitOn=false;
+    function vvBox(){ var v=window.visualViewport; return v?{top:v.offsetTop,height:v.height}:{top:0,height:window.innerHeight}; }
+    function fitNow(){
+      if(!S.active||r.hidden){ return; }
+      var b=vvBox();
+      r.style.top=b.top+'px'; r.style.height=b.height+'px'; r.style.bottom='auto';
+    }
+    S.fit=function(){ fitOn=true; fitNow(); };
+    S.unfit=function(){ fitOn=false; r.style.top=''; r.style.height=''; r.style.bottom=''; };
+    function caretRect(){
+      var sel=window.getSelection(); if(!sel||!sel.rangeCount) return null;
+      var rg=sel.getRangeAt(0); if(!vb.contains(rg.startContainer)) return null;
+      var rc=null;
+      try{ var rs=rg.getClientRects(); if(rs&&rs.length) rc=rs[rs.length-1]; }catch(e){}
+      if(!rc||(!rc.height&&!rc.width)){
+        var el=rg.startContainer.nodeType===1?rg.startContainer:rg.startContainer.parentElement;
+        if(el&&el!==vb) rc=el.getBoundingClientRect();
+      }
+      return (rc&&(rc.height||rc.width))?rc:null;
+    }
+    function keepCaretVisible(){
+      if(!S.active) return;
+      var rc=caretRect(); if(!rc) return;
+      var vbr=vb.getBoundingClientRect(), v=vvBox();
+      var top=Math.max(vbr.top,v.top)+14, bottom=Math.min(vbr.bottom,v.top+v.height)-14;
+      if(rc.bottom>bottom) vb.scrollTop+=rc.bottom-bottom;
+      else if(rc.top<top) vb.scrollTop-=top-rc.top;
+    }
+    var kcRaf=0;
+    function kcSoon(){ if(kcRaf) return; kcRaf=requestAnimationFrame(function(){ kcRaf=0; keepCaretVisible(); }); }
+    function onVV(){
+      if(!S.active) return;
+      fitNow();
+      kcSoon(); setTimeout(keepCaretVisible,120); setTimeout(keepCaretVisible,350);
+    }
+    if(window.visualViewport){
+      window.visualViewport.addEventListener('resize',onVV);
+      window.visualViewport.addEventListener('scroll',function(){ if(S.active) fitNow(); });
+    }
+    window.addEventListener('resize',onVV);
+    document.addEventListener('selectionchange',function(){ if(S.active) kcSoon(); });
+    vb.addEventListener('focus',function(){ if(S.active){ setTimeout(keepCaretVisible,120); setTimeout(keepCaretVisible,350); } });
+    vb.addEventListener('input',function(){ kcSoon(); });
+
+    // Finger drag outside the text area scrolls the note (with a little momentum).
+    (function(){
+      var t0=null, lastY=0, lastT=0, vel=0, dragging=false, raf=0;
+      function stopFling(){ if(raf){ cancelAnimationFrame(raf); raf=0; } }
+      r.addEventListener('touchstart',function(e){
+        stopFling();
+        if(!S.active||e.touches.length!==1){ t0=null; return; }
+        if(vb.contains(e.target)){ t0=null; return; }
+        t0={x:e.touches[0].clientX,y:e.touches[0].clientY}; lastY=t0.y; lastT=e.timeStamp; vel=0; dragging=false;
+      },{passive:true});
+      r.addEventListener('touchmove',function(e){
+        if(!t0||!S.active) return;
+        var y=e.touches[0].clientY;
+        if(!dragging){ if(Math.abs(y-t0.y)<6) return; dragging=true; }
+        e.preventDefault();
+        var dy=lastY-y, dt=Math.max(1,e.timeStamp-lastT);
+        vb.scrollTop+=dy; vel=dy/dt; lastY=y; lastT=e.timeStamp;
+      },{passive:false});
+      function end(){
+        if(!t0) return;
+        var was=dragging; t0=null; dragging=false;
+        if(!was||Math.abs(vel)<0.1) return;
+        var v=vel*16;
+        (function step(){ v*=0.95; if(Math.abs(v)<0.4){ raf=0; return; } var before=vb.scrollTop; vb.scrollTop+=v; if(vb.scrollTop===before){ raf=0; return; } raf=requestAnimationFrame(step); })();
+      }
+      r.addEventListener('touchend',end,{passive:true});
+      r.addEventListener('touchcancel',end,{passive:true});
+      // a drag must never count as a tap on the backdrop (which would close the viewer)
+      r.addEventListener('click',function(e){ if(S.active&&S.__swallow){ e.stopPropagation(); e.preventDefault(); S.__swallow=false; } },true);
+      r.addEventListener('touchmove',function(){ if(dragging) S.__swallow=true; },{passive:true});
+      r.addEventListener('touchstart',function(){ S.__swallow=false; },{passive:true});
+    })();
+    vt.addEventListener('keydown',function(e){ if(S.active&&e.key==='Enter'){ e.preventDefault(); placeCaretEnd(); } });
+    function plainPaste(e,single){
+      if(!S.active) return;
+      e.preventDefault();
+      var t=(e.clipboardData||window.clipboardData).getData('text/plain')||'';
+      if(single) t=t.replace(/\s+/g,' ');
+      try{ document.execCommand('insertText',false,t); }catch(err){}
+    }
+    vb.addEventListener('paste',function(e){ plainPaste(e,false); });
+    vt.addEventListener('paste',function(e){ plainPaste(e,true); });
+    vb.addEventListener('dragstart',function(e){ if(S.active) e.preventDefault(); });
+    ['dragover','drop'].forEach(function(ev){ vb.addEventListener(ev,function(e){ if(S.active&&e.dataTransfer&&e.dataTransfer.types&&Array.prototype.indexOf.call(e.dataTransfer.types,'Files')>-1) e.preventDefault(); }); });
+    vb.addEventListener('click',function(e){
+      if(!S.active) return;
+      if(e.target.closest&&e.target.closest('a')) e.preventDefault();
+      var w=e.target.closest&&e.target.closest('.img-drag-wrapper');
+      if(!w||!vb.contains(w)||e.target.closest('.mu-ed-ctl')) return;
+      ensureSlots();
+      var rowEl=w.parentNode;
+      if(rowEl&&rowEl.classList&&rowEl.classList.contains('mu-img-row')){
+        var sides=rowEl.querySelectorAll(':scope > .mu-img-side'), rcw=w.getBoundingClientRect(), pick=null;
+        if(sides.length===1) pick=sides[0]; else if(sides.length>1) pick=(e.clientX<rcw.left+rcw.width/2)?sides[0]:sides[sides.length-1];
+        if(pick){ try{ vb.focus({preventScroll:true}); var gs=window.getSelection(), gr=document.createRange(); gr.selectNodeContents(pick); gr.collapse(false); gs.removeAllRanges(); gs.addRange(gr); }catch(_){} }
+        return;
+      }
+      var rc=w.getBoundingClientRect(), tapLeft=e.clientX<rc.left+rc.width/2;
+      var prev=w.previousSibling, next=w.nextSibling;
+      function cx(n,end){ try{ var g=document.createRange(); g.setStart(n,end?n.length:0); g.collapse(true); var q=g.getClientRects()[0]||g.getBoundingClientRect(); return q?q.left:null; }catch(_){ return null; } }
+      var px=cx(prev,true), nx=cx(next,false), pickPrev;
+      if(px!=null&&nx!=null&&Math.abs(px-nx)>1) pickPrev=tapLeft?(px<nx):(px>nx); else pickPrev=tapLeft;
+      try{
+        vb.focus({preventScroll:true});
+        var s=window.getSelection(), g=document.createRange();
+        if(pickPrev) g.setStart(prev,prev.length); else g.setStart(next,0);
+        g.collapse(true); s.removeAllRanges(); s.addRange(g);
+      }catch(_){}
+    });
+  }
   function build(){
     if(root) return root;
     root=document.createElement('div');
@@ -34243,9 +34898,10 @@ window.mu_setViewerStyle = function(v){
       +'<article class="mu-viewer-card">'
       +'<button type="button" class="mu-viewer-close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg></button>'
       +'<header class="mu-viewer-head"><h2 class="mu-viewer-title" dir="auto"></h2><div class="mu-viewer-rule"></div></header>'
-      +'<div class="mu-viewer-tools" role="toolbar"><button type="button" class="mu-viewer-tool" data-act="dec"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18l5-12 5 12M5.8 14h6.4M17 11h4"/></svg></button><button type="button" class="mu-viewer-tool" data-act="inc"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 18l5-12 5 12M4.8 14h6.4M18 8v6M15 11h6"/></svg></button><span class="mu-viewer-tools-sep"></span><button type="button" class="mu-viewer-tool" data-act="copy"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 012-2h9"/></svg><span class="mu-viewer-tool-label"></span></button></div><div class="mu-viewer-progress"><i></i></div>'
+      +'<div class="mu-viewer-tools" role="toolbar"><button type="button" class="mu-viewer-tool" data-act="dec"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18l5-12 5 12M5.8 14h6.4M17 11h4"/></svg></button><button type="button" class="mu-viewer-tool" data-act="inc"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 18l5-12 5 12M4.8 14h6.4M18 8v6M15 11h6"/></svg></button><span class="mu-viewer-tools-sep"></span><span class="mu-viewer-tools-grp"><button type="button" class="mu-viewer-tool" data-act="copy"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 012-2h9"/></svg><span class="mu-viewer-tool-label"></span></button><button type="button" class="mu-viewer-tool" data-act="edit" aria-pressed="false" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l1-4L16.5 4.5a2 2 0 013 3L8 19z"/><path d="M14 7l3 3"/></svg></button><button type="button" class="mu-viewer-tool" data-act="img" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M4 17l5-4.5 3.5 3 3-2.5 4.5 4"/></svg></button></span></div><div class="mu-viewer-progress"><i></i></div>'
       +'<div class="mu-viewer-body" dir="auto"></div>'
       +'<footer class="mu-viewer-foot"><button type="button" class="mu-viewer-ok">OK</button></footer>'
+      +'<input type="file" accept="image/*" class="mu-ed-file" hidden>'
       +'</article>';
     root.querySelector('.mu-viewer-backdrop').addEventListener('click',close);
     root.querySelector('.mu-viewer-close').addEventListener('click',close);
@@ -34285,10 +34941,12 @@ window.mu_setViewerStyle = function(v){
       }
     });
     document.body.appendChild(root);
+    setupEdit(root);
     return root;
   }
   function close(){
     if(!root||root.hidden) return;
+    if(root.__ed&&root.__ed.active) root.__ed.exit();
     root.hidden=true;
     root.querySelector('.mu-viewer-body').innerHTML='';
     document.documentElement.classList.remove('mu-viewer-open');
@@ -34360,6 +35018,7 @@ window.mu_setViewerStyle = function(v){
     }
     var item=categories.find(function(c){return String(c.id)===String(id);});
     if(!item) return;
+    try{ if(activeOpenId===item.id && typeof flushActiveEditorSave==='function') flushActiveEditorSave(); }catch(e){}
     var fa=currentLang==='fa', t=i18n[currentLang]||{};
     var decoy=false, wasLocked=isNoteLocked(item);
     if(wasLocked){
@@ -34418,6 +35077,7 @@ window.mu_setViewerStyle = function(v){
       tl[2].setAttribute('aria-label',fa?'کپی متن':'Copy text'); tl[2].title=tl[2].getAttribute('aria-label');
       tl[2].querySelector('.mu-viewer-tool-label').textContent=fa?'کپی':'Copy';
     })();
+    try{ root.__ed.reset({id:item.id,canEdit:!decoy&&!hiddenState[item.id],pass:(wasLocked&&!decoy&&typeof pass==='string')?pass.trim():null,fallbackTitle:!String(item.name||'').trim()}); }catch(e){}
     root.hidden=false;
     document.documentElement.classList.add('mu-viewer-open');
     if(root.__applyScale) root.__applyScale();
