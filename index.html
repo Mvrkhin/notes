@@ -25,11 +25,172 @@
 @keyframes mkOut{0%{opacity:1}35%{opacity:1}100%{opacity:0;visibility:hidden}}
 @keyframes mkFail{to{opacity:0;visibility:hidden}}
 @media (prefers-reduced-motion:reduce){#mkSplash .mkw i,#mkSplash .mkv{animation:none}#mkSplash .mkf{animation:none;transform:none}#mkSplash.out .mkw,#mkSplash.out .mkt{animation:none}}</style>
+<script id="mkHostCompat">
+/* ---------------------------------------------------------------------------
+   Embedded-host compatibility layer (Claude preview, other sandboxed iframes).
+   Runs FIRST, before every other script. Active only when the page is shown
+   inside another page (iframe) and is NOT a Telegram Mini App; in Telegram and
+   in a normal browser tab it does nothing at all.
+
+   Why: a sandboxed preview iframe
+     - silently blocks alert()/confirm()/prompt() (confirm() returns false, so
+       every "are you sure?" -> delete/clear/reset button looked dead),
+     - has no clipboard permission, no downloads and no popups,
+     - cannot reach Telegram/font hosts, so waits on them only slow startup,
+     - paints every full-screen blur / backdrop-filter / endless animation layer
+       in software, which is what made scrolling and typing feel heavy.
+   --------------------------------------------------------------------------- */
+(function(){
+  var w = window, d = document, root = d.documentElement;
+  var framed = false; try { framed = w.top !== w.self; } catch (e) { framed = true; }
+  var tg = false;
+  try { tg = /tgWebApp(Data|Version|Platform)/.test(String(location.hash || '') + '&' + String(location.search || '')); } catch (e) {}
+  try { if (!tg && /Telegram/i.test(navigator.userAgent || '')) tg = true; } catch (e) {}
+  try { if (!tg && w.sessionStorage && w.sessionStorage.getItem('__telegram__initParams')) tg = true; } catch (e) {}
+  var host = framed && !tg;
+  w.__MU_HOST = host;
+  if (!host) return;
+  root.classList.add('mu-host');
+
+  function fa() { return (root.getAttribute('lang') || 'fa') !== 'en' && (root.getAttribute('dir') !== 'ltr'); }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+  /* ---- tiny themed layer (toast + dialog) built lazily, independent of the app ---- */
+  var css = d.createElement('style');
+  css.textContent =
+    '#muHostToast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:2147483646;max-width:min(92vw,520px);padding:11px 16px;border-radius:14px;background:rgba(20,22,32,.96);color:#fff;border:1px solid rgba(255,255,255,.25);font:600 13px/1.8 system-ui,Tahoma,sans-serif;text-align:center;box-shadow:0 6px 24px rgba(0,0,0,.45);white-space:pre-wrap;word-break:break-word;pointer-events:none;opacity:0;transition:opacity .15s}' +
+    '#muHostToast.on{opacity:1}#muHostToast.warn{border-color:rgba(255,190,90,.9);background:rgba(60,38,8,.97)}' +
+    '#muHostDlg{position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,.6)}' +
+    '#muHostDlg .b{width:min(94vw,460px);max-height:86vh;overflow:auto;padding:16px;border-radius:16px;background:#14161f;color:#fff;border:1px solid rgba(255,255,255,.25);font:500 13.5px/1.9 system-ui,Tahoma,sans-serif}' +
+    '#muHostDlg textarea{width:100%;box-sizing:border-box;min-height:140px;margin-top:8px;padding:10px;border-radius:10px;background:#0b0c12;color:#fff;border:1px solid rgba(255,255,255,.25);font:13px/1.7 ui-monospace,Menlo,Consolas,monospace;direction:ltr;unicode-bidi:plaintext}' +
+    '#muHostDlg button{margin-top:10px;padding:8px 18px;border-radius:10px;border:1px solid rgba(255,255,255,.35);background:#2b3050;color:#fff;font:700 13px system-ui,Tahoma,sans-serif;cursor:pointer}';
+  (d.head || root).appendChild(css);
+
+  var toastEl = null, toastT = 0;
+  function toast(msg, warn, ms) {
+    function go() {
+      if (!toastEl) { toastEl = d.createElement('div'); toastEl.id = 'muHostToast'; toastEl.setAttribute('role', 'status'); d.body.appendChild(toastEl); }
+      toastEl.className = warn ? 'warn' : '';
+      toastEl.textContent = String(msg);
+      void toastEl.offsetWidth; toastEl.classList.add('on');
+      clearTimeout(toastT); toastT = setTimeout(function () { toastEl && toastEl.classList.remove('on'); }, ms || 3200);
+    }
+    if (d.body) go(); else d.addEventListener('DOMContentLoaded', go, { once: true });
+  }
+  w.__muHostToast = toast;
+
+  function dialog(html, onMount) {
+    var old = d.getElementById('muHostDlg'); if (old) old.remove();
+    var o = d.createElement('div'); o.id = 'muHostDlg';
+    o.innerHTML = '<div class="b" dir="' + (fa() ? 'rtl' : 'ltr') + '">' + html + '</div>';
+    o.addEventListener('click', function (e) { if (e.target === o) o.remove(); });
+    d.body.appendChild(o);
+    onMount && onMount(o);
+    return o;
+  }
+
+  /* ---- alert(): never blocks, never lost -> toast ---- */
+  w.alert = function (msg) { toast(msg == null ? '' : msg, false, 4200); };
+
+  /* ---- confirm(): native if it really works, otherwise "press again to confirm" ----
+     A sandboxed iframe makes confirm() return false instantly, which made every
+     delete / clear / reset button look broken. The call sites are synchronous, so a
+     real modal cannot be awaited; instead the first press shows what is about to
+     happen and arms it, and pressing the same button again within 6 s confirms. */
+  var nativeConfirm = w.confirm ? w.confirm.bind(w) : null;
+  var blocked = false, armed = Object.create(null);
+  w.confirm = function (msg) {
+    msg = msg == null ? '' : String(msg);
+    if (!blocked && nativeConfirm) {
+      var t0 = Date.now(), r = false;
+      try { r = nativeConfirm(msg); } catch (e) { r = false; }
+      if (r) return true;
+      if (Date.now() - t0 > 250) return false;   // the user really pressed Cancel
+      blocked = true;                              // returned instantly -> dialogs are suppressed
+    }
+    var now = Date.now();
+    if (armed[msg] && now - armed[msg] < 6000) { delete armed[msg]; if (toastEl) toastEl.classList.remove('on'); return true; }
+    armed[msg] = now;
+    toast((fa() ? '⚠️ ' + msg + '\n\nبرای تأیید، همین دکمه را یک بار دیگر بزنید (۶ ثانیه).' : '⚠️ ' + msg + '\n\nTap the same button once more to confirm (6 s).'), true, 6000);
+    return false;
+  };
+
+  /* ---- prompt(): async themed prompt exists in the app; the sync form cannot work ---- */
+  w.prompt = function () { toast(fa() ? 'ورودی متنی در این محیط پشتیبانی نمی‌شود.' : 'Text prompts are not supported here.', true); return null; };
+
+  /* ---- clipboard: native -> execCommand -> select-and-copy dialog ---- */
+  function manualCopy(text) {
+    dialog('<div>' + (fa() ? 'کپی خودکار در این محیط مجاز نیست. متن را انتخاب و کپی کنید:' : 'Automatic copy is not allowed here. Select and copy the text:') + '</div><textarea readonly id="muHostCopyTa">' + esc(text) + '</textarea><div><button type="button" id="muHostCopyClose">' + (fa() ? 'بستن' : 'Close') + '</button></div>', function (o) {
+      var ta = o.querySelector('textarea'); try { ta.focus(); ta.select(); } catch (e) {}
+      o.querySelector('#muHostCopyClose').onclick = function () { o.remove(); };
+    });
+  }
+  function execCopy(text) {
+    var ta = d.createElement('textarea'); ta.value = text; ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none'; d.body.appendChild(ta);
+    var ok = false; try { ta.select(); ta.setSelectionRange(0, ta.value.length); ok = d.execCommand && d.execCommand('copy'); } catch (e) {}
+    ta.remove(); return !!ok;
+  }
+  var realClip = null; try { realClip = navigator.clipboard || null; } catch (e) {}
+  var clip = {
+    writeText: function (text) {
+      text = String(text == null ? '' : text);
+      var viaExec = function () { if (execCopy(text)) return; manualCopy(text); };
+      if (realClip && realClip.writeText) {
+        return realClip.writeText(text).catch(function () { viaExec(); });
+      }
+      viaExec(); return Promise.resolve();
+    },
+    readText: function () { return Promise.reject(new DOMException('Clipboard read is not available here', 'NotAllowedError')); },
+    write: function (items) {
+      if (realClip && realClip.write) return realClip.write(items).catch(function () { return Promise.reject(new DOMException('Clipboard write denied', 'NotAllowedError')); });
+      return Promise.reject(new DOMException('Clipboard write denied', 'NotAllowedError'));
+    },
+    read: function () { return Promise.reject(new DOMException('Clipboard read is not available here', 'NotAllowedError')); }
+  };
+  try { Object.defineProperty(navigator, 'clipboard', { value: clip, configurable: true }); } catch (e) {}
+
+  /* ---- window.open is refused inside the sandbox: say so instead of failing silently ---- */
+  var nativeOpen = w.open ? w.open.bind(w) : null;
+  w.open = function () {
+    var r = null; try { r = nativeOpen && nativeOpen.apply(null, arguments); } catch (e) {}
+    if (!r) toast(fa() ? 'این محیط اجازهٔ باز کردن پنجرهٔ جدید را نمی‌دهد.' : 'This environment does not allow opening new windows.', true);
+    return r;
+  };
+
+  /* ---- Web Share is unavailable in sandboxed frames; make feature checks honest ---- */
+  try { if (navigator.share) Object.defineProperty(navigator, 'share', { value: undefined, configurable: true }); } catch (e) {}
+  try { if (navigator.canShare) Object.defineProperty(navigator, 'canShare', { value: undefined, configurable: true }); } catch (e) {}
+})();
+</script>
+<style id="mkHostPerfCss">
+/* Lightweight rendering while embedded (html.mu-host): same theme colours and layout, but none of the
+   things that are expensive to paint in a software-composited preview frame. */
+html.mu-host *, html.mu-host *::before, html.mu-host *::after {
+  -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+  animation-iteration-count: 1 !important;
+  animation-duration: .001ms !important; animation-delay: 0s !important;
+  will-change: auto !important;
+  text-shadow: none !important;
+  scroll-behavior: auto !important;
+}
+html.mu-host *, html.mu-host *::before, html.mu-host *::after { transition-duration: .08s !important; transition-delay: 0s !important; }
+html.mu-host body::before, html.mu-host body::after { filter: none !important; animation: none !important; }
+html.mu-host body > [class^="mu-"][aria-hidden="true"], html.mu-host body > [class*=" mu-"][aria-hidden="true"] { display: none !important; }
+/* big soft shadows on big surfaces are the other repaint hog */
+html.mu-host .control-panel, html.mu-host .header-nav, html.mu-host .toolbar-section-box, html.mu-host .advanced-card,
+html.mu-host .note-btn-wrap, html.mu-host .mAi-bubble, html.mu-host .mAi-header { box-shadow: none !important; }
+html.mu-host .header-nav { background: rgba(10,12,24,.92) !important; }
+/* off-screen note cards are not painted or laid out until they scroll near the viewport */
+html.mu-host .note-btn-wrap { content-visibility: auto; contain-intrinsic-size: auto 64px; }
+</style>
+
 <script id="mkBootGateJs">(function(){var d=document.documentElement;d.classList.add('mk-boot');
 /* Splash rules: stays at least MIN ms, leaves as soon as the app reports ready after that,
    and is never allowed to outlive MAX ms (weak network). The CSS fail-safe (mkFail) enforces MAX even if JS stalls. */
 var MIN=2300,MAX=3500,t0=Date.now(),done=false,s=null;
 try{
+if(window.__MU_HOST)throw 0;
 s=document.createElement('div');s.id='mkSplash';s.setAttribute('role','status');s.setAttribute('aria-label','Notes');
 var W='Notes',h='',i;
 for(i=0;i<W.length;i++)h+='<i style="--d:'+(0.25+i*0.14).toFixed(2)+'s">'+W.charAt(i)+'</i>';
@@ -5092,6 +5253,7 @@ setTimeout(finish,MAX)})();</script>
          script below waits on that instead of assuming window.Telegram is ready. -->
     <script>
         window.__muTgLoaded = new Promise(function(resolve){
+            if (window.__MU_HOST) { resolve(); return; }   // embedded preview: telegram.org is unreachable, don't wait for it
             var done = false;
             function finish(){ if(done) return; done = true; resolve(); }
             var s = document.createElement('script');
@@ -6676,7 +6838,7 @@ window.mu_syncHtmlBg = function(){
         // click on an <a download> blob:/data: link fires with no error but silently
         // saves nothing. This doesn't depend on live SDK detection like TG does, so it's
         // safe to compute once from the user agent string.
-        const IS_KNOWN_INAPP_BROWSER = /Instagram|FBAN|FBAV|FB_IAB|Line\/|MicroMessenger|KAKAOTALK|NAVER|Snapchat|TikTok|musical_ly|Pinterest|WhatsApp|GSA\/|; ?wv\)/i.test(navigator.userAgent || '');
+        const IS_KNOWN_INAPP_BROWSER = !!window.__MU_HOST || /Instagram|FBAN|FBAV|FB_IAB|Line\/|MicroMessenger|KAKAOTALK|NAVER|Snapchat|TikTok|musical_ly|Pinterest|WhatsApp|GSA\/|; ?wv\)/i.test(navigator.userAgent || '');
         // Opening this file directly off the device's storage (double-tapping the
         // downloaded .html instead of visiting a hosted https:// URL) puts the page
         // on the file: origin. Chrome for Android silently swallows every Blob/anchor
@@ -9931,45 +10093,111 @@ window.mu_syncHtmlBg = function(){
         // without touching the ~70 fire-and-forget call sites at all.
         let mu_pendingStorageWrite = null;
         async function mu_flushStorage() {
+            if (typeof mu_doSaveFlush === 'function') { try { mu_doSaveFlush(); } catch (_) {} }
             if (mu_pendingStorageWrite) { try { await mu_pendingStorageWrite; } catch (_) {} }
         }
-        function saveToLocalStorage() {
-            const payload = JSON.stringify(serializeCategoriesForStorage());
-            /* Primary store: fire-and-forget async write to IndexedDB, which
-               has a far larger quota than localStorage and never blocks the
-               UI thread. Not awaited on purpose — every one of the ~70 call
-               sites of saveToLocalStorage() in this file calls it as a plain
-               synchronous-looking statement and none use its return value,
-               so turning this into a Promise would mean auditing all of them
-               for no real benefit; the write still starts immediately. A few
-               call sites that do need to know it finished can await
-               mu_flushStorage() instead — see the comment on
-               mu_pendingStorageWrite above. */
+        /* Perf: saving used to JSON.stringify() EVERY note synchronously on every
+           autosave (~340ms of frozen UI at ~18MB) and mirror the whole payload into
+           localStorage (QuotaExceeded, and no room left for the small keys).
+           Now:
+             - saveToLocalStorage() only marks the data dirty; the real write is
+               coalesced and delayed in proportion to the data size;
+             - serialization reuses cached JSON for big unchanged strings;
+             - the localStorage mirror is only kept for small payloads;
+             - mu_flushStorage() / page hide / unload force the write immediately. */
+        const MU_MIRROR_MAX_CHARS = 1500000;
+        var mu_savePending = false, mu_saveTimer = null;
+        var mu_jsonStrCache = new Map(), mu_jsonStrChars = 0;
+        var MU_JSONSTR_MAX_CHARS = 80000000;
+
+        function mu_jsonStr(s) {
+            if (s.length < 20000 || s.length > MU_JSONSTR_MAX_CHARS / 2) return JSON.stringify(s);
+            const hit = mu_jsonStrCache.get(s);
+            if (hit !== undefined) { mu_jsonStrCache.delete(s); mu_jsonStrCache.set(s, hit); return hit; }
+            const j = JSON.stringify(s);
+            mu_jsonStrCache.set(s, j);
+            mu_jsonStrChars += s.length + j.length;
+            while (mu_jsonStrChars > MU_JSONSTR_MAX_CHARS && mu_jsonStrCache.size) {
+                const k = mu_jsonStrCache.keys().next().value;
+                const v = mu_jsonStrCache.get(k);
+                mu_jsonStrCache.delete(k);
+                mu_jsonStrChars -= k.length + v.length;
+            }
+            return j;
+        }
+
+        // Same output as JSON.stringify(serializeCategoriesForStorage()).
+        function mu_serializeCategoriesFast() {
+            const parts = [];
+            categories.forEach(function (item) {
+                const obj = getPersistedCategory(item);
+                if (obj === null || typeof obj !== 'object' || typeof obj.toJSON === 'function') { parts.push(JSON.stringify(obj)); return; }
+                const fields = [];
+                Object.keys(obj).forEach(function (k) {
+                    const v = obj[k];
+                    if (v === undefined || typeof v === 'function' || typeof v === 'symbol') return;
+                    fields.push(JSON.stringify(k) + ':' + (typeof v === 'string' ? mu_jsonStr(v) : JSON.stringify(v)));
+                });
+                parts.push('{' + fields.join(',') + '}');
+            });
+            return '[' + parts.join(',') + ']';
+        }
+
+        function mu_estimateNotesSize() {
+            let n = 0;
+            for (let i = 0; i < categories.length; i++) {
+                const c = categories[i];
+                if (c) n += (c.html ? c.html.length : 0) + (c.text ? c.text.length : 0);
+            }
+            return n;
+        }
+
+        function mu_doSaveFlush() {
+            if (mu_saveTimer) { clearTimeout(mu_saveTimer); mu_saveTimer = null; }
+            if (!mu_savePending) return true;
+            mu_savePending = false;
+            const payload = mu_serializeCategoriesFast();
             const idbWrite = mu_idbAvailable ? MU_IDB.setItem('app_categories_v13', payload) : null;
             mu_pendingStorageWrite = idbWrite;
-            try {
-                // Kept as a best-effort mirror (instant on reload if IndexedDB
-                // is ever cleared, and it's the *only* copy on devices where
-                // IndexedDB isn't available at all) — but once notes outgrow
-                // it, hitting its quota here is no longer treated as fatal
-                // below, since IndexedDB already has the current data.
-                localStorage.setItem('app_categories_v13', payload);
-                lastGoodStorageSnapshot = payload;
-            } catch (error) {
-                if (!mu_idbAvailable) {
+            if (!mu_idbAvailable) {
+                // localStorage is the ONLY store here — keep the original strict behaviour.
+                try {
+                    localStorage.setItem('app_categories_v13', payload);
+                    lastGoodStorageSnapshot = payload;
+                } catch (error) {
                     if (lastGoodStorageSnapshot) {
                         try { localStorage.setItem('app_categories_v13', lastGoodStorageSnapshot); } catch (_) {}
                     }
                     showToast(currentLang === 'fa' ? '⚠️ ذخیره‌سازی ناموفق بود — فضای مرورگر پر است. یک بکاپ (JSON) بگیر و چند یادداشت/تصویر حجیم را حذف کن.' : '⚠️ Save failed — browser storage is full. Export a backup (JSON) and remove a few large notes/images.', 4200);
                     return false;
                 }
+            } else if (payload.length <= MU_MIRROR_MAX_CHARS) {
+                // Small data set: keep the instant-on mirror copy as before.
+                try { localStorage.setItem('app_categories_v13', payload); lastGoodStorageSnapshot = payload; } catch (_) {}
+            } else {
+                // Too big for localStorage: IndexedDB is the source of truth. Drop the stale
+                // mirror so it doesn't eat the quota the small keys (folders, settings,
+                // language, theme) need.
+                lastGoodStorageSnapshot = null;
+                try { localStorage.removeItem('app_categories_v13'); } catch (_) {}
             }
             if (idbWrite) {
-                idbWrite.then(function(ok){
+                idbWrite.then(function (ok) {
                     if (!ok) showToast(currentLang === 'fa' ? '⚠️ ذخیره‌سازی ناموفق بود.' : '⚠️ Save failed.', 4200);
                 });
             }
+            return true;
+        }
+
+        function saveToLocalStorage() {
+            mu_savePending = true;
             scheduleCloudBackup();
+            if (!mu_idbAvailable) return mu_doSaveFlush();
+            if (!mu_saveTimer) {
+                const size = mu_estimateNotesSize();
+                const delay = size < 200000 ? 0 : Math.min(3000, Math.round(150 + size / 8000));
+                mu_saveTimer = setTimeout(function () { mu_saveTimer = null; mu_doSaveFlush(); }, delay);
+            }
             return true;
         }
 
@@ -10186,6 +10414,26 @@ window.mu_syncHtmlBg = function(){
             } catch (_) {
                 return fallback;
             }
+        }
+
+        /* Perf: sanitizeHtml() is a pure function of its input string, but renderContents()
+           used to re-run it (template parse + tree walk) for EVERY note on EVERY
+           render, closed notes included. This keeps one result per note id, valid for as
+           long as the note's raw HTML string is unchanged. When sanitizing didn't change
+           anything the stored result is the very same string object, so no extra memory. */
+        var mu_noteSanCache = new Map();
+        function mu_sanitizeNoteHtml(id, raw) {
+            const src = String(raw ?? '');
+            const hit = mu_noteSanCache.get(id);
+            if (hit && hit.src === src) return hit.out;
+            let out = sanitizeHtml(src);
+            if (out === src) out = src;
+            if (mu_noteSanCache.size > categories.length + 64) {
+                const live = new Set(categories.map(function (c) { return c && c.id; }));
+                mu_noteSanCache.forEach(function (_v, k) { if (!live.has(k)) mu_noteSanCache.delete(k); });
+            }
+            mu_noteSanCache.set(id, { src: out === src ? src : src, out: out });
+            return out;
         }
 
         function sanitizeHtml(html) {
@@ -10414,7 +10662,7 @@ window.mu_syncHtmlBg = function(){
                     ? sanitizeHtml(item.fakeContent || t.unauthorized)
                     : (isNoteLocked(item) && !noteSessionKeys.has(item.id) && !item.html && !item.text)
                         ? sanitizeHtml(t.unauthorized)
-                        : sanitizeHtml(item.html || item.text || '');
+                        : mu_sanitizeNoteHtml(item.id, item.html || item.text || '');
 
                 const isRecordingThis = (activeRecId === item.id);
                 const lastEditedText = item.lastEdited ? item.lastEdited : (currentLang === 'fa' ? 'ثبت نشده' : 'Not recorded');
@@ -12249,6 +12497,10 @@ window.mu_syncHtmlBg = function(){
         });
         window.addEventListener('beforeunload', flushActiveEditorSave);
         window.addEventListener('pagehide', flushActiveEditorSave);
+        // Deferred saves (see mu_doSaveFlush) must hit storage before the page goes away.
+        document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') { try { mu_doSaveFlush(); } catch (_) {} } });
+        window.addEventListener('pagehide', () => { try { mu_doSaveFlush(); } catch (_) {} });
+        window.addEventListener('beforeunload', () => { try { mu_doSaveFlush(); } catch (_) {} });
 
         document.addEventListener('input', (event) => {
             const textBox = event.target.closest?.('.text-box');
@@ -13536,7 +13788,7 @@ window.mu_syncHtmlBg = function(){
                 if (node.classList && node.classList.contains('img-toolbar')) return;
                 if (tag === 'IMG') { blocks.push(await mu_docxImageParagraph(node, engine, rtl)); return; }
                 if (tag === 'AUDIO' || (node.classList && node.classList.contains('audio-wrapper'))) {
-                    await paragraphFromInline([document.createTextNode(currentLang === 'fa' ? '🎵 فایل صوتی' : '🎵 Audio file')]);
+                    await paragraphFromInline([document.createTextNode(currentLang === 'fa' ? '🎵 فایل صوتی' : '?? Audio file')]);
                     return;
                 }
                 if (tag === 'BLOCKQUOTE') {
@@ -16886,7 +17138,7 @@ ${body}
             const terms=q.split(/\s+/).filter(Boolean); const expanded=[...terms];terms.forEach(t=>{if(SMART_SYNONYMS[t])expanded.push(...SMART_SYNONYMS[t].map(normalizeText));});
             return categories.filter(c=>!isArchived(c)).map(c=>{const hay=normalizeText(`${c.name} ${c.text} ${c.html?.replace(/<[^>]+>/g,' ')||''}`);let score=0;expanded.forEach(t=>{if(hay.includes(t))score+=terms.includes(t)?3:1});if(normalizeText(c.name).includes(q))score+=8;return {c,score};}).filter(x=>x.score>0).sort((a,b)=>b.score-a.score).map(x=>x.c);
         }
-        async function runSmartSearch(){const q=prompt(currentLang==='fa'?'جستجوی هوشمند آفلاین:':'Offline smart search:');if(!q)return;const results=smartSearch(q);if(!results.length){showToast(currentLang==='fa'?'چیزی پیدا نشد.':'Nothing found.');return;}await handleCategoryClick(results[0].id);if(activeOpenId===results[0].id)showToast((currentLang==='fa'?'بهترین تطبیق: ':'Best match: ')+results[0].name);}
+        async function runSmartSearch(){const q=await promptStyledText({title:currentLang==='fa'?'جستجوی هوشمند آفلاین:':'Offline smart search:'});if(!q)return;const results=smartSearch(q);if(!results.length){showToast(currentLang==='fa'?'چیزی پیدا نشد.':'Nothing found.');return;}await handleCategoryClick(results[0].id);if(activeOpenId===results[0].id)showToast((currentLang==='fa'?'بهترین تطبیق: ':'Best match: ')+results[0].name);}
 
         function openRandomPortal(){
             const pool=categories.filter(c=>!isArchived(c));
@@ -19775,6 +20027,7 @@ function mu_cloudConfirm(message) {
             try { TG.showConfirm(tgMsg, (ok) => resolve(!!ok)); return; }
             catch (e) { /* fall through to plain confirm below */ }
         }
+        if (window.__MU_HOST && typeof mu_confirmYesNo === 'function') { mu_confirmYesNo({ message: String(message) }).then(resolve, function(){ resolve(false); }); return; }
         try { resolve(confirm(message)); } catch (e) { resolve(false); }
     });
 }
@@ -21385,7 +21638,7 @@ window.renderButtons = function(filtered){
         ticking = false;
         document.body.classList.add('mu-scrolling');
         clearTimeout(scrollEndTimer);
-        scrollEndTimer = setTimeout(() => { document.body.classList.remove('mu-scrolling'); }, 150);
+        scrollEndTimer = setTimeout(() => { if (!window.__muZoomBusy) document.body.classList.remove('mu-scrolling'); }, 150);
     }
     window.addEventListener('scroll', function(){
         if(ticking) return;
@@ -24764,14 +25017,6 @@ function mu_openAiSettingsModal(){
             <p style="opacity:.6;font-size:10.5px;line-height:1.8;margin:0">${fa
                 ? 'وقتی «هوشمند» روشن است، Markhin خودش بیشترین مقدار مناسب را برای هر مدل انتخاب می‌کند و اگر مدل به‌خاطر عدد بالا خطا بدهد، خودش آن را کم می‌کند و برای دفعات بعد به خاطر می‌سپارد. اگر خاموشش کنی، همیشه دقیقاً همان عددی که اینجا وارد می‌کنی فرستاده می‌شود.'
                 : 'When "Smart" is on, Markhin automatically picks the best value for each model, and if a model rejects it for being too high it lowers it and remembers that for next time. Turn it off to always send exactly the number you set here.'}</p>
-            <label>💲 ${fa?'قیمت این ارائه‌دهنده/مدل (اختیاری — دلار به ازای هر ۱ میلیون توکن)':'Price for this provider/model (optional — $ per 1M tokens)'}</label>
-            <div style="display:flex;gap:8px;flex-wrap:wrap">
-                <input type="number" id="muAiPriceIn" min="0" step="0.01" value="${fields.priceIn?escapeHtml(String(fields.priceIn)):''}" placeholder="${fa?'ورودی (Input)':'Input'}" style="flex:1;min-width:110px">
-                <input type="number" id="muAiPriceOut" min="0" step="0.01" value="${fields.priceOut?escapeHtml(String(fields.priceOut)):''}" placeholder="${fa?'خروجی (Output)':'Output'}" style="flex:1;min-width:110px">
-            </div>
-            <p style="opacity:.6;font-size:10.5px;line-height:1.8;margin:0">${fa
-                ? 'اگر این دو عدد را وارد کنی، Markhin کنار هر پاسخ MARKHIN AI تعداد توکن مصرف‌شده و تخمین هزینه دلاری‌اش را نشان می‌دهد (طبق قیمت رسمی همین ارائه‌دهنده/مدل که خودت اینجا وارد می‌کنی). خالی بگذاری، فقط تعداد توکن نشان داده می‌شود، بدون حدس زدن قیمت.'
-                : "Enter these and Markhin will show the token count and an estimated $ cost next to every MARKHIN AI reply, based on the price you enter here for this exact provider/model. Leave them blank and only the token count is shown — no guessed price."}</p>
         </div>
         <div class="markhin-ai-settings-row" style="margin-top:10px">
             <label>🎭 ${fa?'طرز حرف زدن (لحن دستیار)':'Speaking style (assistant tone)'}</label>
@@ -24785,7 +25030,22 @@ function mu_openAiSettingsModal(){
                 ? 'این لحن روی همه پاسخ‌های MARKHIN AI در همین چت اعمال می‌شود، مستقل از این‌که کدام ارائه‌دهنده انتخاب شده — هر وقت خواستی می‌توانی عوضش کنی.'
                 : "This tone applies to every MARKHIN AI reply in this chat, independent of which provider is selected — switch it anytime."}</p>
         </div>
-        ${mu_renderAiBudgetSection(fa)}
+        <div class="mu-more-box" id="muAiMoreBox">
+            <div class="mu-more-title" role="button" tabindex="0" aria-expanded="false" onclick="mu_toggleAiMore(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();mu_toggleAiMore(this);}"><span>⚙️ ${fa?'تنظیمات بیشتر':'More settings'}</span></div>
+            <div class="mu-more-body">
+                <div class="markhin-ai-settings-row">
+            <label>💲 ${fa?'قیمت این ارائه‌دهنده/مدل (اختیاری — دلار به ازای هر ۱ میلیون توکن)':'Price for this provider/model (optional — $ per 1M tokens)'}</label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <input type="number" id="muAiPriceIn" min="0" step="0.01" value="${fields.priceIn?escapeHtml(String(fields.priceIn)):''}" placeholder="${fa?'ورودی (Input)':'Input'}" style="flex:1;min-width:110px">
+                <input type="number" id="muAiPriceOut" min="0" step="0.01" value="${fields.priceOut?escapeHtml(String(fields.priceOut)):''}" placeholder="${fa?'خروجی (Output)':'Output'}" style="flex:1;min-width:110px">
+            </div>
+            <p style="opacity:.6;font-size:10.5px;line-height:1.8;margin:0">${fa
+                ? 'اگر این دو عدد را وارد کنی، Markhin کنار هر پاسخ MARKHIN AI تعداد توکن مصرف‌شده و تخمین هزینه دلاری‌اش را نشان می‌دهد (طبق قیمت رسمی همین ارائه‌دهنده/مدل که خودت اینجا وارد می‌کنی). خالی بگذاری، فقط تعداد توکن نشان داده می‌شود، بدون حدس زدن قیمت.'
+                : "Enter these and Markhin will show the token count and an estimated $ cost next to every MARKHIN AI reply, based on the price you enter here for this exact provider/model. Leave them blank and only the token count is shown — no guessed price."}</p>
+                </div>
+                ${mu_renderAiBudgetSection(fa)}
+            </div>
+        </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button class="btn-main" onclick="mu_saveAiSettings()">💾 ${fa?'ذخیره':'Save'}</button>
             ${isCustom ? `<button class="btn-main" onclick="mu_removeAiProvider()">🗑️ ${fa?'حذف این ارائه‌دهنده':'Remove this provider'}</button>` : `<button class="btn-main" onclick="mu_clearAiSettings()">🗑️ ${fa?'حذف کلید':'Clear key'}</button>`}
@@ -24795,6 +25055,13 @@ function mu_openAiSettingsModal(){
     `);
 }
 window.mu_openAiSettingsModal = mu_openAiSettingsModal;
+window.mu_toggleAiMore = function(el){
+    var box = el && el.closest ? el.closest('.mu-more-box') : document.getElementById('muAiMoreBox');
+    if(!box) return;
+    var open = box.classList.toggle('mu-open');
+    var t = box.querySelector('.mu-more-title');
+    if(t) t.setAttribute('aria-expanded', open ? 'true' : 'false');
+};
 
 // Renders the "AI budget" block of the settings modal: daily/monthly
 // $ and token caps (any subset can be left empty = no limit on that
@@ -33136,6 +33403,18 @@ function mAi_downloadGenFile(mid, idx) { return MU_AI.downloadGenFile(mid, idx);
 function mAi_shareGenFile(mid, idx) { return MU_AI.shareGenFile(mid, idx); }
 </script>
 
+<style id="muAiMoreCss">
+/* AI settings -> collapsible "More settings" (price + budget). Same look as the collapsible tool sections. */
+.mu-more-box{margin:10px 0 12px;background:rgba(0,0,0,.12);border:1px solid var(--panel-border);border-radius:var(--border-radius-main,12px);padding:8px;box-sizing:border-box}
+.mu-more-title{cursor:pointer;user-select:none;-webkit-user-select:none;display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;font-weight:700;opacity:.9;padding:6px 8px;border-radius:8px;transition:background-color .18s ease;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.mu-more-title:hover{background:rgba(255,255,255,.05)}
+.mu-more-title:focus-visible{outline:2px solid var(--text-color);outline-offset:1px}
+.mu-more-title::after{content:"";width:8px;height:8px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-135deg);margin-top:3px;transition:transform .2s ease;flex:0 0 auto}
+.mu-more-box.mu-open>.mu-more-title::after{transform:rotate(45deg);margin-top:-3px}
+.mu-more-body{display:none;flex-direction:column;gap:10px;padding:10px 4px 2px}
+.mu-more-box.mu-open>.mu-more-body{display:flex;animation:muSectionIn .2s ease-out}
+.mu-more-body>.markhin-ai-settings-row{margin:0 0 4px !important}
+</style>
 <style id="muAtLtrFix">
 /* Text that starts with "@" (usernames, emails, handles) OR with a digit
    (dates, measurements, versions — e.g. "26 Sep 2026", "3D model") must
@@ -33151,6 +33430,24 @@ input[data-mu-at], textarea[data-mu-at] {
 .text-box:not(.masked) [data-mu-at] {
     direction: ltr !important;
     text-align: left !important;
+}
+/* Note text (editor + read-only viewer): every line/paragraph gets data-mu-d="ltr|rtl" from JS,
+   decided by its first strong letter. Persian/Arabic first => RTL, starts from the right;
+   English first (or digits/punctuation only) => LTR, starts from the left. Same in fa and en mode.
+   text-align:start follows the line's own direction. */
+.text-box:not(.masked)[data-mu-d="ltr"],
+.text-box:not(.masked) [data-mu-d="ltr"],
+.mu-viewer-body[data-mu-d="ltr"],
+.mu-viewer-body [data-mu-d="ltr"] {
+    direction: ltr !important;
+    text-align: start !important;
+}
+.text-box:not(.masked)[data-mu-d="rtl"],
+.text-box:not(.masked) [data-mu-d="rtl"],
+.mu-viewer-body[data-mu-d="rtl"],
+.mu-viewer-body [data-mu-d="rtl"] {
+    direction: rtl !important;
+    text-align: start !important;
 }
 </style>
 <style id="muAiBidiFix">
@@ -33172,28 +33469,52 @@ input[data-mu-at], textarea[data-mu-at] {
 <script id="muAtLtrFixJs">
 (function(){
     'use strict';
-    var AT = 'data-mu-at';
-    var STRONG_RTL = /[\u0590-\u05FF\u0621-\u064A\u0671-\u06D3\u06FA-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFC]/;
-    var STRONG_LTR = /[A-Za-z\u00C0-\u024F]/;
+    var AT  = 'data-mu-at';   // inputs / textareas: "@..." or "digit..." => LTR (unchanged behaviour)
+    var DIR = 'data-mu-d';    // note text lines: 'ltr' | 'rtl', decided by the line's first strong letter
+
+    /* ---- Per-line direction for note text (editor + read-only viewer) -------------------------
+       Rule (same in Persian and English app language):
+         - the first Persian/Arabic/Hebrew letter of the line comes first  -> RTL, starts from the right
+         - the first Latin (or any other LTR) letter comes first           -> LTR, starts from the left
+         - no letters at all (digits, punctuation, symbols, emoji)         -> LTR
+       So "12+5=17" and "(a) 3.5" are LTR, but "3 تا از دوستام" or "- سلام" are RTL because a
+       Persian letter shows up before any Latin one.
+       This is set explicitly with direction (not only unicode-bidi:plaintext), because plaintext is
+       unreliable in older WebViews / Telegram. */
+    var RTL_CH = /[\u0590-\u05FF\u0620-\u064A\u066E-\u06D5\u06E5\u06E6\u06EE\u06EF\u06FA-\u06FF\u0700-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFC\u061C\u200F]/;
+    var LTR_CH;
+    try { LTR_CH = new RegExp('\\p{L}', 'u'); }
+    catch (e) { LTR_CH = /[A-Za-z\u00AA\u00B5\u00BA\u00C0-\u02B8\u0370-\u058F\u0900-\u1FFF\u2C00-\uD7FF]/; }
+    var BLANK_RE = /^[\s\u200B-\u200D\u2060\uFEFF]*$/;
+    var LINE_SPLIT = /[\r\n\u2028\u2029]+/;
+
+    function strongDir(text){
+        var s = String(text == null ? '' : text);
+        for (var i = 0; i < s.length; i++) {
+            var c = s.charAt(i);
+            if (c === '\u200E') return 'ltr';
+            if (RTL_CH.test(c)) return 'rtl';
+            if (LTR_CH.test(c)) return 'ltr';
+        }
+        return 'ltr';
+    }
+    // first non-blank line of a piece of text ('' if there is none)
+    function firstLine(s){
+        var parts = String(s == null ? '' : s).split(LINE_SPLIT);
+        for (var i = 0; i < parts.length; i++) if (!BLANK_RE.test(parts[i])) return parts[i];
+        return '';
+    }
+
+    var FIELD_RTL = /[\u0590-\u05FF\u0621-\u064A\u0671-\u06D3\u06FA-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFC]/;
+    var FIELD_LTR = /[A-Za-z\u00C0-\u024F]/;
     var LEAD = /^[\s\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]+/;
     var TEXT_TYPES = { '': 1, text: 1, search: 1, url: 1, email: 1, tel: 1 };
-    var BLOCK_SEL = 'div,p,li,blockquote,pre,h1,h2,h3,h4,h5,h6';
+    var BLOCK_SEL = 'div,p,li,blockquote,pre,h1,h2,h3,h4,h5,h6,td,th';
     var BLOCK_RE = /^(DIV|P|LI|UL|OL|BLOCKQUOTE|PRE|H[1-6]|TABLE|TR|TD|TH)$/;
 
-    // true if the text starts with "@" OR a digit, and the first real
-    // letter after that isn't Persian/Arabic/Hebrew:
-    //   "@user", "@123", "@"              => LTR   (unchanged)
-    //   "26 Sep 2026", "3D model", "7up"  => LTR   (new)
-    //   "@سلام", "3 تا از دوستام"          => stay RTL (an RTL letter wins)
-    //   digits/symbols only, no letters   => LTR default (harmless either way)
-    // This fixes the classic RTL bug where "number, then Latin word, then
-    // number" (dates being the most common case) gets visually scrambled:
-    // the digit groups cluster together and the Latin word jumps to the
-    // wrong side. CSS-only unicode-bidi:plaintext should, in principle,
-    // already pick the right base direction from the first strong
-    // character — but plaintext support is unreliable in the older
-    // WebViews this app runs in (see muAtLtrFix above), so it's marked
-    // explicitly here the same way "@" already is.
+    // Inputs / textareas only (e.g. the AI chat box): starts with "@" or a digit and the first real
+    // letter after that isn't RTL => LTR.
+    //   "@user", "26 Sep 2026", "3D model" => LTR      "@سلام", "3 تا از دوستام" => unchanged (RTL)
     var LEAD_DIGIT = /^[0-9]/;
     function wantsLtr(text){
         var t = String(text == null ? '' : text).replace(LEAD, '');
@@ -33201,8 +33522,8 @@ input[data-mu-at], textarea[data-mu-at] {
         if (c0 !== '@' && !LEAD_DIGIT.test(c0)) return false;
         for (var i = 1; i < t.length; i++) {
             var c = t.charAt(i);
-            if (STRONG_RTL.test(c)) return false;
-            if (STRONG_LTR.test(c)) return true;
+            if (FIELD_RTL.test(c)) return false;
+            if (FIELD_LTR.test(c)) return true;
         }
         return true;
     }
@@ -33218,31 +33539,60 @@ input[data-mu-at], textarea[data-mu-at] {
     }
     function refreshField(el){ setMark(el, wantsLtr(el.value)); }
 
-    // First visual line of an element: its own text up to the first <br> or block child.
-    function ownLineText(el){
+    // Own inline text of a block (stops at the first child block; <br> counts as a line break).
+    function ownText(el){
         var s = '';
         for (var n = el.firstChild; n; n = n.nextSibling) {
             if (n.nodeType === 3) s += n.nodeValue;
             else if (n.nodeType === 1) {
-                if (n.nodeName === 'BR' || BLOCK_RE.test(n.nodeName)) break;
+                if (n.nodeName === 'BR') { s += '\n'; continue; }
+                if (BLOCK_RE.test(n.nodeName)) break;
                 s += n.textContent;
             }
         }
         return s;
     }
+    function setDir(el, d){
+        if (el.hasAttribute(AT)) el.removeAttribute(AT);
+        if (d) { if (el.getAttribute(DIR) !== d) el.setAttribute(DIR, d); }
+        else if (el.hasAttribute(DIR)) el.removeAttribute(DIR);
+    }
+    // A block with no text of its own (empty line, only an image / only child blocks) inherits.
+    // Direction of the app UI language (fa => rtl, en => ltr). An EMPTY line (nothing typed yet, or the
+    // new line after Enter) starts in this direction, so the caret sits on the right in Persian mode and
+    // on the left in English mode; it flips as soon as the first strong letter is typed.
+    function appDir(){
+        var d = (document.documentElement.getAttribute('dir') || '').toLowerCase();
+        return d === 'rtl' ? 'rtl' : 'ltr';
+    }
+    function markEl(el){
+        var t = firstLine(ownText(el));
+        setDir(el, t ? strongDir(t) : appDir());
+    }
+    function clearTree(root){
+        setDir(root, null);
+        var list = root.querySelectorAll('[' + DIR + ']');
+        for (var i = 0; i < list.length; i++) list[i].removeAttribute(DIR);
+    }
+    function markTree(root){
+        if (!root || root.nodeType !== 1) return;
+        if (root.classList.contains('masked')) { clearTree(root); return; }
+        markEl(root);
+        var list = root.querySelectorAll(BLOCK_SEL);
+        for (var i = 0; i < list.length; i++) markEl(list[i]);
+    }
+    // Used by the read-only note viewer too.
+    window.muBidiMark = markTree;
+    window.muBidiDir = function(text){ return strongDir(firstLine(text) || text); };
+
     function refreshBlock(b, box){
         if (b.closest('.text-box') !== box) return;
-        setMark(b, wantsLtr(ownLineText(b)));
+        markEl(b);
     }
-    function refreshBoxRoot(box){ setMark(box, wantsLtr(ownLineText(box))); }
-    function refreshBoxAll(box){
-        refreshBoxRoot(box);
-        var list = box.querySelectorAll(BLOCK_SEL);
-        for (var i = 0; i < list.length; i++) refreshBlock(list[i], box);
-    }
+    function refreshBoxAll(box){ markTree(box); }
     // Only the line being edited (and its ancestors) — cheap for long notes.
     function refreshBoxCaret(box){
-        refreshBoxRoot(box);
+        markEl(box);
         var sel = window.getSelection && window.getSelection();
         var n = sel && sel.anchorNode;
         if (!n || !box.contains(n)) return;
@@ -33281,10 +33631,9 @@ input[data-mu-at], textarea[data-mu-at] {
     }, true);
 
     // Re-marking after (re)render. Saving a note rebuilds its .text-box from the
-    // stored HTML, and sanitizeHtml() drops the data-mu-at marks, so a note that
-    // starts with "@" or a digit (e.g. a date) lost its left-to-right layout
-    // right after saving. Watch for
-    // boxes being created or their content being replaced and mark them again.
+    // stored HTML, and sanitizeHtml() drops the data-mu-* marks, so every line lost its
+    // direction right after saving. Watch for boxes being created or their content being
+    // replaced and mark them again.
     var pendingBoxes = new Set();
     var flushQueued = false;
     function flushBoxes(){
@@ -33321,8 +33670,15 @@ input[data-mu-at], textarea[data-mu-at] {
     }
     if (document.body) startObserver();
     else document.addEventListener('DOMContentLoaded', startObserver);
+    // App language switched (html dir changes): refresh empty lines so they follow the new language.
+    try {
+        new MutationObserver(function(){
+            var b = document.querySelectorAll('.text-box');
+            for (var i = 0; i < b.length; i++) queueBox(b[i]);
+        }).observe(document.documentElement, { attributes: true, attributeFilter: ['dir'] });
+    } catch (e) {}
 
-    // Initial pass for fields already on the page with a prefilled "@..." value.
+    // Initial pass for fields already on the page with a prefilled "@..." value, and for all notes.
     function initialPass(){
         var f = document.querySelectorAll('input,textarea');
         for (var i = 0; i < f.length; i++) if (isTextField(f[i])) refreshField(f[i]);
@@ -34031,6 +34387,7 @@ window.mu_setViewerStyle = function(v){
     lastFocus=document.activeElement;
     root.setAttribute('aria-label',title);
     root.querySelector('.mu-viewer-title').textContent=title;
+    try{ root.querySelector('.mu-viewer-title').setAttribute('dir', window.muBidiDir?window.muBidiDir(title):'auto'); }catch(e){}
     root.querySelector('.mu-viewer-close').setAttribute('aria-label',fa?'بستن':'Close');
     root.querySelector('.mu-viewer-ok').textContent=fa?'باشه':'OK';
     var vStyle=(styleOverride==='retro'||styleOverride==='ocean')?styleOverride:((window.mu_getViewerStyle&&window.mu_getViewerStyle()!=='ask'&&window.mu_getViewerStyle())||'ocean');
@@ -34046,13 +34403,11 @@ window.mu_setViewerStyle = function(v){
     body.querySelectorAll('img').forEach(function(n){n.draggable=false;});
     body.querySelectorAll('a[href]').forEach(function(a){a.target='_blank';a.rel='noopener noreferrer';});
     try{ mu_hydrateMedia(body); }catch(e){}
-    // Same per-line direction rule as the note editor (muAtLtrFixJs): lines that start with "@" or a digit
-    // and whose first real letter is not Persian/Arabic/Hebrew are shown left-to-right.
+    // Same per-line direction rule as the note editor (muAtLtrFixJs): each line follows its first strong letter
+    // (Persian/Arabic => RTL from the right, English => LTR from the left; digits/punctuation only => LTR).
     try{
-      var RTL=/[\u0590-\u05FF\u0621-\u064A\u0671-\u06D3\u06FA-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFC]/, LTRL=/[A-Za-z\u00C0-\u024F]/, LEAD=/^[\s\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]+/, BLK=/^(DIV|P|LI|UL|OL|BLOCKQUOTE|PRE|H[1-6]|TABLE|TR|TD|TH)$/;
-      var wantsLtr=function(s){ var t=String(s||'').replace(LEAD,''), c=t.charAt(0); if(c!=='@'&&!/^[0-9]/.test(c)) return false; for(var i=1;i<t.length;i++){ var ch=t.charAt(i); if(RTL.test(ch)) return false; if(LTRL.test(ch)) return true; } return true; };
-      var ownLine=function(el){ var s=''; for(var n=el.firstChild;n;n=n.nextSibling){ if(n.nodeType===3) s+=n.nodeValue; else if(n.nodeType===1){ if(n.nodeName==='BR'||BLK.test(n.nodeName)) break; s+=n.textContent; } } return s; };
-      body.querySelectorAll('div,p,li,blockquote,h1,h2,h3,h4,h5,h6,td,th').forEach(function(b){ if(wantsLtr(ownLine(b))) b.setAttribute('data-mu-at','1'); });
+      body.removeAttribute('data-mu-d');
+      if(!empty && window.muBidiMark) window.muBidiMark(body);
     }catch(e){}
     body.scrollTop=0;
     root.classList.toggle('is-empty',empty);
@@ -34203,6 +34558,20 @@ html.mu-zoom-on .mAi-col,
 html.mu-zoom-on .mAi-messages{touch-action:pan-x pan-y pinch-zoom}
 /* Page zoom OFF: no pinch / double-tap zoom anywhere (also covers iOS, which ignores user-scalable=no). */
 html:not(.mu-zoom-on){touch-action:pan-x pan-y}
+/* Software zoom (Telegram): the browser must never start its own pinch, so no pinch-zoom in touch-action. */
+html.mu-soft,
+html.mu-soft.mu-zoom-on .folder-wrapper,
+html.mu-soft.mu-zoom-on .note-btn-wrap,
+html.mu-soft.mu-zoom-on .mAi-col,
+html.mu-soft.mu-zoom-on .mAi-messages{touch-action:pan-x pan-y}
+/* Software zoom is a transform on <body> (origin top-left), so the browser's own scroller pans it in both axes. */
+html.mu-soft-zoomed,html.mu-soft-zoomed body{overflow:visible !important}
+html.mu-soft-pinch,html.mu-soft-pinch body{overflow:hidden !important}
+/* Black-flash fix: while the zoom level is changing (and while zoomed in) the full-screen blurred / animated theme
+   layers are frozen and their glass blur is dropped, so the GPU is not asked to re-raster them at every scale. */
+html.mu-zooming body[class*="theme-"]::before,html.mu-zooming body[class*="theme-"]::after,
+html.mu-zoomed body[class*="theme-"]::before,html.mu-zoomed body[class*="theme-"]::after{animation:none !important;transition:none !important;filter:none !important;opacity:0 !important}
+html.mu-zooming *,html.mu-zooming *::before,html.mu-zooming *::after{-webkit-backdrop-filter:none !important;backdrop-filter:none !important}
 #muZoomPill{position:fixed;left:10px;top:10px;z-index:2147483000;display:none;padding:7px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.25);background:rgba(0,0,0,.72);color:#fff;font:600 12px/1 system-ui,sans-serif;direction:ltr;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;box-shadow:0 2px 10px rgba(0,0,0,.4)}
 </style>
 <script id="muLiteScript">
@@ -34235,26 +34604,69 @@ html:not(.mu-zoom-on){touch-action:pan-x pan-y}
   // Telegram's in-app WebView ignores the viewport meta / native pinch-zoom, so inside Telegram the page
   // zoom is done in software: pinch with two fingers changes CSS `zoom` on <html> (like browser zoom,
   // text reflows) and the scroll position is kept under the fingers. Outside Telegram native zoom is used.
-  var swZ = 1, swStart = null;
+  var swZ = 1, swStart = null, busyT = 0, lastSc = 1;
   function softMode() {
-    try { var w = window.Telegram && window.Telegram.WebApp; return !!(w && w.platform && w.platform !== 'unknown'); } catch (e) { return false; }
-  }
-  function setVh(z) {
     try {
-      var h = (window.Telegram && Telegram.WebApp && Telegram.WebApp.viewportStableHeight) || window.innerHeight;
-      document.documentElement.style.setProperty('--app-1vh', (h * 0.01 / z) + 'px');
+      var w = window.Telegram && window.Telegram.WebApp;
+      if (w && w.platform && w.platform !== 'unknown') return true;
+      return /Telegram/i.test(navigator.userAgent || '');
+    } catch (e) { return false; }
+  }
+  function syncMode() { try { root.classList.toggle('mu-soft', softMode()); } catch (e) {} }
+  // Freeze the heavy themed background layers while the zoom level is changing (see #muZoomCss).
+  function setBusy(on) {
+    window.__muZoomBusy = !!on;
+    try {
+      root.classList.toggle('mu-zooming', !!on);
+      if (document.body) document.body.classList.toggle('mu-scrolling', !!on);
     } catch (e) {}
   }
-  function softApply(z, fx, fy) {
-    z = Math.max(1, Math.min(4, z));
+  function pulse(ms) {
+    setBusy(true);
+    clearTimeout(busyT);
+    busyT = setTimeout(function () {
+      busyT = 0; setBusy(false);
+      try { root.classList.toggle('mu-zoomed', isZoomed()); } catch (e) {}
+      updatePill();
+    }, ms || 400);
+  }
+  function jumpTo(x, y) {
+    y = Math.max(0, y);
+    try { window.scrollTo({ left: x, top: y, behavior: 'instant' }); } catch (e) { try { window.scrollTo(x, y); } catch (_) {} }
+  }
+  function isRtl() { try { return getComputedStyle(root).direction === 'rtl'; } catch (e) { return false; } }
+  function vw() { return root.clientWidth || window.innerWidth || 1; }
+  // Horizontal anchor, measured from the edge the page is scaled from (left in LTR, right in RTL), in
+  // zoom-independent page units. In RTL the document only scrolls toward the left (scrollLeft <= 0), so the
+  // page must be scaled from its RIGHT edge or the right part of a zoomed page would be unreachable.
+  function anchorX(fx) {
+    var sx = window.pageXOffset || 0;
+    return isRtl() ? ((vw() - fx) - sx) / swZ : (sx + fx) / swZ;
+  }
+  function scrollXFor(a, z, fx) {
+    if (isRtl()) { var x = (vw() - fx) - a * z; return Math.min(0, Math.max(-vw() * (z - 1), x)); }
+    return Math.max(0, a * z - fx);
+  }
+  // Software zoom: scale <body> from its top corner (like a browser's visual-viewport zoom the layout does NOT
+  // reflow), and let the browser's own scroller pan it. (fx, fy) = screen point to keep fixed; (ax, ay) = the
+  // page point that should sit under it (defaults to whatever is under it right now).
+  function softApply(z, fx, fy, ax, ay) {
+    z = Math.max(1, Math.min(5, z));
     if (z < 1.03) z = 1;
-    if (Math.abs(z - swZ) < 0.001) return;
-    var de = document.documentElement, sx = window.pageXOffset || 0, sy = window.pageYOffset || 0;
-    var cx = (sx + fx) / swZ, cy = (sy + fy) / swZ;      // page point under the fingers (zoom-independent)
-    swZ = z; window.__muSoftZoom = z;
-    if (z === 1) de.style.removeProperty('zoom'); else de.style.zoom = String(z);
-    setVh(z);
-    try { window.scrollTo(Math.max(0, cx * z - fx), Math.max(0, cy * z - fy)); } catch (e) {}
+    var hasA = (ax != null && ay != null);
+    if (!hasA && Math.abs(z - swZ) < 0.001) return;
+    if (!hasA) { ax = anchorX(fx); ay = ((window.pageYOffset || 0) + fy) / swZ; }
+    if (Math.abs(z - swZ) >= 0.001) {
+      swZ = z; window.__muSoftZoom = z;
+      var bd = document.body;
+      if (bd) {
+        if (z === 1) { bd.style.removeProperty('transform'); bd.style.removeProperty('transform-origin'); }
+        else { bd.style.transformOrigin = isRtl() ? '100% 0' : '0 0'; bd.style.transform = 'scale(' + z + ')'; }
+      }
+      root.classList.toggle('mu-soft-zoomed', z > 1);
+      root.classList.toggle('mu-zoomed', z > 1.02);
+    }
+    jumpTo(scrollXFor(ax, z, fx), ay * z - fy);
     updatePill();
   }
   function pageScale() {
@@ -34264,8 +34676,12 @@ html:not(.mu-zoom-on){touch-action:pan-x pan-y}
   function isZoomed() { return pageScale() > 1.02; }
   function applyZoom(on) {
     try {
+      syncMode();
       var m = vpMeta();
-      if (m) m.setAttribute('content', on ? VP_ON : VP_OFF);
+      // In software-zoom mode (Telegram) the viewport must stay locked, otherwise the WebView's own (partial)
+      // pinch would fight the software one.
+      var target = (on && !softMode()) ? VP_ON : VP_OFF;
+      if (m && m.getAttribute('content') !== target) m.setAttribute('content', target);
       root.classList.toggle('mu-zoom-on', !!on);
     } catch (e) {}
   }
@@ -34298,12 +34714,11 @@ html:not(.mu-zoom-on){touch-action:pan-x pan-y}
   // so you can always get back to 100% with one tap without opening Settings.
   function ensurePill() {
     var p = document.getElementById('muZoomPill');
-    if (p) return p;
-    if (!document.body) return null;
+    if (p) { if (p.parentNode !== document.documentElement) document.documentElement.appendChild(p); return p; }
     p = document.createElement('button');
     p.type = 'button'; p.id = 'muZoomPill';
     p.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); resetZoom(); });
-    document.body.appendChild(p);
+    document.documentElement.appendChild(p);
     return p;
   }
   function updatePill() {
@@ -34318,7 +34733,7 @@ html:not(.mu-zoom-on){touch-action:pan-x pan-y}
       p.setAttribute('aria-label', p.title);
       // pin to the visible (zoomed) window's corner so it stays on screen while the page is zoomed in
       var vv = window.visualViewport, sc = pageScale();
-      if (softMode()) { p.style.transform = ''; p.style.zoom = String(1 / sc); p.style.left = '10px'; p.style.top = '10px'; }
+      if (softMode()) { p.style.transform = ''; p.style.removeProperty('zoom'); p.style.left = '10px'; p.style.top = '10px'; }
       else if (vv) {
         p.style.transformOrigin = 'top left';
         p.style.transform = 'scale(' + (1 / sc) + ')';
@@ -34352,46 +34767,84 @@ html:not(.mu-zoom-on){touch-action:pan-x pan-y}
     if (zoomOpenWatched[id] || !window.MutationObserver) return;
     var el = document.getElementById(id); if (!el) return;
     zoomOpenWatched[id] = true;
-    var vis = function () { return !!el.style.display && el.style.display !== 'none'; };
+    var vis = function () { try { var cs = getComputedStyle(el); return cs.display !== 'none' && cs.visibility !== 'hidden'; } catch (e) { return false; } };
     var was = vis();
     new MutationObserver(function () {
       var now = vis();
-      // Modals / the AI chat are position:fixed to the layout viewport, so opening one while the page is
+      // Modals / sheets / the AI chat are position:fixed to the layout viewport, so opening one while the page is
       // zoomed in would leave it partly off-screen. Reset to 100% on the closed -> open transition only.
       if (now && !was && isZoomed()) resetZoom();
       was = now;
-    }).observe(el, { attributes: true, attributeFilter: ['style'] });
+    }).observe(el, { attributes: true, attributeFilter: ['style', 'class'] });
+  }
+  function watchViewerOpen() {
+    if (watchViewerOpen.done || !window.MutationObserver) return; watchViewerOpen.done = true;
+    var was = root.classList.contains('mu-viewer-open');
+    new MutationObserver(function () {
+      var now = root.classList.contains('mu-viewer-open');
+      if (now && !was && isZoomed()) resetZoom();
+      was = now;
+    }).observe(root, { attributes: true, attributeFilter: ['class'] });
   }
   function pinchDist(t) { return Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY); }
+  function pinchMid(t) { return [(t[0].clientX + t[1].clientX) / 2, (t[0].clientY + t[1].clientY) / 2]; }
+  function endSoftPinch() {
+    swStart = null;
+    root.classList.remove('mu-soft-pinch');
+    try { if (document.body) document.body.style.removeProperty('will-change'); } catch (e) {}
+    pulse(350);
+  }
   function initSoftPinch() {
     if (initSoftPinch.done) return; initSoftPinch.done = true;
     document.addEventListener('touchstart', function (e) {
-      if (!softMode() || !zoomOn() || e.touches.length !== 2 || inGraph(e.target)) { return; }
-      swStart = { d: pinchDist(e.touches) || 1, z: swZ };
+      if (e.touches.length !== 2 || !zoomOn() || inGraph(e.target)) return;
+      if (!softMode()) { pulse(700); return; }          // native pinch: just freeze the heavy layers meanwhile
+      var t = e.touches, m = pinchMid(t);
+      swStart = {
+        d: pinchDist(t) || 1, z: swZ,
+        ax: anchorX(m[0]),                              // page point under the fingers at the start
+        ay: ((window.pageYOffset || 0) + m[1]) / swZ
+      };
+      // Stop the browser's own scrolling for the duration of the pinch (a scroll that is already running
+      // cannot be cancelled from touchmove), and promote <body> so scaling is a cheap compositor operation.
+      root.classList.add('mu-soft-pinch');
+      try { if (document.body) document.body.style.setProperty('will-change', 'transform'); } catch (_) {}
+      pulse(700);
     }, { passive: true });
     document.addEventListener('touchmove', function (e) {
       if (!swStart) return;
-      if (e.touches.length !== 2) { swStart = null; return; }
+      if (e.touches.length !== 2) { endSoftPinch(); return; }
       if (e.cancelable) e.preventDefault();
-      var t = e.touches;
-      softApply(swStart.z * pinchDist(t) / swStart.d, (t[0].clientX + t[1].clientX) / 2, (t[0].clientY + t[1].clientY) / 2);
+      var t = e.touches, m = pinchMid(t);
+      softApply(swStart.z * pinchDist(t) / swStart.d, m[0], m[1], swStart.ax, swStart.ay);   // zoom + two-finger pan
+      pulse(500);
     }, { passive: false });
-    var done = function (e) { if (e.touches.length < 2) swStart = null; };
+    var done = function (e) {
+      if (e.touches.length >= 2) return;
+      if (swStart) endSoftPinch(); else if (zoomOn() && isZoomed()) pulse(400);
+    };
     document.addEventListener('touchend', done, { passive: true });
     document.addEventListener('touchcancel', done, { passive: true });
+    // Trackpad pinch / Ctrl+wheel inside Telegram Desktop.
+    document.addEventListener('wheel', function (e) {
+      if (!e.ctrlKey || !softMode() || !zoomOn() || inGraph(e.target)) return;
+      e.preventDefault();
+      softApply(swZ * Math.exp(-Math.max(-60, Math.min(60, e.deltaY)) * 0.01), e.clientX, e.clientY);
+    }, { passive: false });
   }
   function initZoomWatch() {
+    syncMode();
     initSoftPinch();
     // iOS Safari ignores user-scalable=no, so block its pinch gesture while page zoom is off (and always
     // while the finger is on the Knowledge Graph, which handles pinch itself).
     if (!zoomWatchDone) {
       zoomWatchDone = true;
       ['gesturestart', 'gesturechange'].forEach(function (ev) {
-        document.addEventListener(ev, function (e) { if (!zoomOn() || inGraph(e.target)) e.preventDefault(); }, { passive: false });
+        document.addEventListener(ev, function (e) { if (!zoomOn() || inGraph(e.target) || softMode()) e.preventDefault(); }, { passive: false });
       });
     }
-    watchOpen('advancedModal');
-    watchOpen('markhinAiChatOverlay');
+    ['advancedModal', 'markhinAiChatOverlay', 'mAiHistoryDrawerOverlay', 'muNoAnimModal', 'themePickerOverlay'].forEach(watchOpen);
+    watchViewerOpen();
   }
 
   function oceanicIndex() {
@@ -34556,12 +35009,34 @@ html:not(.mu-zoom-on){touch-action:pan-x pan-y}
     var upd = function () { if (raf) return; raf = requestAnimationFrame(function () { raf = 0; updatePill(); }); };
     try { if (window.visualViewport) { window.visualViewport.addEventListener('resize', upd); window.visualViewport.addEventListener('scroll', upd); } } catch (e) {}
     window.addEventListener('pageshow', function () { applyZoom(zoomOn()); upd(); });
-    try { if (window.visualViewport) window.visualViewport.addEventListener('resize', function () { if (!isZoomed()) { clearTimeout(window.__muVhT); window.__muVhT = setTimeout(function () { try { window.dispatchEvent(new Event('resize')); } catch (e) {} }, 250); } }); } catch (e) {}
+    // Native pinch (Chrome etc.): freeze the heavy theme layers while the scale changes. Also: the old code fired a
+    // synthetic window 'resize' after EVERY pinch, which re-measured/re-rendered all the note previews right as the
+    // page returned to 100% (the 1-2 s black screen). Now it only fires when the layout size really changed.
+    try {
+      var vvz = window.visualViewport;
+      if (vvz) {
+        var lastLW = window.innerWidth, lastLH = window.innerHeight;
+        window.addEventListener('resize', function () { if (!isZoomed()) { lastLW = window.innerWidth; lastLH = window.innerHeight; } });
+        vvz.addEventListener('resize', function () {
+          var sc = vvz.scale || 1;
+          if (Math.abs(sc - lastSc) > 0.001) { lastSc = sc; if (!softMode() && (zoomOn() || sc > 1.01)) pulse(450); }
+          if (isZoomed()) return;
+          clearTimeout(window.__muVhT);
+          window.__muVhT = setTimeout(function () {
+            if (isZoomed()) return;
+            var w = window.innerWidth, h = window.innerHeight;
+            if (w !== lastLW || h !== lastLH) { lastLW = w; lastLH = h; try { window.dispatchEvent(new Event('resize')); } catch (e) {} }
+          }, 400);
+        });
+        vvz.addEventListener('scroll', function () { if (!softMode() && isZoomed()) pulse(300); });
+      }
+    } catch (e) {}
     document.addEventListener('visibilitychange', function () { if (!document.hidden) { applyZoom(zoomOn()); upd(); } });
     window.addEventListener('storage', function (e) { if (e.key === ZKEY) { applyZoom(zoomOn()); syncZoomUI(); upd(); } });
     upd();
   })();
   window.addEventListener('load', initZoomWatch);
+  [400, 1500, 4000].forEach(function (ms) { setTimeout(function () { applyZoom(zoomOn()); initZoomWatch(); }, ms); });
   function enforce() {
     hookTheme();
     if (ls(true, KEY) === '1') {
@@ -35018,8 +35493,62 @@ if(document.body)start();else document.addEventListener('DOMContentLoaded',start
 </style>
 <style id="muLastEditedBigger">
 .content-container.show .mu-last-edited,.mu-last-edited{font-size:11.5px !important}
-.mu-last-edited .mu-last-edited-text{font-size:11.5px}
+/* "Last Edited" stays on ONE line: it is only shrunk as far as needed to fit next to the media buttons
+   (see muLastEditedFit below) - never smaller than necessary. */
+.mu-last-edited .mu-last-edited-text{font-size:var(--mu-le-fs,11.5px) !important;white-space:nowrap;flex:1 1 auto;min-width:0;overflow:hidden}
+.mu-last-edited .mu-last-edited-text *{font-size:inherit !important;white-space:nowrap}
 </style>
+<script id="muLastEditedFit">
+(function(){
+  var MAX = 11.5, MIN = 5, STEP = 0.25, raf = 0, tm = 0, ro = null;
+  function fitOne(box){
+    var t = box.querySelector('.mu-last-edited-text'); if(!t) return;
+    if(!t.offsetWidth && !t.offsetHeight) return;               // hidden right now - fit later
+    var s = MAX;
+    box.style.setProperty('--mu-le-fs', s + 'px');
+    // text span is flex:1 + nowrap: when it needs more room than it got, scrollWidth > clientWidth
+    while(t.scrollWidth > t.clientWidth + 0.5 && s > MIN){ s -= STEP; box.style.setProperty('--mu-le-fs', s + 'px'); }
+  }
+  function fitAll(){
+    raf = 0;
+    var list = document.querySelectorAll('.mu-last-edited');
+    for(var i = 0; i < list.length; i++){
+      var b = list[i];
+      fitOne(b);
+      if(ro && !b.__muLeRo){ b.__muLeRo = 1; try{ ro.observe(b); }catch(e){} }
+    }
+  }
+  function schedule(delay){
+    if(raf) return;
+    clearTimeout(tm);
+    tm = setTimeout(function(){ if(!raf) raf = requestAnimationFrame(fitAll); }, delay == null ? 60 : delay);
+  }
+  function relevant(muts){
+    for(var i = 0; i < muts.length; i++){
+      var m = muts[i], n = m.target;
+      if(n && n.nodeType === 3) n = n.parentNode;
+      if(n && n.closest && n.closest('.mu-last-edited')) return true;
+      var a = m.addedNodes;
+      for(var j = 0; j < a.length; j++){
+        var x = a[j];
+        if(x.nodeType === 1 && ((x.classList && x.classList.contains('mu-last-edited')) || (x.querySelector && x.querySelector('.mu-last-edited')))) return true;
+      }
+    }
+    return false;
+  }
+  function start(){
+    try{ if(window.ResizeObserver) ro = new ResizeObserver(function(){ schedule(30); }); }catch(e){}
+    try{ new MutationObserver(function(m){ if(relevant(m)) schedule(); }).observe(document.documentElement, {childList:true, subtree:true, characterData:true}); }catch(e){}
+    window.addEventListener('resize', function(){ schedule(120); });
+    window.addEventListener('orientationchange', function(){ schedule(250); });
+    try{ if(document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ schedule(0); }); }catch(e){}
+    window.addEventListener('load', function(){ schedule(0); });
+    schedule(0);
+  }
+  window.mu_fitLastEdited = function(){ schedule(0); };
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+})();
+</script>
 <style id="muLinkPreview">
 /* Link preview: one card per link (domain + address), open / copy buttons, "copy all". */
 .preview-box .lp-head{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12.5px;font-weight:700;margin-bottom:8px;opacity:.9}
