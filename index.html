@@ -5129,12 +5129,8 @@ setTimeout(finish,MAX)})();</script>
         .dna-bar-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,currentColor,rgba(255,255,255,.5))}
         .dna-bar-label{width:78px;flex-shrink:0;opacity:.75}
         .dna-bar-val{width:36px;flex-shrink:0;text-align:left;opacity:.85;font-weight:600}
-        .capsule-badge,.ghost-badge,.decay-badge{display:inline-block;font-size:9px;padding:3px 7px;border-radius:999px;border:1px solid var(--panel-border);margin:3px}
-        .capsule-badge{color:#a5b4fc}.ghost-badge{color:#c4b5fd}.decay-badge{color:#fbbf24}
-        /* Decay: a note visibly fades the longer it goes untouched. */
-        .text-box.decay-1{opacity:.93;filter:saturate(.92)}
-        .text-box.decay-2{opacity:.82;filter:saturate(.72) sepia(.12)}
-        .text-box.decay-3{opacity:.68;filter:saturate(.45) sepia(.28)}
+        .capsule-badge,.ghost-badge{display:inline-block;font-size:9px;padding:3px 7px;border-radius:999px;border:1px solid var(--panel-border);margin:3px}
+        .capsule-badge{color:#a5b4fc}.ghost-badge{color:#c4b5fd}
         .diff-box{white-space:pre-wrap;word-break:break-word;line-height:1.8;background:rgba(0,0,0,.3);padding:12px;border-radius:10px;border:1px solid var(--panel-border);font-family:monospace;font-size:11px}
         .diff-add{background:rgba(34,197,94,.16)}.diff-del{background:rgba(239,68,68,.16);text-decoration:line-through}
         .random-portal{position:fixed;inset:0;z-index:10001;pointer-events:none;display:grid;place-items:center;opacity:0}
@@ -7599,10 +7595,9 @@ window.mu_syncHtmlBg = function(){
                     titleHistory: persisted.titleHistory,
                     // Bug fix: these note fields were never backed up, so a restore (here or on
                     // another device) silently dropped Fake Note content and reset Time Capsule /
-                    // Ghost / Decay settings — a time-capsule note came back instantly readable.
+                    // Ghost settings — a time-capsule note came back instantly readable.
                     fakeContent: persisted.fakeContent,
                     unlockAt: persisted.unlockAt, ghostUntil: persisted.ghostUntil,
-                    decayLevel: persisted.decayLevel, decayManual: persisted.decayManual,
                     lastEdited: persisted.lastEdited,
                     // Needed so the receiving side's cloudApplyMergeData can compare
                     // metadata (folder/tags/pinned/favorite/archived) separately from
@@ -8117,8 +8112,6 @@ window.mu_syncHtmlBg = function(){
                         if (typeof cloudItem.fakeContent === 'string') local.fakeContent = cloudItem.fakeContent;
                         if (cloudItem.unlockAt !== undefined) local.unlockAt = cloudItem.unlockAt;
                         if (cloudItem.ghostUntil !== undefined) local.ghostUntil = cloudItem.ghostUntil;
-                        if (cloudItem.decayLevel !== undefined) local.decayLevel = Number(cloudItem.decayLevel) || 0;
-                        if (cloudItem.decayManual !== undefined) local.decayManual = !!cloudItem.decayManual;
                         local.lastEdited = cloudItem.lastEdited;
                         if (isNoteLocked(cloudItem)) {
                             local.encrypted = { ...cloudItem.encrypted };
@@ -9605,15 +9598,13 @@ window.mu_syncHtmlBg = function(){
                 encrypted: src.encrypted && typeof src.encrypted === 'object' ? { ...src.encrypted } : null,
                 hint: typeof src.hint === 'string' ? src.hint : '',
                 isDecoy: false,
-                // Advanced-system fields (Time Capsule / Ghost Note / Decay).
+                // Advanced-system fields (Time Capsule / Ghost Note).
                 // These now live directly on the note itself instead of a second
                 // localStorage key that had to be kept in sync by hand — one source
                 // of truth, and any backup/snapshot/import that carries the note
                 // automatically carries these too.
                 unlockAt: src.unlockAt ?? '',
                 ghostUntil: src.ghostUntil ?? '',
-                decayLevel: Number(src.decayLevel || 0),
-                decayManual: !!src.decayManual,
                 // Feature-pack fields: Tags / Pin / Favorite / Fake Note / Font / Size.
                 tags: Array.isArray(src.tags) ? src.tags.filter(Boolean).map(String) : [],
                 pinned: !!src.pinned,
@@ -10734,7 +10725,7 @@ window.mu_syncHtmlBg = function(){
                            onkeydown="if(event.key==='Enter'){event.preventDefault(); this.blur();}">
 
                     <div id="text-${item.id}" 
-                         class="text-box ${isHidden ? 'masked' : ''} ${item.decayLevel ? 'decay-' + item.decayLevel : ''}" 
+                         class="text-box ${isHidden ? 'masked' : ''}" 
                          contenteditable="${!isHidden && !item.isDecoy}"
                          data-placeholder="${escapeHtml(t.defaultContent)}"
                          onfocus="mu_scrollFieldIntoView(this)"
@@ -10804,7 +10795,6 @@ window.mu_syncHtmlBg = function(){
                             <div class="mc-row">
                                 <button onclick="setTimeCapsule('${item.id}')">${currentLang==='fa'?'کپسول زمان':'Time Capsule'}</button>
                                 <button onclick="setGhostNote('${item.id}')">Ghost</button>
-                                <button onclick="setDecayLevel('${item.id}')">Decay</button>
                             </div>
                         </div>
 
@@ -14815,7 +14805,7 @@ window.mu_syncHtmlBg = function(){
                 html: '',
                 history: [],
                 order: window.mu_topNoteOrder(null),
-                lastEdited: new Date().toUTCString(), unlockAt: '', ghostUntil: '', decayLevel: 0
+                lastEdited: new Date().toUTCString(), unlockAt: '', ghostUntil: ''
             };
             categories.push(newCategory);
             saveToLocalStorage();
@@ -14987,7 +14977,7 @@ window.mu_syncHtmlBg = function(){
                             if (typeof f === 'string' && f.trim() && f !== 'همه' && f !== 'All' && f !== DEFAULT_FOLDER && !folders.includes(f.trim())) folders.push(f.trim());
                         });
                         // Same bug fix as importBackup(): older backups kept Time Capsule/Ghost
-                        // Note/Decay fields in a separate advancedMeta blob rather than on the
+                        // Note fields in a separate advancedMeta blob rather than on the
                         // note itself. Without this, a legacy backup restored via ZIP silently
                         // lost those fields even though restoring the same file directly (not
                         // inside a ZIP) applied them correctly.
@@ -14999,8 +14989,6 @@ window.mu_syncHtmlBg = function(){
                                 if (!item || !m || typeof m !== 'object') return;
                                 if (!item.unlockAt && m.unlockAt) item.unlockAt = m.unlockAt;
                                 if (!item.ghostUntil && m.ghostUntil) item.ghostUntil = m.ghostUntil;
-                                if (!item.decayLevel && m.decayLevel) item.decayLevel = m.decayLevel;
-                                if (m.manualDecay) item.decayManual = true;
                             });
                         }
                     } else { skipped++; }
@@ -15130,15 +15118,13 @@ window.mu_syncHtmlBg = function(){
                         }
                         if (isNoteLocked(norm)) { norm.html = ''; norm.text = ''; norm.isDecoy = false; }
                         else norm.html = sanitizeHtml(norm.html || norm.text || '');
-                        // Older backups (from before Time Capsule/Ghost Note/Decay moved onto the
+                        // Older backups (from before Time Capsule/Ghost Note moved onto the
                         // note itself) kept those fields in a separate advancedMeta blob — apply
                         // it onto the matching notes here so an old backup still restores correctly.
                         const m = data.advancedMeta && typeof data.advancedMeta === 'object' ? data.advancedMeta[originalId] : null;
                         if (m && typeof m === 'object') {
                             if (!norm.unlockAt && m.unlockAt) norm.unlockAt = m.unlockAt;
                             if (!norm.ghostUntil && m.ghostUntil) norm.ghostUntil = m.ghostUntil;
-                            if (!norm.decayLevel && m.decayLevel) norm.decayLevel = m.decayLevel;
-                            if (m.manualDecay) norm.decayManual = true;
                         }
                         return norm;
                     });
@@ -15264,7 +15250,7 @@ window.mu_syncHtmlBg = function(){
             const safeItems = Array.isArray(items) ? items : [];
             if (type === 'json') {
                 const folderSet = [...new Set(safeItems.map(i => i.folder).filter(Boolean))];
-                // Time Capsule/Ghost Note/Decay fields live directly on each note object
+                // Time Capsule/Ghost Note fields live directly on each note object
                 // now, so they're already included below via the `...i` spread — no
                 // separate metadata blob to assemble.
                 // Re-derive text the same way TXT/MD export do: from the live editor
@@ -16778,7 +16764,7 @@ ${body}
             const jsEscape = s => s.replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026').replace(/'/g, "\\u0027");
             let seedLines = '';
             if (mode !== 'clean') {
-                // Time Capsule / Ghost Note / Decay now live directly on each note object
+                // Time Capsule / Ghost Note now live directly on each note object
                 // (see categoriesJson above), so there's no separate metadata blob left
                 // to seed here — the snapshot carries everything in one key.
                 // A standalone snapshot boots into a fresh IndexedDB with no
@@ -16924,21 +16910,17 @@ ${body}
         }
 
         /* ===================== MARKHIN ADVANCED SYSTEM ===================== */
-        // Time Capsule / Ghost Note / Decay used to live in a second localStorage
+        // Time Capsule / Ghost Note used to live in a second localStorage
         // key ("markhin_advanced_meta_v1") that had to be kept perfectly in sync
         // with the notes themselves by hand. That extra key — plus a Versions
         // system that stored a full copy of a note's HTML (images included) on
         // every single edit — was the main reason saves silently stopped working:
         // once localStorage filled up, every subsequent save (of anything, not
         // just the note that grew big) failed quietly. Both are gone now: these
-        // three fields live directly on each note object (see normalizeCategory),
+        // two fields live directly on each note object (see normalizeCategory),
         // there is exactly one thing to save, and it stays small.
         function metaFor(id){ return categories.find(c => c.id === id) || {}; }
         function saveAdvancedMeta(){ saveToLocalStorage(); }
-        function getDecayLabel(item){
-            const d=Number(item.decayLevel||0);
-            return currentLang==='fa' ? ['فعال','خوابیده','فراموش‌شده','باستانی'][Math.min(3,d)] : ['Active','Dormant','Forgotten','Ancient'][Math.min(3,d)];
-        }
         function formatRemaining(ms){
             const fa=currentLang==='fa';
             if(ms<=0) return fa?'اکنون':'now';
@@ -16960,15 +16942,12 @@ ${body}
                 const label = remain<=0 ? (fa?'در حال محو شدن…':'fading…') : (fa?'محو می‌شود در ':'fades in ')+formatRemaining(remain);
                 html += `<span class="ghost-badge" title="${escapeHtml(new Date(Number(item.ghostUntil)).toLocaleString())}">👻 ${label}</span>`;
             }
-            if(item.decayLevel){
-                html += `<span class="decay-badge">⌛ ${escapeHtml(getDecayLabel(item))}</span>`;
-            }
             return html;
         }
-        // Patches just one note's badge row (Time Capsule/Ghost Note/Decay
+        // Patches just one note's badge row (Time Capsule/Ghost Note
         // countdown chips) in place, instead of the renderApp() full list
-        // rebuild that setTimeCapsule/setGhostNote/setDecayLevel used to
-        // trigger for this. None of these three fields affect sorting,
+        // rebuild that setTimeCapsule/setGhostNote used to
+        // trigger for this. Neither of these fields affects sorting,
         // filtering, or the note's own list-button label, so nothing else on
         // screen needs to move — same reasoning as mu_updateNoteFlagButton()
         // for pin/favorite. No-op if the note's box isn't currently in the
@@ -17012,19 +16991,8 @@ ${body}
             }
             return true;
         }
-        function updateDecayLevels(){
-            const now=Date.now(); let changed=false;
-            categories.forEach(item=>{
-                if(item.decayManual) return;
-                const days=Math.max(0,(now-(Date.parse(item.lastEdited)||now))/86400000);
-                const level=days<7?0:days<30?1:days<90?2:3;
-                if(Number(item.decayLevel||0)!==level){item.decayLevel=level;changed=true;}
-            });
-            if(changed) saveToLocalStorage();
-            return changed;
-        }
         function isArchived(item){ return !!(item && item.archived); }
-        // Periodically re-check Ghost/Decay state and refresh the countdown
+        // Periodically re-check Ghost Note state and refresh the countdown
         // badges even while the app is left open — previously this only ran once
         // on page load, so a Ghost Note wouldn't actually vanish, and a capsule
         // countdown wouldn't update, until the page was reloaded.
@@ -17033,8 +17001,7 @@ ${body}
         }
         function advancedSystemsTick(){
             const ghostsChanged = purgeExpiredGhosts(false);
-            const decayChanged = updateDecayLevels();
-            if(ghostsChanged || decayChanged) renderApp(activeOpenId);
+            if(ghostsChanged) renderApp(activeOpenId);
             else refreshAdvancedBadges();
         }
 
@@ -17231,29 +17198,6 @@ ${body}
                     `<div class="dna-helix-head"><span class="dna-emoji">🧬</span><h2 style="margin:0">${escapeHtml(item.name)}</h2></div>`+
                     heroHtml+textBlock+langBlock+symBlock+mediaBlock+infoBlock+vocabBlock+kwBlock+tagBlock+
                 `</div>`);
-        }
-        async function setDecayLevel(id){
-            const item=categories.find(c=>c.id===id);if(!item)return;
-            const fa=currentLang==='fa';
-            const raw=await promptStyledText({
-                title: fa?'🧭 سطح کهنگی':'🧭 Decay level',
-                placeholder: fa?'سطح را انتخاب کن: 0 فعال، 1 خوابیده، 2 فراموش‌شده، 3 باستانی':'Choose level: 0 Active, 1 Dormant, 2 Forgotten, 3 Ancient',
-                type: 'number',
-                okText: fa?'✔️ ثبت':'✔️ Set'
-            });
-            if(raw===null)return;
-            const v=Math.max(0,Math.min(3,parseInt(raw,10)||0));
-            item.decayLevel=v; item.decayManual=true; saveToLocalStorage();
-            mu_refreshNoteBadgeRow(id);
-            // The decay visual (opacity/saturation filter) lives as a
-            // decay-N class on the note's own text box — patch that in
-            // place too instead of the renderApp() full list rebuild this
-            // used to trigger.
-            const textBox = document.getElementById('text-' + id);
-            if(textBox){
-                textBox.className = textBox.className.replace(/\bdecay-\d+\b/g, '').replace(/\s+/g, ' ').trim();
-                if(v) textBox.classList.add('decay-' + v);
-            }
         }
         // Deleting a note is permanent: it is removed outright, and a tombstone is
         // recorded so a sync or restore can't bring it back.
@@ -18288,11 +18232,10 @@ ${body}
 
         function initAdvancedSystems(){
             const ghostsChanged = purgeExpiredGhosts(true);
-            const decayChanged = updateDecayLevels();
             try{ localStorage.removeItem('markhin_cemetery_v1'); }catch(e){} // drop leftover data from an older version
-            if(ghostsChanged || decayChanged) renderApp(activeOpenId);
-            // Re-check every 30s so a Ghost Note actually disappears, Decay levels
-            // keep advancing, and Time Capsule/Ghost countdown badges stay live
+            if(ghostsChanged) renderApp(activeOpenId);
+            // Re-check every 30s so a Ghost Note actually disappears and Time Capsule/Ghost
+            // countdown badges stay live
             // while the app is left open — not just once at page load.
             setInterval(advancedSystemsTick, 30000);
         }
@@ -21786,7 +21729,7 @@ window.renderButtons = function(filtered){
         ticking = false;
         document.body.classList.add('mu-scrolling');
         clearTimeout(scrollEndTimer);
-        scrollEndTimer = setTimeout(() => { if (!window.__muZoomBusy) document.body.classList.remove('mu-scrolling'); }, 150);
+        scrollEndTimer = setTimeout(() => { if (!window.__muZoomBusy) document.body.classList.remove('mu-scrolling'); }, (window.MU_ScrollPause ? MU_ScrollPause.get() : 150));
     }
     window.addEventListener('scroll', function(){
         if(ticking) return;
@@ -27583,13 +27526,13 @@ const MU_AI = (function(){
                         : 'A real general-purpose AI assistant — powered by whichever provider you connect. Beyond answering questions, it has direct access to your app: it can find notes and read their full content, create them, rename them, duplicate them, move them into folders, tag them, archive/pin/favorite them, arm a Time Capsule or Ghost Note timer on them, merge several notes together, and delete them with your confirmation. Ask it anything, or just tell it what to do with your notes.') + '</div>' +
                     '<div class="mAi-welcome-features">' + (fa ? [
                         '🖼️ ساخت و ویرایش تصویر با هوش مصنوعی', '🔎 پیدا کردن و جست‌وجوی معنایی', '✍️ ساخت، ویرایش، ادغام و خلاصه‌سازی', '🏷️ تغییرنام، کپی و برچسب',
-                        '🗂️ جابه‌جایی، پوشه‌بندی و چیدمان', '📌 پین، آرشیو، فیوریت و قفل', '⏳ کپسول زمانی، Ghost Note و Decay',
+                        '🗂️ جابه‌جایی، پوشه‌بندی و چیدمان', '📌 پین، آرشیو، فیوریت و قفل', '⏳ کپسول زمانی و Ghost Note',
                         '⚖️ تحلیل، تناقض‌یاب و مشابه‌یاب',
                         '📊 آمار کلی و فضای ذخیره‌سازی', '📤 خروجی گرفتن و ساخت فایل',
                         '☁️ بکاپ تلگرام: گرفتن، لیست و حذف', '🌐 وب، ساعت جهانی، تاریخ و محاسبه', '🎨 تم، زبان و تنظیمات ظاهر اپ'
                     ] : [
                         '🖼️ AI image generation', '🔎 Find & search by meaning', '✍️ Create, edit, merge & summarize', '🏷️ Rename, duplicate & tag',
-                        '🗂️ Move, organize & reorder', '📌 Pin, archive, favorite & lock', '⏳ Time Capsule, Ghost Note & Decay',
+                        '🗂️ Move, organize & reorder', '📌 Pin, archive, favorite & lock', '⏳ Time Capsule & Ghost Note',
                         '⚖️ Analyze, contradictions & duplicates',
                         '📊 Full stats & storage usage', '📤 Export notes & create files',
                         '☁️ Telegram backup: create, list & delete', '🌐 Web, world clock, dates & math', '🎨 Theme, language & app look'
@@ -28229,6 +28172,8 @@ const MU_AI = (function(){
         { name:'set_lite_mode', description:"Turn the app's Lite version (نسخه سبک / حالت سبک / لایت) on or off - the same switch as Settings > Lite version. ON: switches the theme to Oceanic (the current theme is remembered), stops every infinite animation, moving effect, glass blur and heavy shadow so the app runs lighter on weak phones, and LOCKS theme changes. OFF: restores the previous theme and all effects. Notes and data are never touched. Use whenever the user asks to enable/disable/turn on/turn off the light or lite mode. After turning it ON, tell the user briefly that the theme became Oceanic and that theme changes stay locked until Lite is turned off.", parameters:{ type:'object', properties:{ enabled:{ type:'boolean', description:'true = turn Lite version on. false = turn it off.' } }, required:['enabled'] } },
         { name:'set_viewer_style', description:"Change the look of the note viewer window that opens with the \"View note\" (نمایش یادداشت) button - Settings > Note viewer style (سبک کادر نمایش یادداشت). Three options: ask = ask every time (the default - pressing View note shows a picker with Ocean / Windows 95), ocean = always the Ocean look, retro = always the Windows 95 look. Use whenever the user asks to change the style/model/shape of the note display frame or viewer (مدل نمایش یادداشت، سبک کادر نمایش، ویندوزی/قدیمی، اقیانوسی).", parameters:{ type:'object', properties:{ style:{ type:'string', enum:['ask','ocean','retro'], description:'ask = ask each time (default). ocean = Ocean look. retro = Windows 95 look.' } }, required:['style'] } },
         { name:'set_page_zoom', description:"Turn the app's PAGE ZOOM (زوم صفحه) on or off - the same switch as Settings > Page zoom. ON: the user can pinch-zoom the whole page with two fingers. OFF (the default): page zoom is disabled. The Knowledge Graph (شبکه دانش) is NOT affected - it always has its own zoom (two-finger pinch, mouse wheel, double-click and the +/- buttons) whatever this setting is, so never tell the user it needs this switch. Use whenever the user asks to enable/disable/turn on/turn off zoom, magnification or pinch-zoom of the page (زوم، بزرگ‌نمایی، ریز و درشت کردن صفحه). If they only ask about zooming inside the Knowledge Graph, just explain that it always works. Telegram's in-app browser may limit page zoom on some devices - mention that briefly if the user says it did not work after turning it on.", parameters:{ type:'object', properties:{ enabled:{ type:'boolean', description:'true = allow pinch-zoom on the page. false = disable page zoom.' } }, required:['enabled'] } },
+        { name:'set_scroll_pause_delay', description:"Set the app's 'Pause animations while scrolling' delay (توقف انیمیشن‌ها هنگام اسکرول) - its own slider in Settings. While the user scrolls, the heavy theme effects are paused; this is how many milliseconds they stay paused after scrolling stops before resuming. Range 100 to 400 ms, default 150. Not part of the Eco options. Use when the user asks to change, shorten, lengthen or reset the scroll pause / scroll lag / animation freeze while scrolling; to reset use ms=150.", parameters:{ type:'object', properties:{ ms:{ type:'number', description:'Delay in milliseconds, 100 to 400 (default 150).' } }, required:['ms'] } },
+        { name:'set_eco_option', description:"Turn one of the app's ECO / power-saving options (صرفه‌جویی انرژی) on or off - the switches at the bottom of Settings. They freeze the endless decorative theme animations (theme look is unchanged) to keep the phone cool. All are ON by default. option: 'all' = master Eco switch (off = nothing is ever auto-paused); 'typing' = pause while typing; 'viewer' = pause animations, glass blur and text shadow while a note is open in the full-screen viewer; 'idle' = pause after 20 s without touching the screen; 'hidden' = pause while the app is in the background. Use when the user asks to enable/disable any of these (e.g. stop/keep animations while typing, Eco mode, power saving, phone getting hot). Notes and data are never touched.", parameters:{ type:'object', properties:{ option:{ type:'string', enum:['all','typing','viewer','idle','hidden'], description:'Which Eco option to change.' }, enabled:{ type:'boolean', description:'true = turn the option on. false = turn it off.' } }, required:['option','enabled'] } },
 
         { name:'open_note_viewer', description:"Open the read-only note viewer window (the same window the \"View note\" / نمایش یادداشت button opens) for ONE specific note, right now, optionally in a chosen look: ocean = Ocean look (اقیانوسی), retro = Windows 95 look (ویندوز ۹۵). The style applies to THIS opening only - it does NOT change the saved Settings > Note viewer style (use set_viewer_style for that). If style is omitted, the user's saved viewer style is used (and if that is \"ask\", the app shows its own Ocean / Windows 95 picker first). Use whenever the user asks to open / show / display / view a note (باز کن، نشون بده، نمایش بده، نمایش یادداشت) - especially with a look such as \"ویندوزی\", \"ویندوز ۹۵\", \"قدیمی\", \"اقیانوسی\". Works on password-locked notes too: the app itself asks the USER for the password in its own dialog (you never see it or the note's content), so just call it and tell the user to enter their password. Notes under an active Time Capsule cannot be opened. If you only need to read a note's text yourself, use get_note instead.", parameters:{ type:'object', properties:{ note:{ type:'string', description:'The id or title of the note to open.' }, style:{ type:'string', enum:['ocean','retro'], description:'Look of the viewer for this opening: ocean = Ocean, retro = Windows 95. Omit to use the saved viewer style.' } }, required:['note'] } },
         { name:'set_list_sort_mode', description:"Change the notes list's DISPLAY ORDER setting (the \"ترتیب نمایش / Sort by\" dropdown under the list). This is a view setting: it changes how the list is shown and does not rewrite any note's manual position - use sort_notes or move_note_position instead when the user wants the manual order itself rewritten. Modes: manual (custom / drag order), alpha_asc (name A to Z / آ تا ی), alpha_desc (name Z to A / ی تا آ), created_desc (date created, newest first), created_asc (date created, oldest first), edited_desc (last edited, newest first), edited_asc (last edited, oldest first). If the user says only \"newest\" or \"oldest\" and it is unclear whether they mean creation date or last-edit date, ask which one.", parameters:{ type:'object', properties:{ mode:{ type:'string', enum:['manual','alpha_asc','alpha_desc','created_desc','created_asc','edited_desc','edited_asc'] } }, required:['mode'] } },
@@ -28251,7 +28196,6 @@ const MU_AI = (function(){
         { name:'manage_folder', description:'Create a brand-new empty folder, rename an existing folder (every note inside moves with it), or delete a folder (its notes are kept but become unfiled, exactly like the app\'s own folder-delete button — nothing inside is lost). If you are not sure a folder exists (including an empty one), call list_folders first instead of guessing. The app remembers folder renames, so if the user later refers to a folder by a name it used to have before being renamed, any folder-name input anywhere (here or in create_note/move_note_to_folder/bulk_update_notes/etc.) still resolves to the right folder automatically — you do not need to track old names yourself.', parameters:{ type:'object', properties:{ action:{ type:'string', enum:['create','rename','delete'], description:'Which folder operation to perform.' }, folder:{ type:'string', description:'For create: the new folder\'s name. For rename/delete: the existing folder\'s current name.' }, new_name:{ type:'string', description:'The folder\'s new name. Required when action is "rename", ignored otherwise.' } }, required:['action','folder'] } },
         { name:'pin_folder', description:"Pin or unpin a FOLDER (one of the folder tabs above the notes list) - the same as long-pressing a folder, selecting it and tapping the pin button. Pinned folders are shown first in the folder row (right after \"All\") with a 📌 mark. Use whenever the user asks to pin / unpin a folder (پین کردن پوشه، پین پوشه رو بردار). This is for FOLDERS only - to pin a NOTE use set_pinned. The root \"All\" folder cannot be pinned. list_folders reports every folder's current pinned state, so call it first if you are unsure of the folder's exact name or current state.", parameters:{ type:'object', properties:{ folder:{ type:'string', description:'Name of the folder to pin or unpin.' }, pinned:{ type:'boolean', description:'true = pin the folder, false = unpin it.' } }, required:['folder','pinned'] } },
         { name:'set_note_style', description:'Change a single note\'s display font family and/or font size — a per-note cosmetic style, separate from the app\'s overall visual theme.', parameters:{ type:'object', properties:{ note:{ type:'string', description:'The id or title of the note.' }, font_family:{ type:'string', description:'A CSS font-family value to apply, e.g. "Georgia", "monospace", "Tahoma". Omit to leave unchanged.' }, font_size:{ type:'number', description:'Font size in pixels (roughly 10-32 is sensible). Omit to leave unchanged.' } }, required:['note'] } },
-        { name:'set_decay_level', description:'Manually set a note\'s "decay" staleness badge (Active/Dormant/Forgotten/Ancient — a purely cosmetic indicator of how old/untouched a note looks), or reset it back to automatic so the app derives it from how long the note has gone unedited again.', parameters:{ type:'object', properties:{ note:{ type:'string', description:'The id or title of the note.' }, level:{ type:'integer', enum:[0,1,2,3], description:'0=Active, 1=Dormant, 2=Forgotten, 3=Ancient. Required unless reset_to_automatic is true.' }, reset_to_automatic:{ type:'boolean', description:'If true, remove the manual override and let the app compute the decay level automatically from the note\'s last-edited date; level is ignored.' } }, required:['note'] } },
         { name:'bulk_update_notes', description:'Apply one change to every note matching a filter at once, instead of calling a single-note tool repeatedly — e.g. "archive all notes in Old Stuff", "add the tag done to every note tagged draft", "pin every note about budgets". At least one filter (folder, tag, or query) is required, precisely to avoid accidentally hitting the entire vault; filters combine with AND when more than one is given. Locked notes are never affected.', parameters:{ type:'object', properties:{ folder:{ type:'string', description:'Only match notes in this folder.' }, tag:{ type:'string', description:'Only match notes that already have this tag.' }, query:{ type:'string', description:'Only match notes whose title or body contains this text.' }, action:{ type:'string', enum:['add_tag','remove_tag','archive','unarchive','pin','unpin','favorite','unfavorite','move_to_folder'], description:'The change to apply to every matching note.' }, value:{ type:'string', description:'Required for add_tag/remove_tag (the tag text) and move_to_folder (destination folder name, or empty/"none" to unfile). Not used for the other actions.' } }, required:['action'] } },
         { name:'get_notes', description:'Batch version of get_note: fetch the full body text plus metadata for several notes in a single call instead of calling get_note once per note. Use this whenever you need the real content of more than one note at once — e.g. "summarize all my notes about X", "read these three notes and compare their advice", digesting a whole folder. Each requested note is resolved independently, so a mix of found/not-found/locked results is normal and expected.', parameters:{ type:'object', properties:{ notes:{ type:'array', items:{ type:'string' }, description:'Ids or titles of the notes to fetch — at least one.' } }, required:['notes'] } },
         { name:'read_all_notes', description:'Fetch the full body text and metadata of EVERY note you can currently see (all unlocked, non-decoy notes) in a single call — not a snippet, not capped at a small handful. Use this whenever the request spans the whole vault rather than a few named notes: "read/summarize all my notes", "search everything I\'ve written for X", "what have I written about Y anywhere", or any task where you would otherwise need find_notes plus several get_notes calls to cover everything. Locked notes are always excluded (see locked_notes_excluded in the result). On a very large vault the combined content may be cut off to keep the response usable — check the truncated flag, and if it is true, fall back to find_notes to narrow things down instead of assuming you saw everything.', parameters:{ type:'object', properties:{ include_archived:{ type:'boolean', description:'Whether to include archived notes too. Defaults to true.' } } } },
@@ -29698,6 +29642,8 @@ const MU_AI = (function(){
                     const curSort = sortOpt.find(o => o.value === sortMode);
                     return { ok:true, data:{
                         lite_mode: { enabled: lite, note: lite ? 'Theme is locked to Oceanic while Lite is on; turn Lite off to change the theme.' : 'Off - theme can be changed freely.' },
+                        eco_mode: (window.MU_Eco && MU_Eco.all) ? Object.assign({ note: 'ON by default. Freezes endless decorative animations (typing, viewer, idle, hidden). all=false disables every auto-pause.' }, MU_Eco.all()) : null,
+                        scroll_pause: { delay_ms: (window.MU_ScrollPause ? MU_ScrollPause.get() : 150), range_ms: [100,400], default_ms: 150, note: 'Separate from Eco. Heavy theme effects pause while scrolling and resume after this many ms once scrolling stops.' },
                         page_zoom: { enabled: !!(window.MU_Lite && MU_Lite.isZoomOn && MU_Lite.isZoomOn()), note: 'Off by default. Applies to the whole page only; the Knowledge Graph always has its own zoom regardless of this setting.' },
                         theme: themeInfo,
                         available_themes: (typeof MU_Theme !== 'undefined' && MU_Theme.list) ? MU_Theme.list.map(t => t.id) : [],
@@ -29719,6 +29665,27 @@ const MU_AI = (function(){
                     return { ok:true, data:{ enabled: !!MU_Lite.isOn(), changed:true, theme: themeNow, theme_locked: !!MU_Lite.isOn(), note: want
                         ? (fa ? 'تم به اقیانوسی تغییر کرد (تم قبلی ذخیره شد)، انیمیشن‌ها و افکت‌های متحرک خاموش شدند و تا خاموش‌کردن نسخه سبک، تغییر تم قفل است.' : 'Theme switched to Oceanic (previous theme saved), animations and moving effects are off, and theme changes are locked until Lite is turned off.')
                         : (fa ? 'تم قبلی و همه افکت‌ها برگشتند و تغییر تم دوباره آزاد است.' : 'The previous theme and all effects are back, and theme changes are unlocked again.') } };
+                }
+                case 'set_scroll_pause_delay': {
+                    if(!window.MU_ScrollPause) return { ok:false, error: fa ? 'تنظیم در دسترس نیست.' : 'This setting is unavailable right now.' };
+                    const spRaw = Number(input.ms);
+                    if(!isFinite(spRaw)) return { ok:false, error: fa ? 'مقدار باید یک عدد بین ۱۰۰ تا ۴۰۰ میلی‌ثانیه باشد.' : 'ms must be a number between 100 and 400.' };
+                    const spOld = MU_ScrollPause.get();
+                    const spNew = MU_ScrollPause.set(spRaw);
+                    if(spNew === spOld) return { ok:true, data:{ delay_ms: spNew, changed:false, range_ms:[100,400], note: fa ? 'از قبل همین مقدار بود.' : 'It was already this value.' } };
+                    showToast(fa ? ('📜 تأخیر توقف اسکرول: ' + spNew + ' میلی‌ثانیه') : ('📜 Scroll pause delay: ' + spNew + ' ms'));
+                    return { ok:true, data:{ delay_ms: spNew, changed:true, range_ms:[100,400], clamped: spNew !== Math.round(spRaw) } };
+                }
+                case 'set_eco_option': {
+                    if(!window.MU_Eco || typeof MU_Eco.set !== 'function') return { ok:false, error: fa ? 'تنظیمات Eco در دسترس نیست.' : 'Eco options are unavailable right now.' };
+                    const ecoKey = String(input.option || '');
+                    const ecoWant = !!input.enabled;
+                    const ecoAll = MU_Eco.all();
+                    if(!(ecoKey in ecoAll)) return { ok:false, error: fa ? 'گزینه نامعتبر است. گزینه‌های مجاز: all, typing, viewer, idle, hidden' : 'Unknown option. Allowed: all, typing, viewer, idle, hidden' };
+                    if(ecoAll[ecoKey] === ecoWant) return { ok:true, data:{ option: ecoKey, enabled: ecoWant, changed:false, eco: ecoAll, note: fa ? 'از قبل در همین حالت بود.' : 'It was already in this state.' } };
+                    MU_Eco.set(ecoKey, ecoWant);
+                    showToast(ecoWant ? (fa ? '🍃 گزینه Eco روشن شد' : '🍃 Eco option turned on') : (fa ? '🍃 گزینه Eco خاموش شد' : '🍃 Eco option turned off'));
+                    return { ok:true, data:{ option: ecoKey, enabled: ecoWant, changed:true, eco: MU_Eco.all() } };
                 }
                 case 'set_page_zoom': {
                     if(!window.MU_Lite || typeof MU_Lite.setZoom !== 'function') return { ok:false, error: fa ? 'تنظیم زوم صفحه در دسترس نیست.' : 'The page zoom setting is unavailable right now.' };
@@ -30470,27 +30437,6 @@ const MU_AI = (function(){
                     renderApp(activeOpenId);
                     showToast(fa ? '🔤 استایل یادداشت تغییر کرد' : '🔤 Note style updated');
                     return { ok:true, data:{ id:item.id, fontFamily:item.fontFamily, fontSize:item.fontSize } };
-                }
-                case 'set_decay_level': {
-                    const item = mAiResolveNote(input.note);
-                    if(!item) return notFound;
-                    if(mAiIsLockedForAi(item)) return locked;
-                    if(input.reset_to_automatic){
-                        item.decayManual = false;
-                        if(typeof updateDecayLevels === 'function') updateDecayLevels();
-                        saveToLocalStorage();
-                        renderApp(activeOpenId);
-                        showToast(fa ? '⌛ سطح فرسودگی به‌صورت خودکار تنظیم شد' : '⌛ Decay level reset to automatic');
-                        return { ok:true, data:{ id:item.id, decayLevel:item.decayLevel, decayManual:false } };
-                    }
-                    const level = Number(input.level);
-                    if(![0,1,2,3].includes(level)) return { ok:false, error: fa ? 'سطح باید بین ۰ تا ۳ باشد.' : 'Level must be 0-3.' };
-                    item.decayLevel = level;
-                    item.decayManual = true;
-                    saveToLocalStorage();
-                    renderApp(activeOpenId);
-                    showToast(fa ? '⌛ سطح فرسودگی تنظیم شد' : '⌛ Decay level set');
-                    return { ok:true, data:{ id:item.id, decayLevel:item.decayLevel, decayManual:true } };
                 }
                 case 'bulk_update_notes': {
                     const folderFilter = String(input.folder || '').trim();
@@ -32928,8 +32874,8 @@ const MU_AI = (function(){
         }).join('\n\n').slice(0,totalBudget);
 
 
-        const toolsSummaryFa = '🔎 پیدا کردن یادداشت، 📖 خواندن متن کامل یک یادداشت، ➕ ساخت یادداشت جدید (با فرمت‌بندی)، 📝 ویرایش/بازنویسی متن یادداشت (بولد، ایتالیک، تیتر، لیست و...)، 📄 ساخت کپی از یک یادداشت، 🔒 قفل‌کردن واقعیِ یک یادداشت با رمز (باز کردن دیالوگ امن رمزگذاری خودِ برنامه)، ✏️ تغییر عنوان، 🔤 تغییر فونت/سایز یک یادداشت، ⌛ تنظیم دستی/خودکار سطح فرسودگی، 📁 انتقال به/خروج از پوشه، ➕📁 ساخت/تغییرنام/حذف پوشه، 🏷️ تگ‌گذاری، 📌 پین، ⭐ فیوریت، 📦 آرشیو/بازگردانی، ⏳ فعال/غیرفعال‌کردن کپسول زمانی (قفل یک یادداشت تا زمان مشخص)، 👻 فعال/لغو Ghost Note (خودکار حذف‌شدن یادداشت بعد از چند ساعت)، 🧰 اعمال یک تغییر روی چند یادداشت هم‌زمان بر اساس پوشه/تگ/جستجو (تگ‌گذاری، آرشیو، پین، فیوریت، یا جابجایی گروهی)، 🔗 ترکیب چند یادداشت، 🗑️ حذف دائمی (حتی یادداشتِ قفل — همیشه با تأیید واقعی کاربر)، 🎨 تغییر تم ظاهری، 🌐 تغییر زبان برنامه، 📤 خروجی‌گرفتن واقعی از یادداشت‌ها (JSON/CSV/MD/TXT/HTML/PDF/DOCX/PNG/JPG، بسته کامل ZIP، ZIPهای تک\u200cفایلی هر فرمت، و بکاپ کامل HTML برنامه بدون کلید API — دانلود واقعی، نه فقط توضیح)، 📝📎 ساخت یک فایل کاملاً جدید (نه از روی یادداشت) از محتوایی که خودت همین الان می‌نویسی — TXT، JSON (اعتبارسنجی‌شده)، CSV، HTML یا Markdown — و ارسال واقعی همان فایل برای کاربر همین‌جا توی چت، 🌌 باز کردن شبکه دانش/پورتال رندوم و بقیه‌ی صفحه‌های برنامه (داشبورد آمار، پنجره جستجو، فهرست Ghost و کپسول زمانی، تحلیل DNA یا اشتراک‌گذاریِ یک یادداشت، پنل بکاپ Cloud تلگرام)، 🧬 مقایسه چند یادداشت و پیدا کردن اشتراکات (تگ مشترک، کلمات/موضوع مشترک)، 📊 آمار کامل داشبورد (تعداد کل، پین‌شده‌ها، فیوریت‌ها، پوشه‌ها، تگ‌ها)، 📚 خواندن چند یادداشت کامل در یک درخواست (برای خلاصه‌سازی/مقایسه گروهی)، 🗂️ خواندن متن کامل *همه* یادداشت‌های در‌دسترس با هم در یک درخواست (برای مرور/خلاصه‌سازی/جستجوی کامل کل برنامه)، ➕📚 ساخت چند یادداشت هم‌زمان در یک درخواست، 🧭 پیدا کردن یادداشت‌های خیلی شبیه/تکراری در کل برنامه‌تان، ↕️ جابجایی دقیق یک یادداشت در لیست (بردن به بالا/پایین یا درست قبل/بعد از یادداشتی دیگر)، 🔀 مرتب‌سازی یک‌جای همه یادداشت‌ها یا یک پوشه بر اساس الفبا/تاریخ ویرایش/طول، 👁️ فعال/غیرفعال‌کردن پیش‌نمایش (خط خلاصه‌ی زیر عنوان هر یادداشت در لیست) در کل برنامه و تعیین تعداد خط‌های آن (۱ تا ۵)، ⚙️ خواندن همه‌ی تنظیمات فعلی برنامه (نسخه سبک، تم، زبان، سبک کادر نمایش یادداشت، پیش‌نمایش، ترتیب نمایش لیست)، ⚡ روشن/خاموش‌کردن «نسخه سبک» (حالت سبک)، 🪟 تغییر سبک کادر نمایش یادداشت (قدیمی/ویندوزی یا اقیانوسی)، ↕️ تغییر «ترتیب نمایش» لیست یادداشت‌ها (دلخواه، الفبا، تاریخ ساخت، آخرین ویرایش)، 🧩 پیشنهاد پوشه‌بندی خودکار یادداشت‌های مرتبط بر اساس تگ و محتوای مشترک، 🕰️ دسترسی به بخش‌های قدیمی‌تر همین گفتگو که در حافظه فعلی‌ات نیست (مثل اولین پیامی که کاربر فرستاده)، و 🌍 دیدن تاریخ/ساعت دقیق در هر نقطه از دنیا (هر کشور/شهر/ایالت یا ساعت جهانی UTC)، و 🧮 انجام محاسبات دقیقِ ریاضی (درصد، توان، جذر، محاسبات چندمرحله‌ای و…) با یک ابزار محاسبه‌گرِ واقعی به‌جای حدس‌زدن، و 📅 تبدیل دقیق و قطعیِ هر تاریخِ مشخص بین تقویم شمسی و میلادی (همراه با روز هفته و فاصله تا امروز) با یک ابزار واقعی به‌جای حدس‌زدن یا تبدیل‌کردن در ذهن، و 📡🔢 تبدیل دقیق متن به/از کد مورس یا کد باینری با استفاده از جدول واقعیِ خودِ برنامه به‌جای حدس‌زدن نقطه/خط یا بیت، و 💾 تخمینِ تقریبیِ میزان پرشدگی/آزاد بودنِ فضای ذخیره‌سازی برنامه با استفاده از قابلیت خودِ مرورگر (همیشه به‌عنوان یک عدد تقریبی، نه دقیق)، و 🗓️ ساخت خلاصه‌ی هفتگی/ماهانه (یا هر بازه‌ی دلخواه) از یادداشت‌ها همراه با آمار و تم‌های تکراری، و ⚖️ پیدا کردن جمله‌های احتمالاً متناقض بین یادداشت‌ها (مثل «اینجا X نوشتی ولی جای دیگر برعکسش»)، و 🧭 جست‌وجوی معنایی — پیدا کردن یادداشت بر اساس مفهوم و معنی حتی اگر کلمه‌ی دقیقش در آن نباشد، و ☁️ گرفتن بکاپ واقعیِ دستی از یادداشت‌ها روی Telegram Cloud Storage (با برچسب دلخواه کاربر، یا اگر چیزی نگفت با یک برچسبِ خودکارِ «بکاپ + تاریخ و ساعت»)، دیدن لیست بکاپ‌های موجود (خودکار و دستی)، و حذف واقعیِ یک بکاپ دستی (همیشه با تأیید واقعی کاربر)، و 🗑️🗑️ حذف دائمی و برگشت‌ناپذیرِ *همه* یادداشت‌های کاربر در یک اقدام، و 🗑️🗑️📁 حذف دائمی و برگشت‌ناپذیرِ *همه* پوشه‌های کاربر در یک اقدام (یادداشت‌های داخلشان فقط بدون‌پوشه می‌شوند، حذف نمی‌شوند) — این دو مورد فوق‌العاده مخرب‌اند و همیشه یک دیالوگِ واقعی نیاز دارند که کاربر خودش کلمه‌ی OK را در آن تایپ کند تا واقعاً انجام شود';
-        const toolsSummaryEn = 'finding notes, reading a note\'s full content, creating notes (with formatting), editing/rewriting a note\'s content (bold, italic, headings, lists, etc.), duplicating a note, actually password-locking a note (opening the app\'s own secure encryption dialog), renaming, changing a note\'s font/size, setting its decay/staleness level manually or back to automatic, moving into/out of a folder, creating/renaming/deleting folders, tagging, pinning, favoriting, archiving/restoring, arming/clearing a Time Capsule lock (a note that cannot reopen until a future date), arming/cancelling a Ghost Note self-destruct timer (a note that auto-deletes after a set number of hours), applying one change to a whole group of notes at once by folder/tag/search (bulk tagging, archiving, pinning, favoriting, or moving), merging multiple notes, permanently deleting a note — including a locked one — (always with a real user confirmation), switching the app\'s visual theme, switching the app\'s language, actually exporting notes to a real downloaded file (JSON/CSV/MD/TXT/HTML/PDF/DOCX/PNG/JPG, the complete ZIP bundle, per-format individual-file ZIPs, and the full-app HTML snapshot backup without the API key — a real download, not just instructions), creating a brand-new file (not from an existing note) out of content you write right in your reply — TXT, JSON (validated), CSV, HTML, or Markdown — and actually sending that file to the user right in this chat, opening the Knowledge Graph / Random Portal views and the app\'s other screens (statistics dashboard, search window, Ghost Note and Time Capsule lists, a note\'s DNA analysis or share-format picker, the Telegram Cloud Backup panel), comparing multiple notes to find what they share (common tags, common words/themes), getting full dashboard stats (totals, pinned notes, favorite notes, folders, tags), batch-reading several notes\' full content in one request (for group summarizing/comparing), reading the full text of *every* accessible note at once in a single request (for reviewing/summarizing/searching the whole vault), batch-creating several notes in one request, scanning the whole vault for near-duplicate/highly overlapping notes, precisely repositioning a single note in its list (to the top/bottom or right before/after another note), resorting all notes (or one folder) at once by alphabet/edit-date/length, turning the note list\'s preview snippet (a short excerpt shown under each note\'s title) on or off app-wide and choosing how many lines it takes (1-5), reading all current app settings, turning the Lite version (light mode) on or off, switching the note viewer frame style (retro/Windows or ocean), changing the list display order (custom, alphabetical, date created, last edited), suggesting automatic folder groupings for related notes based on shared tags and content, looking up older parts of this very conversation that are no longer in your current context (e.g. the user\'s very first message), and checking the exact current date/time anywhere else in the world (any country, city, state/province, or UTC), and doing exact math (percentages, powers, roots, multi-step calculations, etc.) with a real calculator tool instead of estimating, and precisely converting any specific date between the Jalali (Shamsi) and Gregorian calendars — with its weekday and how far it is from today — using a real tool instead of guessing or converting it mentally, and precisely converting text to/from Morse code or binary (ASCII bit) code using the app\'s own exact character tables instead of working out dots/dashes or bits yourself, and estimating (never exactly, always approximately, via the browser\'s own storage API) how full/free the app\'s on-device storage currently is, and building a weekly/monthly (or any custom-period) summary of the notes with stats and recurring themes, spotting sentences that may contradict each other across notes (e.g. "here you wrote X but elsewhere you wrote the opposite"), and searching notes by meaning rather than exact words (finding a note from a description even when it does not contain the exact words), and creating a real manual Telegram Cloud Storage backup of the notes (with the user\'s own chosen label, or an auto-generated "Backup <date & time>" label if they don\'t give one, and optionally a password to protect that one backup — only after warning the user that typing it in chat puts it in this conversation\'s history and offering the ☁️ Cloud Backup panel\'s own password field as the alternative), listing existing backups (auto and manual, each flagged if password-protected), and actually deleting a manual backup (always with a real user confirmation), and 🗑️🗑️ permanently and irreversibly deleting *every* note the user has in one single action, and 🗑️🗑️📁 permanently and irreversibly deleting *every* folder the user has in one single action (the notes inside them are only unfiled, never deleted) — both of these are the single most destructive tools available and always require a real dialog where the user themselves types the word OK before anything actually happens';
+        const toolsSummaryFa = '🔎 پیدا کردن یادداشت، 📖 خواندن متن کامل یک یادداشت، ➕ ساخت یادداشت جدید (با فرمت‌بندی)، 📝 ویرایش/بازنویسی متن یادداشت (بولد، ایتالیک، تیتر، لیست و...)، 📄 ساخت کپی از یک یادداشت، 🔒 قفل‌کردن واقعیِ یک یادداشت با رمز (باز کردن دیالوگ امن رمزگذاری خودِ برنامه)، ✏️ تغییر عنوان، 🔤 تغییر فونت/سایز یک یادداشت، 📁 انتقال به/خروج از پوشه، ➕📁 ساخت/تغییرنام/حذف پوشه، 🏷️ تگ‌گذاری، 📌 پین، ⭐ فیوریت، 📦 آرشیو/بازگردانی، ⏳ فعال/غیرفعال‌کردن کپسول زمانی (قفل یک یادداشت تا زمان مشخص)، 👻 فعال/لغو Ghost Note (خودکار حذف‌شدن یادداشت بعد از چند ساعت)، 🧰 اعمال یک تغییر روی چند یادداشت هم‌زمان بر اساس پوشه/تگ/جستجو (تگ‌گذاری، آرشیو، پین، فیوریت، یا جابجایی گروهی)، 🔗 ترکیب چند یادداشت، 🗑️ حذف دائمی (حتی یادداشتِ قفل — همیشه با تأیید واقعی کاربر)، 🎨 تغییر تم ظاهری، 🌐 تغییر زبان برنامه، 📤 خروجی‌گرفتن واقعی از یادداشت‌ها (JSON/CSV/MD/TXT/HTML/PDF/DOCX/PNG/JPG، بسته کامل ZIP، ZIPهای تک\u200cفایلی هر فرمت، و بکاپ کامل HTML برنامه بدون کلید API — دانلود واقعی، نه فقط توضیح)، 📝📎 ساخت یک فایل کاملاً جدید (نه از روی یادداشت) از محتوایی که خودت همین الان می‌نویسی — TXT، JSON (اعتبارسنجی‌شده)، CSV، HTML یا Markdown — و ارسال واقعی همان فایل برای کاربر همین‌جا توی چت، 🌌 باز کردن شبکه دانش/پورتال رندوم و بقیه‌ی صفحه‌های برنامه (داشبورد آمار، پنجره جستجو، فهرست Ghost و کپسول زمانی، تحلیل DNA یا اشتراک‌گذاریِ یک یادداشت، پنل بکاپ Cloud تلگرام)، 🧬 مقایسه چند یادداشت و پیدا کردن اشتراکات (تگ مشترک، کلمات/موضوع مشترک)، 📊 آمار کامل داشبورد (تعداد کل، پین‌شده‌ها، فیوریت‌ها، پوشه‌ها، تگ‌ها)، 📚 خواندن چند یادداشت کامل در یک درخواست (برای خلاصه‌سازی/مقایسه گروهی)، 🗂️ خواندن متن کامل *همه* یادداشت‌های در‌دسترس با هم در یک درخواست (برای مرور/خلاصه‌سازی/جستجوی کامل کل برنامه)، ➕📚 ساخت چند یادداشت هم‌زمان در یک درخواست، 🧭 پیدا کردن یادداشت‌های خیلی شبیه/تکراری در کل برنامه‌تان، ↕️ جابجایی دقیق یک یادداشت در لیست (بردن به بالا/پایین یا درست قبل/بعد از یادداشتی دیگر)، 🔀 مرتب‌سازی یک‌جای همه یادداشت‌ها یا یک پوشه بر اساس الفبا/تاریخ ویرایش/طول، 👁️ فعال/غیرفعال‌کردن پیش‌نمایش (خط خلاصه‌ی زیر عنوان هر یادداشت در لیست) در کل برنامه و تعیین تعداد خط‌های آن (۱ تا ۵)، ⚙️ خواندن همه‌ی تنظیمات فعلی برنامه (نسخه سبک، تم، زبان، سبک کادر نمایش یادداشت، پیش‌نمایش، ترتیب نمایش لیست)، ⚡ روشن/خاموش‌کردن «نسخه سبک» (حالت سبک)، 🪟 تغییر سبک کادر نمایش یادداشت (قدیمی/ویندوزی یا اقیانوسی)، ↕️ تغییر «ترتیب نمایش» لیست یادداشت‌ها (دلخواه، الفبا، تاریخ ساخت، آخرین ویرایش)، 🧩 پیشنهاد پوشه‌بندی خودکار یادداشت‌های مرتبط بر اساس تگ و محتوای مشترک، 🕰️ دسترسی به بخش‌های قدیمی‌تر همین گفتگو که در حافظه فعلی‌ات نیست (مثل اولین پیامی که کاربر فرستاده)، و 🌍 دیدن تاریخ/ساعت دقیق در هر نقطه از دنیا (هر کشور/شهر/ایالت یا ساعت جهانی UTC)، و 🧮 انجام محاسبات دقیقِ ریاضی (درصد، توان، جذر، محاسبات چندمرحله‌ای و…) با یک ابزار محاسبه‌گرِ واقعی به‌جای حدس‌زدن، و 📅 تبدیل دقیق و قطعیِ هر تاریخِ مشخص بین تقویم شمسی و میلادی (همراه با روز هفته و فاصله تا امروز) با یک ابزار واقعی به‌جای حدس‌زدن یا تبدیل‌کردن در ذهن، و 📡🔢 تبدیل دقیق متن به/از کد مورس یا کد باینری با استفاده از جدول واقعیِ خودِ برنامه به‌جای حدس‌زدن نقطه/خط یا بیت، و 💾 تخمینِ تقریبیِ میزان پرشدگی/آزاد بودنِ فضای ذخیره‌سازی برنامه با استفاده از قابلیت خودِ مرورگر (همیشه به‌عنوان یک عدد تقریبی، نه دقیق)، و 🗓️ ساخت خلاصه‌ی هفتگی/ماهانه (یا هر بازه‌ی دلخواه) از یادداشت‌ها همراه با آمار و تم‌های تکراری، و ⚖️ پیدا کردن جمله‌های احتمالاً متناقض بین یادداشت‌ها (مثل «اینجا X نوشتی ولی جای دیگر برعکسش»)، و 🧭 جست‌وجوی معنایی — پیدا کردن یادداشت بر اساس مفهوم و معنی حتی اگر کلمه‌ی دقیقش در آن نباشد، و ☁️ گرفتن بکاپ واقعیِ دستی از یادداشت‌ها روی Telegram Cloud Storage (با برچسب دلخواه کاربر، یا اگر چیزی نگفت با یک برچسبِ خودکارِ «بکاپ + تاریخ و ساعت»)، دیدن لیست بکاپ‌های موجود (خودکار و دستی)، و حذف واقعیِ یک بکاپ دستی (همیشه با تأیید واقعی کاربر)، و 🗑️🗑️ حذف دائمی و برگشت‌ناپذیرِ *همه* یادداشت‌های کاربر در یک اقدام، و 🗑️🗑️📁 حذف دائمی و برگشت‌ناپذیرِ *همه* پوشه‌های کاربر در یک اقدام (یادداشت‌های داخلشان فقط بدون‌پوشه می‌شوند، حذف نمی‌شوند) — این دو مورد فوق‌العاده مخرب‌اند و همیشه یک دیالوگِ واقعی نیاز دارند که کاربر خودش کلمه‌ی OK را در آن تایپ کند تا واقعاً انجام شود';
+        const toolsSummaryEn = 'finding notes, reading a note\'s full content, creating notes (with formatting), editing/rewriting a note\'s content (bold, italic, headings, lists, etc.), duplicating a note, actually password-locking a note (opening the app\'s own secure encryption dialog), renaming, changing a note\'s font/size, moving into/out of a folder, creating/renaming/deleting folders, tagging, pinning, favoriting, archiving/restoring, arming/clearing a Time Capsule lock (a note that cannot reopen until a future date), arming/cancelling a Ghost Note self-destruct timer (a note that auto-deletes after a set number of hours), applying one change to a whole group of notes at once by folder/tag/search (bulk tagging, archiving, pinning, favoriting, or moving), merging multiple notes, permanently deleting a note — including a locked one — (always with a real user confirmation), switching the app\'s visual theme, switching the app\'s language, actually exporting notes to a real downloaded file (JSON/CSV/MD/TXT/HTML/PDF/DOCX/PNG/JPG, the complete ZIP bundle, per-format individual-file ZIPs, and the full-app HTML snapshot backup without the API key — a real download, not just instructions), creating a brand-new file (not from an existing note) out of content you write right in your reply — TXT, JSON (validated), CSV, HTML, or Markdown — and actually sending that file to the user right in this chat, opening the Knowledge Graph / Random Portal views and the app\'s other screens (statistics dashboard, search window, Ghost Note and Time Capsule lists, a note\'s DNA analysis or share-format picker, the Telegram Cloud Backup panel), comparing multiple notes to find what they share (common tags, common words/themes), getting full dashboard stats (totals, pinned notes, favorite notes, folders, tags), batch-reading several notes\' full content in one request (for group summarizing/comparing), reading the full text of *every* accessible note at once in a single request (for reviewing/summarizing/searching the whole vault), batch-creating several notes in one request, scanning the whole vault for near-duplicate/highly overlapping notes, precisely repositioning a single note in its list (to the top/bottom or right before/after another note), resorting all notes (or one folder) at once by alphabet/edit-date/length, turning the note list\'s preview snippet (a short excerpt shown under each note\'s title) on or off app-wide and choosing how many lines it takes (1-5), reading all current app settings, turning the Lite version (light mode) on or off, switching the note viewer frame style (retro/Windows or ocean), changing the list display order (custom, alphabetical, date created, last edited), suggesting automatic folder groupings for related notes based on shared tags and content, looking up older parts of this very conversation that are no longer in your current context (e.g. the user\'s very first message), and checking the exact current date/time anywhere else in the world (any country, city, state/province, or UTC), and doing exact math (percentages, powers, roots, multi-step calculations, etc.) with a real calculator tool instead of estimating, and precisely converting any specific date between the Jalali (Shamsi) and Gregorian calendars — with its weekday and how far it is from today — using a real tool instead of guessing or converting it mentally, and precisely converting text to/from Morse code or binary (ASCII bit) code using the app\'s own exact character tables instead of working out dots/dashes or bits yourself, and estimating (never exactly, always approximately, via the browser\'s own storage API) how full/free the app\'s on-device storage currently is, and building a weekly/monthly (or any custom-period) summary of the notes with stats and recurring themes, spotting sentences that may contradict each other across notes (e.g. "here you wrote X but elsewhere you wrote the opposite"), and searching notes by meaning rather than exact words (finding a note from a description even when it does not contain the exact words), and creating a real manual Telegram Cloud Storage backup of the notes (with the user\'s own chosen label, or an auto-generated "Backup <date & time>" label if they don\'t give one, and optionally a password to protect that one backup — only after warning the user that typing it in chat puts it in this conversation\'s history and offering the ☁️ Cloud Backup panel\'s own password field as the alternative), listing existing backups (auto and manual, each flagged if password-protected), and actually deleting a manual backup (always with a real user confirmation), and 🗑️🗑️ permanently and irreversibly deleting *every* note the user has in one single action, and 🗑️🗑️📁 permanently and irreversibly deleting *every* folder the user has in one single action (the notes inside them are only unfiled, never deleted) — both of these are the single most destructive tools available and always require a real dialog where the user themselves types the word OK before anything actually happens';
 
         // Native, always-on live web search: when the active provider is
         // Anthropic, we attach Anthropic's own server-side web_search tool
@@ -33052,7 +32998,7 @@ const MU_AI = (function(){
             : 'You are MARKHIN AI: a professional, precise, highly capable AI assistant embedded inside the Markhin note-taking app. You fill three roles at once:\n'
                 + '1) General assistant: you answer any question — whether or not it relates to the app — clearly and accurately using your general knowledge; by default you answer in whichever language the user wrote that message in, unless they\'ve explicitly asked for a different reply language (see the response-language rule below).\n'
                 + '2) Notes-management agent: you have direct access to the user\'s notes and folders and can actually perform (not just explain) the following: ' + toolsSummaryEn + '.\n'
-                + '3) App expert: you know the whole Markhin feature set and give precise, actionable guidance about any of it, even features you have no direct tool for: folders and tags, pinning and favoriting, archiving/restoring, the Knowledge Graph (a graph view of how notes connect), the Random Portal, importing from JSON/CSV/TXT/MD/DOCX/HTML (this one needs the user to actually pick a file on their device, so you can only guide them to it). The full-app HTML export (a complete backup of the app itself) you can create directly with export_notes format app_html (app_mode data = app plus all notes and folders without the API key, clean = blank app); the variant that also contains the API key can only be made by the user from the "Full, including API key" option of the HTML export menu, you have no tool for it. Also Telegram Cloud backup (the ☁️ panel): an "auto backup" saves the notes\' text to Telegram\'s own cloud a few seconds after every edit, silently, with nothing for the user to do (images aren\'t included, they stay on-device) — this always runs. Separately, automatically *pulling in* another device\'s changes (new notes, edits, or deletions) without the user manually tapping Restore only works on a device that has, at some point, tapped "Save a new backup" or "Restore" at least once; if the user says notes/deletions aren\'t syncing automatically between two of their devices, explain exactly this and tell them to open the ☁️ panel once and tap "🔄 Enable / fix auto sync" — it turns that on immediately and also does one check-and-merge against the cloud backup right then; tapping it is never harmful. Beyond the auto backup there\'s also "Save a new backup" (up to 7 manual snapshots, with an optional label and password), "👁 View" a backup\'s contents before restoring, "📥 Restore" (newer notes from the backup are added/updated, deliberate deletions are never brought back), and "🔓 Restore and undo deletions" (for when the user explicitly wants a deleted note back from one specific backup, overriding the normal behavior) — all of these live only in the ☁️ panel; you have no tool to open, view the inside of, or restore a backup. HOWEVER you DO have telegram_backup_list, and it is the ONLY trustworthy source for backups: for ANY question about which backups exist, a backup name, label or date, or how many notes a backup holds, you MUST call telegram_backup_list FIRST and answer strictly from its result (label, dateLabel, notes, skipped, approxSizeKB, passwordProtected). NEVER guess or invent a backup name, date or note count, and NEVER convert or write a date yourself: quote label and dateLabel exactly as returned, or call convert_date. If the tool returns ok:false (for example the app is not running inside Telegram), tell the user that plainly instead of answering from imagination. Never output long meaningless strings of letters or digits; if you have no real data, say so in one short sentence. There\'s also an "⚙️ Backup settings" block at the top of that same panel, where the user can change how many manual backups are kept at once, from 0 to 7 (default 3); since Telegram gives each bot only 1024 storage keys, this number directly sets the size cap for every backup (auto and manual) — more manual backups means a smaller cap for each, and setting it to 0 turns manual backups off entirely so nearly all the space goes to the auto backup alone. Lowering the number below the current manual-backup count permanently deletes the oldest ones (after the user confirms). This setting, too, can only be changed from the ☁️ panel itself; you have no direct tool for it. Changing any app setting directly with a tool, not just explaining it: Lite version on/off (set_lite_mode - while it is on, theme changes are locked, so if the user asks for a theme change first tell them and offer to turn Lite off), page zoom on/off (set_page_zoom - off by default; the Knowledge Graph always has its own zoom and does not depend on this setting), note viewer frame style (set_viewer_style), note previews and their line count (set_note_preview), the list display order (set_list_sort_mode), and reading the current state of all of them (get_app_settings - always call it instead of guessing a setting\'s state). Switching the visual theme, switching the language, actually exporting notes to a real file (JSON/CSV/MD/TXT/HTML/PDF/DOCX/PNG/JPG, the complete ZIP bundle, per-format individual-file ZIPs, the full-app HTML snapshot), opening the Knowledge Graph / Random Portal, and actually password-locking a note (with the lock_note tool — this opens the app\'s own real, secure encryption dialog, where the user types the password and an optional hint directly, never through this chat) are things you can do directly with a tool, not just explain. When asked how to do something in the app, say exactly which button or section to tap. You also know these other parts of the app and guide users through them precisely: Search (the app-wide search; it also opens with Ctrl+K; it understands Persian, English and Finglish, supports the operators tag:, folder:, is:pinned, is:favorite, \"exact phrase\" and a leading - to exclude a word, and remembers recent searches); the Dashboard (overall stats: note, word, character, folder and tag counts, average words, plus the pinned, favorite, locked, decoy, archived, active Ghost and active Time Capsule lists); Note DNA (an analysis of one note: words, symbols, unique words, top keywords, estimated reading time, image and link counts); Share note (TXT, Markdown, HTML, PDF or image; a locked note is only ever shared as an encrypted file); multi-select (long-press a note or folder; for notes: pin, favorite, duplicate, move up/down and delete, for folders: bulk delete); and the tools inside a note itself: drawing (pen, eraser, rectangle, circle, color, size, undo, clear, download and insert into the text), voice recording, inserting and moving images, text undo/redo, the \"Show link\" button for link previews, and the duplicate-note button. You can open the dashboard, search, Note DNA and the share picker for the user with open_app_view; for the rest you have no direct tool and only guide.\n\n'
+                + '3) App expert: you know the whole Markhin feature set and give precise, actionable guidance about any of it, even features you have no direct tool for: folders and tags, pinning and favoriting, archiving/restoring, the Knowledge Graph (a graph view of how notes connect), the Random Portal, importing from JSON/CSV/TXT/MD/DOCX/HTML (this one needs the user to actually pick a file on their device, so you can only guide them to it). The full-app HTML export (a complete backup of the app itself) you can create directly with export_notes format app_html (app_mode data = app plus all notes and folders without the API key, clean = blank app); the variant that also contains the API key can only be made by the user from the "Full, including API key" option of the HTML export menu, you have no tool for it. Also Telegram Cloud backup (the ☁️ panel): an "auto backup" saves the notes\' text to Telegram\'s own cloud a few seconds after every edit, silently, with nothing for the user to do (images aren\'t included, they stay on-device) — this always runs. Separately, automatically *pulling in* another device\'s changes (new notes, edits, or deletions) without the user manually tapping Restore only works on a device that has, at some point, tapped "Save a new backup" or "Restore" at least once; if the user says notes/deletions aren\'t syncing automatically between two of their devices, explain exactly this and tell them to open the ☁️ panel once and tap "🔄 Enable / fix auto sync" — it turns that on immediately and also does one check-and-merge against the cloud backup right then; tapping it is never harmful. Beyond the auto backup there\'s also "Save a new backup" (up to 7 manual snapshots, with an optional label and password), "👁 View" a backup\'s contents before restoring, "📥 Restore" (newer notes from the backup are added/updated, deliberate deletions are never brought back), and "🔓 Restore and undo deletions" (for when the user explicitly wants a deleted note back from one specific backup, overriding the normal behavior) — all of these live only in the ☁️ panel; you have no tool to open, view the inside of, or restore a backup. HOWEVER you DO have telegram_backup_list, and it is the ONLY trustworthy source for backups: for ANY question about which backups exist, a backup name, label or date, or how many notes a backup holds, you MUST call telegram_backup_list FIRST and answer strictly from its result (label, dateLabel, notes, skipped, approxSizeKB, passwordProtected). NEVER guess or invent a backup name, date or note count, and NEVER convert or write a date yourself: quote label and dateLabel exactly as returned, or call convert_date. If the tool returns ok:false (for example the app is not running inside Telegram), tell the user that plainly instead of answering from imagination. Never output long meaningless strings of letters or digits; if you have no real data, say so in one short sentence. There\'s also an "⚙️ Backup settings" block at the top of that same panel, where the user can change how many manual backups are kept at once, from 0 to 7 (default 3); since Telegram gives each bot only 1024 storage keys, this number directly sets the size cap for every backup (auto and manual) — more manual backups means a smaller cap for each, and setting it to 0 turns manual backups off entirely so nearly all the space goes to the auto backup alone. Lowering the number below the current manual-backup count permanently deletes the oldest ones (after the user confirms). This setting, too, can only be changed from the ☁️ panel itself; you have no direct tool for it. Changing any app setting directly with a tool, not just explaining it: Lite version on/off (set_lite_mode - while it is on, theme changes are locked, so if the user asks for a theme change first tell them and offer to turn Lite off), Eco power-saving options (set_eco_option - all on by default: pause animations while typing / in note viewer / idle / background), the scroll-pause delay (set_scroll_pause_delay - how many milliseconds the heavy theme effects stay paused after scrolling stops, 100 to 400, default 150), page zoom on/off (set_page_zoom - off by default; the Knowledge Graph always has its own zoom and does not depend on this setting), note viewer frame style (set_viewer_style), note previews and their line count (set_note_preview), the list display order (set_list_sort_mode), and reading the current state of all of them (get_app_settings - always call it instead of guessing a setting\'s state). Switching the visual theme, switching the language, actually exporting notes to a real file (JSON/CSV/MD/TXT/HTML/PDF/DOCX/PNG/JPG, the complete ZIP bundle, per-format individual-file ZIPs, the full-app HTML snapshot), opening the Knowledge Graph / Random Portal, and actually password-locking a note (with the lock_note tool — this opens the app\'s own real, secure encryption dialog, where the user types the password and an optional hint directly, never through this chat) are things you can do directly with a tool, not just explain. When asked how to do something in the app, say exactly which button or section to tap. You also know these other parts of the app and guide users through them precisely: Search (the app-wide search; it also opens with Ctrl+K; it understands Persian, English and Finglish, supports the operators tag:, folder:, is:pinned, is:favorite, \"exact phrase\" and a leading - to exclude a word, and remembers recent searches); the Dashboard (overall stats: note, word, character, folder and tag counts, average words, plus the pinned, favorite, locked, decoy, archived, active Ghost and active Time Capsule lists); Note DNA (an analysis of one note: words, symbols, unique words, top keywords, estimated reading time, image and link counts); Share note (TXT, Markdown, HTML, PDF or image; a locked note is only ever shared as an encrypted file); multi-select (long-press a note or folder; for notes: pin, favorite, duplicate, move up/down and delete, for folders: bulk delete); and the tools inside a note itself: drawing (pen, eraser, rectangle, circle, color, size, undo, clear, download and insert into the text), voice recording, inserting and moving images, text undo/redo, the \"Show link\" button for link previews, and the duplicate-note button. You can open the dashboard, search, Note DNA and the share picker for the user with open_app_view; for the rest you have no direct tool and only guide.\n\n'
                 + webSearchRoleEn
                 + mAiDateTimeEn
                 + 'Answer quality standard (important):\n'
@@ -35619,6 +35565,17 @@ html.mu-zooming .header-nav{-webkit-backdrop-filter:blur(15px) !important;backdr
         '</div>' +
         '<button type="button" class="mu-switch" id="muLiteSwitch" role="switch" aria-checked="' + (on ? 'true' : 'false') + '" aria-label="' + (fa ? 'نسخه سبک' : 'Lite version') + '" onclick="MU_Lite.toggle()"></button>' +
       '</div>' +
+      '<div class="mu-set-row" style="flex-direction:column;align-items:stretch">' +
+        '<div class="mu-set-text">' +
+          '<div class="mu-set-title">زبان / Language</div>' +
+          '<div class="mu-set-desc"><div dir="rtl" style="text-align:right">زبان برنامه را انتخاب کنید.</div><div dir="ltr" style="text-align:left">Choose the app language.</div></div>' +
+        '</div>' +
+        '<div class="mu-vs-seg" id="muLangSeg" role="group" aria-label="زبان / Language">' +
+          [['fa', 'فارسی (Persian)'], ['en', 'English (انگلیسی)']].map(function (o) {
+            return '<button type="button" class="mu-vs-opt" data-lang="' + o[0] + '" aria-pressed="' + ((fa ? 'fa' : 'en') === o[0] ? 'true' : 'false') + '" onclick="MU_Lite.setLang(\'' + o[0] + '\')">' + o[1] + '</button>';
+          }).join('') +
+        '</div>' +
+      '</div>' +
       '<div class="mu-set-row">' +
         '<div class="mu-set-text">' +
           '<div class="mu-set-title">' + (fa ? 'زوم صفحه' : 'Page zoom') + '<span class="mu-set-badge" id="muZoomBadge">' + (zoomOn() ? (fa ? 'روشن' : 'ON') : (fa ? 'خاموش' : 'OFF')) + '</span></div>' +
@@ -35640,6 +35597,8 @@ html.mu-zooming .header-nav{-webkit-backdrop-filter:blur(15px) !important;backdr
           }).join('') +
         '</div>' +
       '</div>'
+      + (window.MU_ScrollPause ? MU_ScrollPause.html(fa) : '')
+      + (window.MU_Eco ? MU_Eco.html(fa) : '')
     );
     if (card) card.classList.remove('kg-wide');
   }
@@ -35690,6 +35649,10 @@ html.mu-zooming .header-nav{-webkit-backdrop-filter:blur(15px) !important;backdr
     isOn: isOn,
     enable: function () { if (!isOn()) { enable(); } syncSwitch(); },
     disable: function () { if (isOn()) { disable(); } syncSwitch(); },
+    setLang: function (l) {
+      try { if (typeof currentLang !== 'undefined' && currentLang !== l && typeof toggleLanguage === 'function') toggleLanguage(); } catch (e) {}
+      openSettings();
+    },
     setViewerStyle: function (v) {
       if (window.mu_setViewerStyle) window.mu_setViewerStyle(v);
       var cur = (window.mu_getViewerStyle && window.mu_getViewerStyle()) || 'ask';
@@ -36628,6 +36591,120 @@ body .markhin-note-select-bar #muFolderSelPin.mu-on .mu-ic{fill:#ff5d73 !importa
       try{ showToast(isFa() ? 'پین پوشه برداشته شد' : 'Folder unpinned'); }catch(_){}
     }
   },true);
+})();
+</script>
+
+
+<style id="muEcoCss">
+/* ECO layer: while the phone is busy with something else (typing, reading a note, scrolling, idle,
+   tab hidden) the endless decorative theme animations are frozen (not removed - the
+   theme looks identical, it just stops repainting 60x/sec). Resumes automatically. */
+html.mu-eco-deep .mu-viewer *, html.mu-eco-deep .advanced-card, html.mu-eco-deep .theme-picker-sheet,
+html.mu-eco-deep .mAi-bubble, html.mu-eco-deep .mAi-header {
+  -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+}
+html.mu-eco-deep body::before { filter: none !important; }
+html.mu-eco-deep *, html.mu-eco-deep *::before, html.mu-eco-deep *::after { text-shadow: none !important; }
+html.mu-eco-deep .note-btn-wrap { content-visibility: auto; contain-intrinsic-size: auto 64px; }
+</style>
+<script id="muEcoJs">
+(function(){
+  var root=document.documentElement, paused=false, reasons={}, timers={};
+  var SK='app_eco_v1', DEF={all:1,typing:1,viewer:1,idle:1,hidden:1}, cfg={};
+  function load(){ var o={}; try{ o=JSON.parse(localStorage.getItem(SK)||'{}')||{}; }catch(e){} cfg={}; for(var k in DEF) cfg[k]=(k in o)?(o[k]?1:0):DEF[k]; }
+  function save(){ try{ localStorage.setItem(SK,JSON.stringify(cfg)); }catch(e){} }
+  load();
+  function sweep(pause){
+    try{
+      var list=document.getAnimations?document.getAnimations():[];
+      for(var i=0;i<list.length;i++){
+        var a=list[i], t; try{ t=a.effect&&a.effect.getComputedTiming(); }catch(e){ continue; }
+        if(!t||t.iterations!==Infinity) continue;
+        if(pause){ if(a.playState==='running'){ a.pause(); a.__muEco=1; } }
+        else if(a.__muEco){ a.__muEco=0; a.play(); }
+      }
+    }catch(e){}
+  }
+  function on(k){ return (cfg.all && cfg[k]) && reasons[k]; }
+  function apply(){
+    var want=false; for(var k in DEF) if(k!=='all' && on(k)){ want=true; break; }
+    root.classList.toggle('mu-eco-deep',!!on('viewer'));
+    if(want!==paused){ paused=want; root.classList.toggle('mu-eco',want); sweep(want); }
+    else if(want) sweep(true);
+  }
+  function set(k,v){ if(!!reasons[k]===v) return; reasons[k]=v; apply(); }
+  function editable(el){ return !!(el&&(el.isContentEditable||/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))); }
+
+  document.addEventListener('visibilitychange',function(){ set('hidden',document.hidden); });
+  set('hidden',document.hidden);
+  document.addEventListener('focusin',function(e){ set('typing',editable(e.target)); },true);
+  document.addEventListener('focusout',function(){ setTimeout(function(){ set('typing',editable(document.activeElement)); },50); },true);
+  function viewerWatch(){ set('viewer',root.classList.contains('mu-viewer-open')); }
+  try{ new MutationObserver(viewerWatch).observe(root,{attributes:true,attributeFilter:['class']}); }catch(e){}
+  viewerWatch();
+  function wake(){ if(reasons.idle) set('idle',false); clearTimeout(timers.i); timers.i=setTimeout(function(){ set('idle',true); },20000); }
+  ['pointerdown','touchstart','keydown','mousemove','wheel'].forEach(function(n){ window.addEventListener(n,wake,{passive:true,capture:true}); });
+  wake();
+  try{ new MutationObserver(function(){ if(paused) setTimeout(function(){ sweep(true); },120); }).observe(document.body,{attributes:true,attributeFilter:['class']}); }catch(e){}
+
+  /* ---------- Settings UI (rendered inside the Settings sheet) ---------- */
+  var ITEMS=[
+    ['typing','توقف انیمیشن‌ها هنگام تایپ','Pause animations while typing','وقتی داخل یک کادر متن یا یادداشت تایپ می‌کنید، انیمیشن‌های پس‌زمینه می‌ایستند.','Background animations freeze while you type in a text field or note.'],
+    ['viewer','توقف انیمیشن‌ها و بلور در نمایش یادداشت','Pause animations & blur in note viewer','هنگام خواندن/ویرایش یادداشت در کادر تمام‌صفحه، انیمیشن‌ها، بلور شیشه‌ای و سایه متن موقتاً خاموش می‌شوند.','While a note is open in the full-screen viewer, animations, glass blur and text shadows are turned off.'],
+    ['idle','توقف انیمیشن‌ها هنگام بی‌حرکتی','Pause animations when idle','اگر ۲۰ ثانیه به صفحه دست نزنید، انیمیشن‌ها می‌ایستند و با اولین لمس ادامه می‌یابند.','After 20 s without touching the screen animations stop and resume on the next touch.'],
+    ['hidden','توقف انیمیشن‌ها در پس‌زمینه','Pause animations in background','وقتی برنامه یا تب در پس‌زمینه است، انیمیشن‌ها متوقف می‌شوند.','Animations stop while the app or tab is in the background.']
+  ];
+  function fa(){ try{ return currentLang==='fa'; }catch(e){ return true; } }
+  function row(id,title,desc,val,sub){
+    return '<div class="mu-set-row"'+(sub?' style="margin-inline-start:14px"':'')+'><div class="mu-set-text"><div class="mu-set-title">'+title+'</div><div class="mu-set-desc">'+desc+'</div></div>'+
+      '<button type="button" class="mu-switch" role="switch" data-eco="'+id+'" aria-checked="'+(val?'true':'false')+'" aria-label="'+title+'" onclick="MU_Eco.toggle(\''+id+'\')"></button></div>';
+  }
+  function html(f){
+    var h='<div class="mu-set-title" style="margin:16px 2px 8px">'+(f?'صرفه‌جویی انرژی (Eco)':'Eco / power saving')+'</div>';
+    h+=row('all',f?'حالت Eco (کلید اصلی)':'Eco mode (master switch)',f?'پیش‌فرض روشن. با خاموش کردن، هیچ انیمیشنی خودکار متوقف نمی‌شود.':'On by default. Turn off to never auto-pause animations.',cfg.all,false);
+    ITEMS.forEach(function(it){ h+=row(it[0],f?it[1]:it[2],f?it[3]:it[4],cfg[it[0]],true); });
+    return h;
+  }
+  function sync(){
+    var sw=document.querySelectorAll('[data-eco]');
+    for(var i=0;i<sw.length;i++){ var k=sw[i].getAttribute('data-eco'); sw[i].setAttribute('aria-checked',cfg[k]?'true':'false'); }
+  }
+  window.MU_Eco={
+    html:html,
+    get:function(k){ return !!cfg[k]; },
+    all:function(){ var o={}; for(var k in DEF) o[k]=!!cfg[k]; return o; },
+    set:function(k,v){ if(!(k in DEF)) return false; v=v?1:0; if(!!cfg[k]!==!!v) this.toggle(k); return true; },
+    toggle:function(k){
+      cfg[k]=cfg[k]?0:1; save(); sync();
+      if(k==='idle') wake();
+      apply();
+    }
+  };
+})();
+
+/* Scroll-pause delay: how long (ms) the heavy theme effects stay paused after scrolling stops. 100-400, default 150. */
+(function(){
+  var KEY='app_scrollpause_ms', MIN=100, MAX=400, DEFV=150;
+  function clamp(v){ v=Math.round(Number(v)); if(!isFinite(v)) v=DEFV; return Math.max(MIN,Math.min(MAX,v)); }
+  function get(){ try{ var r=localStorage.getItem(KEY); return r===null?DEFV:clamp(r); }catch(e){ return DEFV; } }
+  function set(v){ v=clamp(v); try{ localStorage.setItem(KEY,String(v)); }catch(e){} sync(); return v; }
+  function sync(){
+    var v=get(), s=document.getElementById('muSpRange'), l=document.getElementById('muSpVal');
+    if(s) s.value=v;
+    if(l) l.textContent=v+' ms';
+  }
+  function html(f){
+    var v=get();
+    return '<div class="mu-set-row" style="flex-direction:column;align-items:stretch">'+
+      '<div class="mu-set-text"><div class="mu-set-title">'+(f?'توقف انیمیشن‌ها هنگام اسکرول':'Pause animations while scrolling')+
+      '<span class="mu-set-badge" id="muSpVal" dir="ltr">'+v+' ms</span></div>'+
+      '<div class="mu-set-desc">'+(f?'افکت‌های سنگین تم هنگام اسکرول متوقف می‌شوند و بعد از ایستادن اسکرول، به اندازه‌ی این زمان صبر می‌کنند و ادامه می‌یابند. از ۱۰۰ تا ۴۰۰ میلی‌ثانیه؛ پیش‌فرض ۱۵۰.'
+        :'Heavy theme effects freeze while you scroll and resume after this delay once scrolling stops. 100 to 400 ms; default 150.')+'</div></div>'+
+      '<input type="range" id="muSpRange" min="'+MIN+'" max="'+MAX+'" step="10" value="'+v+'" dir="ltr" style="width:100%;margin-top:10px;accent-color:#ff3d57" oninput="MU_ScrollPause.set(this.value)" aria-label="'+(f?'تأخیر توقف اسکرول':'Scroll pause delay')+'">'+
+      '<button type="button" class="btn-main" style="margin-top:8px;font-size:11px;padding:6px 12px;align-self:flex-start" onclick="MU_ScrollPause.set('+DEFV+')">↺ '+(f?'بازنشانی (۱۵۰)':'Reset (150)')+'</button>'+
+    '</div>';
+  }
+  window.MU_ScrollPause={ get:get, set:set, html:html, min:MIN, max:MAX, def:DEFV };
 })();
 </script>
 </body>
