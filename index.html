@@ -21727,9 +21727,16 @@ window.renderButtons = function(filtered){
     let ticking = false;
     function onScrollFrame(){
         ticking = false;
+        const delay = (window.MU_ScrollPause ? MU_ScrollPause.get() : 300);
+        // 0 ms = the "pause animations while scrolling" feature is OFF: animations keep running while scrolling.
+        if (delay <= 0) {
+            clearTimeout(scrollEndTimer);
+            if (!window.__muZoomBusy) document.body.classList.remove('mu-scrolling');
+            return;
+        }
         document.body.classList.add('mu-scrolling');
         clearTimeout(scrollEndTimer);
-        scrollEndTimer = setTimeout(() => { if (!window.__muZoomBusy) document.body.classList.remove('mu-scrolling'); }, (window.MU_ScrollPause ? MU_ScrollPause.get() : 150));
+        scrollEndTimer = setTimeout(() => { if (!window.__muZoomBusy) document.body.classList.remove('mu-scrolling'); }, delay);
     }
     window.addEventListener('scroll', function(){
         if(ticking) return;
@@ -27010,8 +27017,13 @@ const MU_AI = (function(){
             return p.replace(/[\uE001-\uE005]/g, function(c){ return MAI_ENT_FROM[c]; });
         }).join('');
     }
+    // "98د72929"-style lines: typed order, left to right (data-mu-code); otherwise first strong letter.
+    function mAiDirAttr(line){
+        try { if (typeof window.muIsCodeLine === 'function' && window.muIsCodeLine(line)) return 'dir="ltr" data-mu-code="1"'; } catch(e){}
+        return 'dir="' + mAiLineDir(line) + '"';
+    }
     function mAiLineHtml(line, fmt){
-        return '<span class="mAi-ln" dir="' + mAiLineDir(line) + '">' + fmt(line) + '</span>';
+        return '<span class="mAi-ln" ' + mAiDirAttr(line) + '>' + fmt(line) + '</span>';
     }
 
     function mAiFormat(t){
@@ -27085,7 +27097,7 @@ const MU_AI = (function(){
             } else if((m = trimmed.match(/^(#{1,3})\s+(.*)$/))){
                 flushPara(); closeList(); closeQuote();
                 const lvl = m[1].length + 3; // h4/h5/h6 — sized to fit a chat bubble
-                html += '<h' + lvl + ' dir="' + mAiLineDir(m[2]) + '">' + inlineFormat(m[2]) + '</h' + lvl + '>';
+                html += '<h' + lvl + ' ' + mAiDirAttr(m[2]) + '>' + inlineFormat(m[2]) + '</h' + lvl + '>';
             } else if((m = trimmed.match(/^>\s?(.*)$/))){
                 flushPara(); closeList();
                 if(!inQuote){ html += '<blockquote>'; inQuote = true; }
@@ -27093,11 +27105,11 @@ const MU_AI = (function(){
             } else if((m = trimmed.match(/^[-*]\s+(.*)$/))){
                 flushPara(); closeQuote();
                 if(listTag !== 'ul'){ closeList(); html += '<ul>'; listTag = 'ul'; }
-                html += '<li dir="' + mAiLineDir(m[1]) + '">' + inlineFormat(m[1]) + '</li>';
+                html += '<li ' + mAiDirAttr(m[1]) + '>' + inlineFormat(m[1]) + '</li>';
             } else if((m = trimmed.match(/^\d+[.)]\s+(.*)$/))){
                 flushPara(); closeQuote();
                 if(listTag !== 'ol'){ closeList(); html += '<ol>'; listTag = 'ol'; }
-                html += '<li dir="' + mAiLineDir(m[1]) + '">' + inlineFormat(m[1]) + '</li>';
+                html += '<li ' + mAiDirAttr(m[1]) + '>' + inlineFormat(m[1]) + '</li>';
             } else if(trimmed === ''){
                 flushPara(); closeList(); closeQuote();
             } else {
@@ -28170,12 +28182,12 @@ const MU_AI = (function(){
         { name:'set_note_preview', description:"Control the note list's preview line app-wide. When on, every note in the list shows a short plain-text snippet of its own content under its title (so the list can be scanned without opening each note); when off, only the title shows. You can turn it on/off (enabled) and/or choose how many lines each preview may take (lines, 1 to 5). Use this whenever the user asks to show/hide, turn on/off, or enable/disable note previews/snippets in the list, or to make previews longer/shorter. Pass at least one of enabled or lines; if only lines is given while previews are off, previews are turned on too.", parameters:{ type:'object', properties:{ enabled:{ type:'boolean', description:'true = show the preview snippet under every note. false = title only.' }, lines:{ type:'integer', minimum:1, maximum:5, description:'How many lines each preview may take in the list (1-5).' } } } },
         { name:'get_app_settings', description:"Read the app's CURRENT settings in one call: Lite version (on/off), page zoom (on/off), visual theme, interface language, note viewer style (the window that opens with the \"View note\" button), note-list preview (on/off + number of lines) and the list display order (sort mode), together with every value each setting accepts. Call this first whenever the user asks what a setting is right now, asks to see/list the settings, or asks for a change whose current state you do not know (e.g. \"toggle it\", \"switch it back\"). Never guess a setting's state.", parameters:{ type:'object', properties:{} } },
         { name:'set_lite_mode', description:"Turn the app's Lite version (نسخه سبک / حالت سبک / لایت) on or off - the same switch as Settings > Lite version. ON: switches the theme to Oceanic (the current theme is remembered), stops every infinite animation, moving effect, glass blur and heavy shadow so the app runs lighter on weak phones, and LOCKS theme changes. OFF: restores the previous theme and all effects. Notes and data are never touched. Use whenever the user asks to enable/disable/turn on/turn off the light or lite mode. After turning it ON, tell the user briefly that the theme became Oceanic and that theme changes stay locked until Lite is turned off.", parameters:{ type:'object', properties:{ enabled:{ type:'boolean', description:'true = turn Lite version on. false = turn it off.' } }, required:['enabled'] } },
-        { name:'set_viewer_style', description:"Change the look of the note viewer window that opens with the \"View note\" (نمایش یادداشت) button - Settings > Note viewer style (سبک کادر نمایش یادداشت). Three options: ask = ask every time (the default - pressing View note shows a picker with Ocean / Windows 95), ocean = always the Ocean look, retro = always the Windows 95 look. Use whenever the user asks to change the style/model/shape of the note display frame or viewer (مدل نمایش یادداشت، سبک کادر نمایش، ویندوزی/قدیمی، اقیانوسی).", parameters:{ type:'object', properties:{ style:{ type:'string', enum:['ask','ocean','retro'], description:'ask = ask each time (default). ocean = Ocean look. retro = Windows 95 look.' } }, required:['style'] } },
+        { name:'set_viewer_style', description:"Change the look of the note viewer window that opens with the \"View note\" (نمایش یادداشت) button - Settings > Note viewer style (سبک کادر نمایش یادداشت). Four options: ask = ask every time (the default - pressing View note shows a picker with Ocean / Windows 95 / Live), ocean = always the Ocean look, retro = always the Windows 95 look, live = always the Live look (the note is typed/streamed into the window word by word like live typing, including images and everything else one by one; the viewer has a Show-all button to skip the animation). Use whenever the user asks to change the style/model/shape of the note display frame or viewer (مدل نمایش یادداشت، سبک کادر نمایش، ویندوزی/قدیمی، اقیانوسی، لایو/Live/تایپی/استریمینگ).", parameters:{ type:'object', properties:{ style:{ type:'string', enum:['ask','ocean','retro','live'], description:'ask = ask each time (default). ocean = Ocean look. retro = Windows 95 look. live = Live look (word-by-word typing animation).' } }, required:['style'] } },
         { name:'set_page_zoom', description:"Turn the app's PAGE ZOOM (زوم صفحه) on or off - the same switch as Settings > Page zoom. ON: the user can pinch-zoom the whole page with two fingers. OFF (the default): page zoom is disabled. The Knowledge Graph (شبکه دانش) is NOT affected - it always has its own zoom (two-finger pinch, mouse wheel, double-click and the +/- buttons) whatever this setting is, so never tell the user it needs this switch. Use whenever the user asks to enable/disable/turn on/turn off zoom, magnification or pinch-zoom of the page (زوم، بزرگ‌نمایی، ریز و درشت کردن صفحه). If they only ask about zooming inside the Knowledge Graph, just explain that it always works. Telegram's in-app browser may limit page zoom on some devices - mention that briefly if the user says it did not work after turning it on.", parameters:{ type:'object', properties:{ enabled:{ type:'boolean', description:'true = allow pinch-zoom on the page. false = disable page zoom.' } }, required:['enabled'] } },
-        { name:'set_scroll_pause_delay', description:"Set the app's 'Pause animations while scrolling' delay (توقف انیمیشن‌ها هنگام اسکرول) - its own slider in Settings. While the user scrolls, the heavy theme effects are paused; this is how many milliseconds they stay paused after scrolling stops before resuming. Range 100 to 400 ms, default 150. Not part of the Eco options. Use when the user asks to change, shorten, lengthen or reset the scroll pause / scroll lag / animation freeze while scrolling; to reset use ms=150.", parameters:{ type:'object', properties:{ ms:{ type:'number', description:'Delay in milliseconds, 100 to 400 (default 150).' } }, required:['ms'] } },
+        { name:'set_scroll_pause_delay', description:"Set the app's 'Pause animations while scrolling' delay (توقف انیمیشن‌ها هنگام اسکرول) - its own slider in Settings. While the user scrolls, the heavy theme effects are paused; this is how many milliseconds they stay paused after scrolling stops before resuming. Range 0 to 1000 ms, default 300. 0 = OFF: animations are never paused while scrolling. In Lite mode there are no animations, so the setting has no visible effect there (it can still be saved). Not part of the Eco options. Use when the user asks to change, shorten, lengthen, turn off (ms=0) or reset the scroll pause / scroll lag / animation freeze while scrolling; to reset use ms=300.", parameters:{ type:'object', properties:{ ms:{ type:'number', description:'Delay in milliseconds, 0 to 1000 (default 300). 0 turns the pause-while-scrolling feature off.' } }, required:['ms'] } },
         { name:'set_eco_option', description:"Turn one of the app's ECO / power-saving options (صرفه‌جویی انرژی) on or off - the switches at the bottom of Settings. They freeze the endless decorative theme animations (theme look is unchanged) to keep the phone cool. All are ON by default. option: 'all' = master Eco switch (off = nothing is ever auto-paused); 'typing' = pause while typing; 'viewer' = pause animations, glass blur and text shadow while a note is open in the full-screen viewer; 'idle' = pause after 20 s without touching the screen; 'hidden' = pause while the app is in the background. Use when the user asks to enable/disable any of these (e.g. stop/keep animations while typing, Eco mode, power saving, phone getting hot). Notes and data are never touched.", parameters:{ type:'object', properties:{ option:{ type:'string', enum:['all','typing','viewer','idle','hidden'], description:'Which Eco option to change.' }, enabled:{ type:'boolean', description:'true = turn the option on. false = turn it off.' } }, required:['option','enabled'] } },
 
-        { name:'open_note_viewer', description:"Open the read-only note viewer window (the same window the \"View note\" / نمایش یادداشت button opens) for ONE specific note, right now, optionally in a chosen look: ocean = Ocean look (اقیانوسی), retro = Windows 95 look (ویندوز ۹۵). The style applies to THIS opening only - it does NOT change the saved Settings > Note viewer style (use set_viewer_style for that). If style is omitted, the user's saved viewer style is used (and if that is \"ask\", the app shows its own Ocean / Windows 95 picker first). Use whenever the user asks to open / show / display / view a note (باز کن، نشون بده، نمایش بده، نمایش یادداشت) - especially with a look such as \"ویندوزی\", \"ویندوز ۹۵\", \"قدیمی\", \"اقیانوسی\". Works on password-locked notes too: the app itself asks the USER for the password in its own dialog (you never see it or the note's content), so just call it and tell the user to enter their password. Notes under an active Time Capsule cannot be opened. If you only need to read a note's text yourself, use get_note instead.", parameters:{ type:'object', properties:{ note:{ type:'string', description:'The id or title of the note to open.' }, style:{ type:'string', enum:['ocean','retro'], description:'Look of the viewer for this opening: ocean = Ocean, retro = Windows 95. Omit to use the saved viewer style.' } }, required:['note'] } },
+        { name:'open_note_viewer', description:"Open the read-only note viewer window (the same window the \"View note\" / نمایش یادداشت button opens) for ONE specific note, right now, optionally in a chosen look: ocean = Ocean look (اقیانوسی), retro = Windows 95 look (ویندوز ۹۵), live = Live look (لایو / Live: the note is typed into the window word by word, images and everything else appear one by one; the user can press Show all to see it at once). The style applies to THIS opening only - it does NOT change the saved Settings > Note viewer style (use set_viewer_style for that). If style is omitted, the user's saved viewer style is used (and if that is \"ask\", the app shows its own Ocean / Windows 95 / Live picker first). Use whenever the user asks to open / show / display / view a note (باز کن، نشون بده، نمایش بده، نمایش یادداشت) - especially with a look such as \"ویندوزی\", \"ویندوز ۹۵\", \"قدیمی\", \"اقیانوسی\", \"لایو\", \"Live\", \"تایپی\". Works on password-locked notes too: the app itself asks the USER for the password in its own dialog (you never see it or the note's content), so just call it and tell the user to enter their password. Notes under an active Time Capsule cannot be opened. If you only need to read a note's text yourself, use get_note instead.", parameters:{ type:'object', properties:{ note:{ type:'string', description:'The id or title of the note to open.' }, style:{ type:'string', enum:['ocean','retro','live'], description:'Look of the viewer for this opening: ocean = Ocean, retro = Windows 95, live = Live (typing animation). Omit to use the saved viewer style.' } }, required:['note'] } },
         { name:'set_list_sort_mode', description:"Change the notes list's DISPLAY ORDER setting (the \"ترتیب نمایش / Sort by\" dropdown under the list). This is a view setting: it changes how the list is shown and does not rewrite any note's manual position - use sort_notes or move_note_position instead when the user wants the manual order itself rewritten. Modes: manual (custom / drag order), alpha_asc (name A to Z / آ تا ی), alpha_desc (name Z to A / ی تا آ), created_desc (date created, newest first), created_asc (date created, oldest first), edited_desc (last edited, newest first), edited_asc (last edited, oldest first). If the user says only \"newest\" or \"oldest\" and it is unclear whether they mean creation date or last-edit date, ask which one.", parameters:{ type:'object', properties:{ mode:{ type:'string', enum:['manual','alpha_asc','alpha_desc','created_desc','created_asc','edited_desc','edited_asc'] } }, required:['mode'] } },
         { name:'export_notes', description:'Export note(s) to a real downloadable file — this actually triggers the download, the same as tapping the app\'s own export buttons, with no extra menus for the user to click through. Formats: "json" (full structured backup), "csv", "md" (Markdown), "txt" (plain text), "html" (a clean, standalone, readable HTML page of just the note content — NOT the app itself; distinct from the app\'s separate full-app-snapshot HTML backup), "pdf", "docx" (Word), "png" or "jpg" (an image of one note\'s content). Archive formats (always the whole vault, the note argument is ignored for them): "zip" = the complete bundle (JSON backup plus one JSON per note, CSV, Markdown, TXT, DOCX and a README in one ZIP, the same as the bundle export button; pass include to choose parts); "zip_txt", "zip_md", "zip_json", "zip_html", "zip_docx" = a ZIP with every note as its own file of that type plus one combined file (the same as the Individual files (ZIP) option of each export); "app_html" = the full-app HTML snapshot backup (app_mode "data" = app plus all notes and folders, "clean" = blank app; a snapshot that contains the API key is deliberately not something you can create). In these archive formats locked notes appear only as encrypted or marker entries, never as readable text, exactly as with the matching export buttons in the app. Locked notes are always excluded from the regular formats unless already unlocked this session.', parameters:{ type:'object', properties:{ format:{ type:'string', enum:['json','csv','md','txt','html','pdf','docx','png','jpg','zip','zip_txt','zip_md','zip_json','zip_html','zip_docx','app_html'], description:'Export file format. Regular formats: json, csv, md, txt, html, pdf, docx, png, jpg. Archive formats that always cover the whole vault: zip (complete bundle), zip_txt / zip_md / zip_json / zip_html / zip_docx (one file per note plus one combined file), app_html (full-app HTML snapshot).' }, note:{ type:'string', description:'Id or title of a single note to export. Omit to export every exportable note at once (not available for png/jpg — those are always a single note).' }, filename:{ type:'string', description:'Optional file name, without extension. A sensible default is generated if omitted.' }, include:{ type:'array', items:{ type:'string', enum:['json','csv','md','txt','docx','readme'] }, description:'Only for format zip: which parts to put inside the bundle. Omit to include all of them.' }, app_mode:{ type:'string', enum:['data','clean'], description:'Only for format app_html: data (default) = the app plus every note and folder, without the API key; clean = a blank copy of the app with no notes. A snapshot that contains the API key is intentionally not available through this tool.' } }, required:['format'] } },
         { name:'create_file', description:'Create a brand-new file out of content YOU write right now (not an existing note) and send it to the user as a real downloadable file right in this chat — e.g. "write a poem/list/report and give it to me as a txt/json/csv/html/markdown file". The download (or share sheet, inside Telegram) starts immediately using the same robust delivery pipeline as the app\'s own exports. Use this instead of export_notes whenever the content does not already exist as a note. For "json", the content is validated as real JSON and pretty-printed; invalid JSON is rejected back to you with an error so you can fix and retry.', parameters:{ type:'object', properties:{ filename:{ type:'string', description:'File name, without extension. A sensible default is generated if omitted.' }, format:{ type:'string', enum:['txt','json','csv','html','md'], description:'File type to create: txt (plain text), json (validated/pretty-printed JSON), csv (comma-separated values), html (a full HTML page; if you only provide a body fragment a minimal wrapper is added automatically), md (Markdown source).' }, content:{ type:'string', description:'The exact file content.' } }, required:['format','content'] } },
@@ -29643,12 +29655,12 @@ const MU_AI = (function(){
                     return { ok:true, data:{
                         lite_mode: { enabled: lite, note: lite ? 'Theme is locked to Oceanic while Lite is on; turn Lite off to change the theme.' : 'Off - theme can be changed freely.' },
                         eco_mode: (window.MU_Eco && MU_Eco.all) ? Object.assign({ note: 'ON by default. Freezes endless decorative animations (typing, viewer, idle, hidden). all=false disables every auto-pause.' }, MU_Eco.all()) : null,
-                        scroll_pause: { delay_ms: (window.MU_ScrollPause ? MU_ScrollPause.get() : 150), range_ms: [100,400], default_ms: 150, note: 'Separate from Eco. Heavy theme effects pause while scrolling and resume after this many ms once scrolling stops.' },
+                        scroll_pause: { delay_ms: (window.MU_ScrollPause ? MU_ScrollPause.get() : 300), enabled: (window.MU_ScrollPause ? MU_ScrollPause.get() > 0 : true), range_ms: [0,1000], default_ms: 300, note: 'Separate from Eco. Heavy theme effects pause while scrolling and resume after this many ms once scrolling stops. 0 = off (animations never pause while scrolling). Has no visible effect while Lite mode is on because Lite has no animations.' },
                         page_zoom: { enabled: !!(window.MU_Lite && MU_Lite.isZoomOn && MU_Lite.isZoomOn()), note: 'Off by default. Applies to the whole page only; the Knowledge Graph always has its own zoom regardless of this setting.' },
                         theme: themeInfo,
                         available_themes: (typeof MU_Theme !== 'undefined' && MU_Theme.list) ? MU_Theme.list.map(t => t.id) : [],
                         language: currentLang,
-                        note_viewer_style: { current: (typeof window.mu_getViewerStyle === 'function') ? window.mu_getViewerStyle() : 'ask', options: ['ask','retro','ocean'] },
+                        note_viewer_style: { current: (typeof window.mu_getViewerStyle === 'function') ? window.mu_getViewerStyle() : 'ask', options: ['ask','retro','ocean','live'] },
                         note_preview: { enabled: (typeof window.mu_getNotePreviewEnabled === 'function') ? window.mu_getNotePreviewEnabled() : false, lines: (typeof window.mu_getNotePreviewLines === 'function') ? window.mu_getNotePreviewLines() : 1, lines_range: [1,5] },
                         list_sort_mode: { current: sortMode, label: curSort ? (fa ? curSort.fa : curSort.en) : sortMode, options: sortOpt.map(o => ({ value:o.value, label: fa ? o.fa : o.en })) }
                     } };
@@ -29669,12 +29681,13 @@ const MU_AI = (function(){
                 case 'set_scroll_pause_delay': {
                     if(!window.MU_ScrollPause) return { ok:false, error: fa ? 'تنظیم در دسترس نیست.' : 'This setting is unavailable right now.' };
                     const spRaw = Number(input.ms);
-                    if(!isFinite(spRaw)) return { ok:false, error: fa ? 'مقدار باید یک عدد بین ۱۰۰ تا ۴۰۰ میلی‌ثانیه باشد.' : 'ms must be a number between 100 and 400.' };
+                    if(!isFinite(spRaw)) return { ok:false, error: fa ? 'مقدار باید یک عدد بین ۰ تا ۱۰۰۰ میلی‌ثانیه باشد.' : 'ms must be a number between 0 and 1000.' };
                     const spOld = MU_ScrollPause.get();
                     const spNew = MU_ScrollPause.set(spRaw);
-                    if(spNew === spOld) return { ok:true, data:{ delay_ms: spNew, changed:false, range_ms:[100,400], note: fa ? 'از قبل همین مقدار بود.' : 'It was already this value.' } };
-                    showToast(fa ? ('📜 تأخیر توقف اسکرول: ' + spNew + ' میلی‌ثانیه') : ('📜 Scroll pause delay: ' + spNew + ' ms'));
-                    return { ok:true, data:{ delay_ms: spNew, changed:true, range_ms:[100,400], clamped: spNew !== Math.round(spRaw) } };
+                    if(spNew === spOld) return { ok:true, data:{ delay_ms: spNew, changed:false, range_ms:[0,1000], note: fa ? 'از قبل همین مقدار بود.' : 'It was already this value.' } };
+                    showToast(spNew === 0 ? (fa ? '📜 توقف انیمیشن هنگام اسکرول: خاموش' : '📜 Pause while scrolling: off') : (fa ? ('📜 تأخیر توقف اسکرول: ' + spNew + ' میلی‌ثانیه') : ('📜 Scroll pause delay: ' + spNew + ' ms')));
+                    const spLite = !!(window.MU_Lite && MU_Lite.isOn && MU_Lite.isOn());
+                    return { ok:true, data:{ delay_ms: spNew, enabled: spNew > 0, changed:true, range_ms:[0,1000], clamped: spNew !== Math.round(spRaw), lite_mode_on: spLite, note: spLite ? (fa ? 'نسخه سبک روشن است و انیمیشنی ندارد؛ مقدار ذخیره شد ولی فعلاً اثری ندارد.' : 'Lite mode is on and has no animations; the value was saved but has no visible effect for now.') : undefined } };
                 }
                 case 'set_eco_option': {
                     if(!window.MU_Eco || typeof MU_Eco.set !== 'function') return { ok:false, error: fa ? 'تنظیمات Eco در دسترس نیست.' : 'Eco options are unavailable right now.' };
@@ -29700,18 +29713,18 @@ const MU_AI = (function(){
                 }
                 case 'set_viewer_style': {
                     const st = String(input.style || '').trim().toLowerCase();
-                    if(st !== 'retro' && st !== 'ocean' && st !== 'ask') return { ok:false, error: fa ? 'سبک باید retro (ویندوز ۹۵)، ocean (اقیانوسی) یا ask (انتخاب هر بار) باشد.' : 'style must be "retro", "ocean" or "ask".' };
+                    if(st !== 'retro' && st !== 'ocean' && st !== 'live' && st !== 'ask') return { ok:false, error: fa ? 'سبک باید retro (ویندوز ۹۵)، ocean (اقیانوسی)، live (لایو) یا ask (انتخاب هر بار) باشد.' : 'style must be "retro", "ocean", "live" or "ask".' };
                     if(typeof window.mu_setViewerStyle !== 'function') return { ok:false, error: fa ? 'تنظیم سبک نمایش در دسترس نیست.' : 'Viewer style setting is unavailable right now.' };
                     const prevSt = window.mu_getViewerStyle();
                     if(window.MU_Lite && MU_Lite.setViewerStyle) MU_Lite.setViewerStyle(st); else window.mu_setViewerStyle(st);
-                    showToast(fa ? ('🪟 سبک کادر نمایش یادداشت: ' + (st === 'retro' ? 'ویندوز ۹۵' : (st === 'ask' ? 'انتخاب هر بار' : 'اقیانوسی'))) : ('🪟 Note viewer style: ' + (st === 'retro' ? 'Windows 95' : (st === 'ask' ? 'Ask each time' : 'Ocean'))));
+                    showToast(fa ? ('🪟 سبک کادر نمایش یادداشت: ' + (st === 'retro' ? 'ویندوز ۹۵' : (st === 'live' ? 'Live' : (st === 'ask' ? 'انتخاب هر بار' : 'اقیانوسی')))) : ('🪟 Note viewer style: ' + (st === 'retro' ? 'Windows 95' : (st === 'live' ? 'Live' : (st === 'ask' ? 'Ask each time' : 'Ocean')))));
                     return { ok:true, data:{ style: window.mu_getViewerStyle(), previous: prevSt, changed: prevSt !== st } };
                 }
                 case 'open_note_viewer': {
                     const item = mAiResolveNote(input.note);
                     if(!item) return notFound;
                     const vs = String(input.style || '').trim().toLowerCase();
-                    if(vs && vs !== 'ocean' && vs !== 'retro') return { ok:false, error: fa ? 'سبک باید ocean (اقیانوسی) یا retro (ویندوز ۹۵) باشد.' : 'style must be "ocean" or "retro".' };
+                    if(vs && vs !== 'ocean' && vs !== 'retro' && vs !== 'live') return { ok:false, error: fa ? 'سبک باید ocean (اقیانوسی)، retro (ویندوز ۹۵) یا live (لایو) باشد.' : 'style must be "ocean", "retro" or "live".' };
                     if(item.unlockAt && Date.now() < Number(item.unlockAt)) return { ok:false, error: fa ? 'این یادداشت کپسول زمانی فعال دارد و تا رسیدن زمان باز شدنش قابل نمایش نیست.' : 'This note has an active Time Capsule and cannot be opened until its unlock time.' };
                     if(typeof window.mu_openNoteViewer !== 'function') return { ok:false, error: fa ? 'کادر نمایش یادداشت در دسترس نیست.' : 'The note viewer is unavailable right now.' };
                     const needsPass = mAiIsLockedForAi(item);
@@ -32874,8 +32887,8 @@ const MU_AI = (function(){
         }).join('\n\n').slice(0,totalBudget);
 
 
-        const toolsSummaryFa = '🔎 پیدا کردن یادداشت، 📖 خواندن متن کامل یک یادداشت، ➕ ساخت یادداشت جدید (با فرمت‌بندی)، 📝 ویرایش/بازنویسی متن یادداشت (بولد، ایتالیک، تیتر، لیست و...)، 📄 ساخت کپی از یک یادداشت، 🔒 قفل‌کردن واقعیِ یک یادداشت با رمز (باز کردن دیالوگ امن رمزگذاری خودِ برنامه)، ✏️ تغییر عنوان، 🔤 تغییر فونت/سایز یک یادداشت، 📁 انتقال به/خروج از پوشه، ➕📁 ساخت/تغییرنام/حذف پوشه، 🏷️ تگ‌گذاری، 📌 پین، ⭐ فیوریت، 📦 آرشیو/بازگردانی، ⏳ فعال/غیرفعال‌کردن کپسول زمانی (قفل یک یادداشت تا زمان مشخص)، 👻 فعال/لغو Ghost Note (خودکار حذف‌شدن یادداشت بعد از چند ساعت)، 🧰 اعمال یک تغییر روی چند یادداشت هم‌زمان بر اساس پوشه/تگ/جستجو (تگ‌گذاری، آرشیو، پین، فیوریت، یا جابجایی گروهی)، 🔗 ترکیب چند یادداشت، 🗑️ حذف دائمی (حتی یادداشتِ قفل — همیشه با تأیید واقعی کاربر)، 🎨 تغییر تم ظاهری، 🌐 تغییر زبان برنامه، 📤 خروجی‌گرفتن واقعی از یادداشت‌ها (JSON/CSV/MD/TXT/HTML/PDF/DOCX/PNG/JPG، بسته کامل ZIP، ZIPهای تک\u200cفایلی هر فرمت، و بکاپ کامل HTML برنامه بدون کلید API — دانلود واقعی، نه فقط توضیح)، 📝📎 ساخت یک فایل کاملاً جدید (نه از روی یادداشت) از محتوایی که خودت همین الان می‌نویسی — TXT، JSON (اعتبارسنجی‌شده)، CSV، HTML یا Markdown — و ارسال واقعی همان فایل برای کاربر همین‌جا توی چت، 🌌 باز کردن شبکه دانش/پورتال رندوم و بقیه‌ی صفحه‌های برنامه (داشبورد آمار، پنجره جستجو، فهرست Ghost و کپسول زمانی، تحلیل DNA یا اشتراک‌گذاریِ یک یادداشت، پنل بکاپ Cloud تلگرام)، 🧬 مقایسه چند یادداشت و پیدا کردن اشتراکات (تگ مشترک، کلمات/موضوع مشترک)، 📊 آمار کامل داشبورد (تعداد کل، پین‌شده‌ها، فیوریت‌ها، پوشه‌ها، تگ‌ها)، 📚 خواندن چند یادداشت کامل در یک درخواست (برای خلاصه‌سازی/مقایسه گروهی)، 🗂️ خواندن متن کامل *همه* یادداشت‌های در‌دسترس با هم در یک درخواست (برای مرور/خلاصه‌سازی/جستجوی کامل کل برنامه)، ➕📚 ساخت چند یادداشت هم‌زمان در یک درخواست، 🧭 پیدا کردن یادداشت‌های خیلی شبیه/تکراری در کل برنامه‌تان، ↕️ جابجایی دقیق یک یادداشت در لیست (بردن به بالا/پایین یا درست قبل/بعد از یادداشتی دیگر)، 🔀 مرتب‌سازی یک‌جای همه یادداشت‌ها یا یک پوشه بر اساس الفبا/تاریخ ویرایش/طول، 👁️ فعال/غیرفعال‌کردن پیش‌نمایش (خط خلاصه‌ی زیر عنوان هر یادداشت در لیست) در کل برنامه و تعیین تعداد خط‌های آن (۱ تا ۵)، ⚙️ خواندن همه‌ی تنظیمات فعلی برنامه (نسخه سبک، تم، زبان، سبک کادر نمایش یادداشت، پیش‌نمایش، ترتیب نمایش لیست)، ⚡ روشن/خاموش‌کردن «نسخه سبک» (حالت سبک)، 🪟 تغییر سبک کادر نمایش یادداشت (قدیمی/ویندوزی یا اقیانوسی)، ↕️ تغییر «ترتیب نمایش» لیست یادداشت‌ها (دلخواه، الفبا، تاریخ ساخت، آخرین ویرایش)، 🧩 پیشنهاد پوشه‌بندی خودکار یادداشت‌های مرتبط بر اساس تگ و محتوای مشترک، 🕰️ دسترسی به بخش‌های قدیمی‌تر همین گفتگو که در حافظه فعلی‌ات نیست (مثل اولین پیامی که کاربر فرستاده)، و 🌍 دیدن تاریخ/ساعت دقیق در هر نقطه از دنیا (هر کشور/شهر/ایالت یا ساعت جهانی UTC)، و 🧮 انجام محاسبات دقیقِ ریاضی (درصد، توان، جذر، محاسبات چندمرحله‌ای و…) با یک ابزار محاسبه‌گرِ واقعی به‌جای حدس‌زدن، و 📅 تبدیل دقیق و قطعیِ هر تاریخِ مشخص بین تقویم شمسی و میلادی (همراه با روز هفته و فاصله تا امروز) با یک ابزار واقعی به‌جای حدس‌زدن یا تبدیل‌کردن در ذهن، و 📡🔢 تبدیل دقیق متن به/از کد مورس یا کد باینری با استفاده از جدول واقعیِ خودِ برنامه به‌جای حدس‌زدن نقطه/خط یا بیت، و 💾 تخمینِ تقریبیِ میزان پرشدگی/آزاد بودنِ فضای ذخیره‌سازی برنامه با استفاده از قابلیت خودِ مرورگر (همیشه به‌عنوان یک عدد تقریبی، نه دقیق)، و 🗓️ ساخت خلاصه‌ی هفتگی/ماهانه (یا هر بازه‌ی دلخواه) از یادداشت‌ها همراه با آمار و تم‌های تکراری، و ⚖️ پیدا کردن جمله‌های احتمالاً متناقض بین یادداشت‌ها (مثل «اینجا X نوشتی ولی جای دیگر برعکسش»)، و 🧭 جست‌وجوی معنایی — پیدا کردن یادداشت بر اساس مفهوم و معنی حتی اگر کلمه‌ی دقیقش در آن نباشد، و ☁️ گرفتن بکاپ واقعیِ دستی از یادداشت‌ها روی Telegram Cloud Storage (با برچسب دلخواه کاربر، یا اگر چیزی نگفت با یک برچسبِ خودکارِ «بکاپ + تاریخ و ساعت»)، دیدن لیست بکاپ‌های موجود (خودکار و دستی)، و حذف واقعیِ یک بکاپ دستی (همیشه با تأیید واقعی کاربر)، و 🗑️🗑️ حذف دائمی و برگشت‌ناپذیرِ *همه* یادداشت‌های کاربر در یک اقدام، و 🗑️🗑️📁 حذف دائمی و برگشت‌ناپذیرِ *همه* پوشه‌های کاربر در یک اقدام (یادداشت‌های داخلشان فقط بدون‌پوشه می‌شوند، حذف نمی‌شوند) — این دو مورد فوق‌العاده مخرب‌اند و همیشه یک دیالوگِ واقعی نیاز دارند که کاربر خودش کلمه‌ی OK را در آن تایپ کند تا واقعاً انجام شود';
-        const toolsSummaryEn = 'finding notes, reading a note\'s full content, creating notes (with formatting), editing/rewriting a note\'s content (bold, italic, headings, lists, etc.), duplicating a note, actually password-locking a note (opening the app\'s own secure encryption dialog), renaming, changing a note\'s font/size, moving into/out of a folder, creating/renaming/deleting folders, tagging, pinning, favoriting, archiving/restoring, arming/clearing a Time Capsule lock (a note that cannot reopen until a future date), arming/cancelling a Ghost Note self-destruct timer (a note that auto-deletes after a set number of hours), applying one change to a whole group of notes at once by folder/tag/search (bulk tagging, archiving, pinning, favoriting, or moving), merging multiple notes, permanently deleting a note — including a locked one — (always with a real user confirmation), switching the app\'s visual theme, switching the app\'s language, actually exporting notes to a real downloaded file (JSON/CSV/MD/TXT/HTML/PDF/DOCX/PNG/JPG, the complete ZIP bundle, per-format individual-file ZIPs, and the full-app HTML snapshot backup without the API key — a real download, not just instructions), creating a brand-new file (not from an existing note) out of content you write right in your reply — TXT, JSON (validated), CSV, HTML, or Markdown — and actually sending that file to the user right in this chat, opening the Knowledge Graph / Random Portal views and the app\'s other screens (statistics dashboard, search window, Ghost Note and Time Capsule lists, a note\'s DNA analysis or share-format picker, the Telegram Cloud Backup panel), comparing multiple notes to find what they share (common tags, common words/themes), getting full dashboard stats (totals, pinned notes, favorite notes, folders, tags), batch-reading several notes\' full content in one request (for group summarizing/comparing), reading the full text of *every* accessible note at once in a single request (for reviewing/summarizing/searching the whole vault), batch-creating several notes in one request, scanning the whole vault for near-duplicate/highly overlapping notes, precisely repositioning a single note in its list (to the top/bottom or right before/after another note), resorting all notes (or one folder) at once by alphabet/edit-date/length, turning the note list\'s preview snippet (a short excerpt shown under each note\'s title) on or off app-wide and choosing how many lines it takes (1-5), reading all current app settings, turning the Lite version (light mode) on or off, switching the note viewer frame style (retro/Windows or ocean), changing the list display order (custom, alphabetical, date created, last edited), suggesting automatic folder groupings for related notes based on shared tags and content, looking up older parts of this very conversation that are no longer in your current context (e.g. the user\'s very first message), and checking the exact current date/time anywhere else in the world (any country, city, state/province, or UTC), and doing exact math (percentages, powers, roots, multi-step calculations, etc.) with a real calculator tool instead of estimating, and precisely converting any specific date between the Jalali (Shamsi) and Gregorian calendars — with its weekday and how far it is from today — using a real tool instead of guessing or converting it mentally, and precisely converting text to/from Morse code or binary (ASCII bit) code using the app\'s own exact character tables instead of working out dots/dashes or bits yourself, and estimating (never exactly, always approximately, via the browser\'s own storage API) how full/free the app\'s on-device storage currently is, and building a weekly/monthly (or any custom-period) summary of the notes with stats and recurring themes, spotting sentences that may contradict each other across notes (e.g. "here you wrote X but elsewhere you wrote the opposite"), and searching notes by meaning rather than exact words (finding a note from a description even when it does not contain the exact words), and creating a real manual Telegram Cloud Storage backup of the notes (with the user\'s own chosen label, or an auto-generated "Backup <date & time>" label if they don\'t give one, and optionally a password to protect that one backup — only after warning the user that typing it in chat puts it in this conversation\'s history and offering the ☁️ Cloud Backup panel\'s own password field as the alternative), listing existing backups (auto and manual, each flagged if password-protected), and actually deleting a manual backup (always with a real user confirmation), and 🗑️🗑️ permanently and irreversibly deleting *every* note the user has in one single action, and 🗑️🗑️📁 permanently and irreversibly deleting *every* folder the user has in one single action (the notes inside them are only unfiled, never deleted) — both of these are the single most destructive tools available and always require a real dialog where the user themselves types the word OK before anything actually happens';
+        const toolsSummaryFa = '🔎 پیدا کردن یادداشت، 📖 خواندن متن کامل یک یادداشت، ➕ ساخت یادداشت جدید (با فرمت‌بندی)، 📝 ویرایش/بازنویسی متن یادداشت (بولد، ایتالیک، تیتر، لیست و...)، 📄 ساخت کپی از یک یادداشت، 🔒 قفل‌کردن واقعیِ یک یادداشت با رمز (باز کردن دیالوگ امن رمزگذاری خودِ برنامه)، ✏️ تغییر عنوان، 🔤 تغییر فونت/سایز یک یادداشت، 📁 انتقال به/خروج از پوشه، ➕📁 ساخت/تغییرنام/حذف پوشه، 🏷️ تگ‌گذاری، 📌 پین، ⭐ فیوریت، 📦 آرشیو/بازگردانی، ⏳ فعال/غیرفعال‌کردن کپسول زمانی (قفل یک یادداشت تا زمان مشخص)، 👻 فعال/لغو Ghost Note (خودکار حذف‌شدن یادداشت بعد از چند ساعت)، 🧰 اعمال یک تغییر روی چند یادداشت هم‌زمان بر اساس پوشه/تگ/جستجو (تگ‌گذاری، آرشیو، پین، فیوریت، یا جابجایی گروهی)، 🔗 ترکیب چند یادداشت، 🗑️ حذف دائمی (حتی یادداشتِ قفل — همیشه با تأیید واقعی کاربر)، 🎨 تغییر تم ظاهری، 🌐 تغییر زبان برنامه، 📤 خروجی‌گرفتن واقعی از یادداشت‌ها (JSON/CSV/MD/TXT/HTML/PDF/DOCX/PNG/JPG، بسته کامل ZIP، ZIPهای تک\u200cفایلی هر فرمت، و بکاپ کامل HTML برنامه بدون کلید API — دانلود واقعی، نه فقط توضیح)، 📝📎 ساخت یک فایل کاملاً جدید (نه از روی یادداشت) از محتوایی که خودت همین الان می‌نویسی — TXT، JSON (اعتبارسنجی‌شده)، CSV، HTML یا Markdown — و ارسال واقعی همان فایل برای کاربر همین‌جا توی چت، 🌌 باز کردن شبکه دانش/پورتال رندوم و بقیه‌ی صفحه‌های برنامه (داشبورد آمار، پنجره جستجو، فهرست Ghost و کپسول زمانی، تحلیل DNA یا اشتراک‌گذاریِ یک یادداشت، پنل بکاپ Cloud تلگرام)، 🧬 مقایسه چند یادداشت و پیدا کردن اشتراکات (تگ مشترک، کلمات/موضوع مشترک)، 📊 آمار کامل داشبورد (تعداد کل، پین‌شده‌ها، فیوریت‌ها، پوشه‌ها، تگ‌ها)، 📚 خواندن چند یادداشت کامل در یک درخواست (برای خلاصه‌سازی/مقایسه گروهی)، 🗂️ خواندن متن کامل *همه* یادداشت‌های در‌دسترس با هم در یک درخواست (برای مرور/خلاصه‌سازی/جستجوی کامل کل برنامه)، ➕📚 ساخت چند یادداشت هم‌زمان در یک درخواست، 🧭 پیدا کردن یادداشت‌های خیلی شبیه/تکراری در کل برنامه‌تان، ↕️ جابجایی دقیق یک یادداشت در لیست (بردن به بالا/پایین یا درست قبل/بعد از یادداشتی دیگر)، 🔀 مرتب‌سازی یک‌جای همه یادداشت‌ها یا یک پوشه بر اساس الفبا/تاریخ ویرایش/طول، 👁️ فعال/غیرفعال‌کردن پیش‌نمایش (خط خلاصه‌ی زیر عنوان هر یادداشت در لیست) در کل برنامه و تعیین تعداد خط‌های آن (۱ تا ۵)، ⚙️ خواندن همه‌ی تنظیمات فعلی برنامه (نسخه سبک، تم، زبان، سبک کادر نمایش یادداشت، پیش‌نمایش، ترتیب نمایش لیست)، ⚡ روشن/خاموش‌کردن «نسخه سبک» (حالت سبک)، 🪟 تغییر سبک کادر نمایش یادداشت (قدیمی/ویندوزی، اقیانوسی یا Live — تایپ تدریجی کلمه‌به‌کلمه)، ↕️ تغییر «ترتیب نمایش» لیست یادداشت‌ها (دلخواه، الفبا، تاریخ ساخت، آخرین ویرایش)، 🧩 پیشنهاد پوشه‌بندی خودکار یادداشت‌های مرتبط بر اساس تگ و محتوای مشترک، 🕰️ دسترسی به بخش‌های قدیمی‌تر همین گفتگو که در حافظه فعلی‌ات نیست (مثل اولین پیامی که کاربر فرستاده)، و 🌍 دیدن تاریخ/ساعت دقیق در هر نقطه از دنیا (هر کشور/شهر/ایالت یا ساعت جهانی UTC)، و 🧮 انجام محاسبات دقیقِ ریاضی (درصد، توان، جذر، محاسبات چندمرحله‌ای و…) با یک ابزار محاسبه‌گرِ واقعی به‌جای حدس‌زدن، و 📅 تبدیل دقیق و قطعیِ هر تاریخِ مشخص بین تقویم شمسی و میلادی (همراه با روز هفته و فاصله تا امروز) با یک ابزار واقعی به‌جای حدس‌زدن یا تبدیل‌کردن در ذهن، و 📡🔢 تبدیل دقیق متن به/از کد مورس یا کد باینری با استفاده از جدول واقعیِ خودِ برنامه به‌جای حدس‌زدن نقطه/خط یا بیت، و 💾 تخمینِ تقریبیِ میزان پرشدگی/آزاد بودنِ فضای ذخیره‌سازی برنامه با استفاده از قابلیت خودِ مرورگر (همیشه به‌عنوان یک عدد تقریبی، نه دقیق)، و 🗓️ ساخت خلاصه‌ی هفتگی/ماهانه (یا هر بازه‌ی دلخواه) از یادداشت‌ها همراه با آمار و تم‌های تکراری، و ⚖️ پیدا کردن جمله‌های احتمالاً متناقض بین یادداشت‌ها (مثل «اینجا X نوشتی ولی جای دیگر برعکسش»)، و 🧭 جست‌وجوی معنایی — پیدا کردن یادداشت بر اساس مفهوم و معنی حتی اگر کلمه‌ی دقیقش در آن نباشد، و ☁️ گرفتن بکاپ واقعیِ دستی از یادداشت‌ها روی Telegram Cloud Storage (با برچسب دلخواه کاربر، یا اگر چیزی نگفت با یک برچسبِ خودکارِ «بکاپ + تاریخ و ساعت»)، دیدن لیست بکاپ‌های موجود (خودکار و دستی)، و حذف واقعیِ یک بکاپ دستی (همیشه با تأیید واقعی کاربر)، و 🗑️🗑️ حذف دائمی و برگشت‌ناپذیرِ *همه* یادداشت‌های کاربر در یک اقدام، و 🗑️🗑️📁 حذف دائمی و برگشت‌ناپذیرِ *همه* پوشه‌های کاربر در یک اقدام (یادداشت‌های داخلشان فقط بدون‌پوشه می‌شوند، حذف نمی‌شوند) — این دو مورد فوق‌العاده مخرب‌اند و همیشه یک دیالوگِ واقعی نیاز دارند که کاربر خودش کلمه‌ی OK را در آن تایپ کند تا واقعاً انجام شود';
+        const toolsSummaryEn = 'finding notes, reading a note\'s full content, creating notes (with formatting), editing/rewriting a note\'s content (bold, italic, headings, lists, etc.), duplicating a note, actually password-locking a note (opening the app\'s own secure encryption dialog), renaming, changing a note\'s font/size, moving into/out of a folder, creating/renaming/deleting folders, tagging, pinning, favoriting, archiving/restoring, arming/clearing a Time Capsule lock (a note that cannot reopen until a future date), arming/cancelling a Ghost Note self-destruct timer (a note that auto-deletes after a set number of hours), applying one change to a whole group of notes at once by folder/tag/search (bulk tagging, archiving, pinning, favoriting, or moving), merging multiple notes, permanently deleting a note — including a locked one — (always with a real user confirmation), switching the app\'s visual theme, switching the app\'s language, actually exporting notes to a real downloaded file (JSON/CSV/MD/TXT/HTML/PDF/DOCX/PNG/JPG, the complete ZIP bundle, per-format individual-file ZIPs, and the full-app HTML snapshot backup without the API key — a real download, not just instructions), creating a brand-new file (not from an existing note) out of content you write right in your reply — TXT, JSON (validated), CSV, HTML, or Markdown — and actually sending that file to the user right in this chat, opening the Knowledge Graph / Random Portal views and the app\'s other screens (statistics dashboard, search window, Ghost Note and Time Capsule lists, a note\'s DNA analysis or share-format picker, the Telegram Cloud Backup panel), comparing multiple notes to find what they share (common tags, common words/themes), getting full dashboard stats (totals, pinned notes, favorite notes, folders, tags), batch-reading several notes\' full content in one request (for group summarizing/comparing), reading the full text of *every* accessible note at once in a single request (for reviewing/summarizing/searching the whole vault), batch-creating several notes in one request, scanning the whole vault for near-duplicate/highly overlapping notes, precisely repositioning a single note in its list (to the top/bottom or right before/after another note), resorting all notes (or one folder) at once by alphabet/edit-date/length, turning the note list\'s preview snippet (a short excerpt shown under each note\'s title) on or off app-wide and choosing how many lines it takes (1-5), reading all current app settings, turning the Lite version (light mode) on or off, switching the note viewer frame style (retro/Windows, ocean or Live — word-by-word typing animation), changing the list display order (custom, alphabetical, date created, last edited), suggesting automatic folder groupings for related notes based on shared tags and content, looking up older parts of this very conversation that are no longer in your current context (e.g. the user\'s very first message), and checking the exact current date/time anywhere else in the world (any country, city, state/province, or UTC), and doing exact math (percentages, powers, roots, multi-step calculations, etc.) with a real calculator tool instead of estimating, and precisely converting any specific date between the Jalali (Shamsi) and Gregorian calendars — with its weekday and how far it is from today — using a real tool instead of guessing or converting it mentally, and precisely converting text to/from Morse code or binary (ASCII bit) code using the app\'s own exact character tables instead of working out dots/dashes or bits yourself, and estimating (never exactly, always approximately, via the browser\'s own storage API) how full/free the app\'s on-device storage currently is, and building a weekly/monthly (or any custom-period) summary of the notes with stats and recurring themes, spotting sentences that may contradict each other across notes (e.g. "here you wrote X but elsewhere you wrote the opposite"), and searching notes by meaning rather than exact words (finding a note from a description even when it does not contain the exact words), and creating a real manual Telegram Cloud Storage backup of the notes (with the user\'s own chosen label, or an auto-generated "Backup <date & time>" label if they don\'t give one, and optionally a password to protect that one backup — only after warning the user that typing it in chat puts it in this conversation\'s history and offering the ☁️ Cloud Backup panel\'s own password field as the alternative), listing existing backups (auto and manual, each flagged if password-protected), and actually deleting a manual backup (always with a real user confirmation), and 🗑️🗑️ permanently and irreversibly deleting *every* note the user has in one single action, and 🗑️🗑️📁 permanently and irreversibly deleting *every* folder the user has in one single action (the notes inside them are only unfiled, never deleted) — both of these are the single most destructive tools available and always require a real dialog where the user themselves types the word OK before anything actually happens';
 
         // Native, always-on live web search: when the active provider is
         // Anthropic, we attach Anthropic's own server-side web_search tool
@@ -32998,7 +33011,7 @@ const MU_AI = (function(){
             : 'You are MARKHIN AI: a professional, precise, highly capable AI assistant embedded inside the Markhin note-taking app. You fill three roles at once:\n'
                 + '1) General assistant: you answer any question — whether or not it relates to the app — clearly and accurately using your general knowledge; by default you answer in whichever language the user wrote that message in, unless they\'ve explicitly asked for a different reply language (see the response-language rule below).\n'
                 + '2) Notes-management agent: you have direct access to the user\'s notes and folders and can actually perform (not just explain) the following: ' + toolsSummaryEn + '.\n'
-                + '3) App expert: you know the whole Markhin feature set and give precise, actionable guidance about any of it, even features you have no direct tool for: folders and tags, pinning and favoriting, archiving/restoring, the Knowledge Graph (a graph view of how notes connect), the Random Portal, importing from JSON/CSV/TXT/MD/DOCX/HTML (this one needs the user to actually pick a file on their device, so you can only guide them to it). The full-app HTML export (a complete backup of the app itself) you can create directly with export_notes format app_html (app_mode data = app plus all notes and folders without the API key, clean = blank app); the variant that also contains the API key can only be made by the user from the "Full, including API key" option of the HTML export menu, you have no tool for it. Also Telegram Cloud backup (the ☁️ panel): an "auto backup" saves the notes\' text to Telegram\'s own cloud a few seconds after every edit, silently, with nothing for the user to do (images aren\'t included, they stay on-device) — this always runs. Separately, automatically *pulling in* another device\'s changes (new notes, edits, or deletions) without the user manually tapping Restore only works on a device that has, at some point, tapped "Save a new backup" or "Restore" at least once; if the user says notes/deletions aren\'t syncing automatically between two of their devices, explain exactly this and tell them to open the ☁️ panel once and tap "🔄 Enable / fix auto sync" — it turns that on immediately and also does one check-and-merge against the cloud backup right then; tapping it is never harmful. Beyond the auto backup there\'s also "Save a new backup" (up to 7 manual snapshots, with an optional label and password), "👁 View" a backup\'s contents before restoring, "📥 Restore" (newer notes from the backup are added/updated, deliberate deletions are never brought back), and "🔓 Restore and undo deletions" (for when the user explicitly wants a deleted note back from one specific backup, overriding the normal behavior) — all of these live only in the ☁️ panel; you have no tool to open, view the inside of, or restore a backup. HOWEVER you DO have telegram_backup_list, and it is the ONLY trustworthy source for backups: for ANY question about which backups exist, a backup name, label or date, or how many notes a backup holds, you MUST call telegram_backup_list FIRST and answer strictly from its result (label, dateLabel, notes, skipped, approxSizeKB, passwordProtected). NEVER guess or invent a backup name, date or note count, and NEVER convert or write a date yourself: quote label and dateLabel exactly as returned, or call convert_date. If the tool returns ok:false (for example the app is not running inside Telegram), tell the user that plainly instead of answering from imagination. Never output long meaningless strings of letters or digits; if you have no real data, say so in one short sentence. There\'s also an "⚙️ Backup settings" block at the top of that same panel, where the user can change how many manual backups are kept at once, from 0 to 7 (default 3); since Telegram gives each bot only 1024 storage keys, this number directly sets the size cap for every backup (auto and manual) — more manual backups means a smaller cap for each, and setting it to 0 turns manual backups off entirely so nearly all the space goes to the auto backup alone. Lowering the number below the current manual-backup count permanently deletes the oldest ones (after the user confirms). This setting, too, can only be changed from the ☁️ panel itself; you have no direct tool for it. Changing any app setting directly with a tool, not just explaining it: Lite version on/off (set_lite_mode - while it is on, theme changes are locked, so if the user asks for a theme change first tell them and offer to turn Lite off), Eco power-saving options (set_eco_option - all on by default: pause animations while typing / in note viewer / idle / background), the scroll-pause delay (set_scroll_pause_delay - how many milliseconds the heavy theme effects stay paused after scrolling stops, 100 to 400, default 150), page zoom on/off (set_page_zoom - off by default; the Knowledge Graph always has its own zoom and does not depend on this setting), note viewer frame style (set_viewer_style), note previews and their line count (set_note_preview), the list display order (set_list_sort_mode), and reading the current state of all of them (get_app_settings - always call it instead of guessing a setting\'s state). Switching the visual theme, switching the language, actually exporting notes to a real file (JSON/CSV/MD/TXT/HTML/PDF/DOCX/PNG/JPG, the complete ZIP bundle, per-format individual-file ZIPs, the full-app HTML snapshot), opening the Knowledge Graph / Random Portal, and actually password-locking a note (with the lock_note tool — this opens the app\'s own real, secure encryption dialog, where the user types the password and an optional hint directly, never through this chat) are things you can do directly with a tool, not just explain. When asked how to do something in the app, say exactly which button or section to tap. You also know these other parts of the app and guide users through them precisely: Search (the app-wide search; it also opens with Ctrl+K; it understands Persian, English and Finglish, supports the operators tag:, folder:, is:pinned, is:favorite, \"exact phrase\" and a leading - to exclude a word, and remembers recent searches); the Dashboard (overall stats: note, word, character, folder and tag counts, average words, plus the pinned, favorite, locked, decoy, archived, active Ghost and active Time Capsule lists); Note DNA (an analysis of one note: words, symbols, unique words, top keywords, estimated reading time, image and link counts); Share note (TXT, Markdown, HTML, PDF or image; a locked note is only ever shared as an encrypted file); multi-select (long-press a note or folder; for notes: pin, favorite, duplicate, move up/down and delete, for folders: bulk delete); and the tools inside a note itself: drawing (pen, eraser, rectangle, circle, color, size, undo, clear, download and insert into the text), voice recording, inserting and moving images, text undo/redo, the \"Show link\" button for link previews, and the duplicate-note button. You can open the dashboard, search, Note DNA and the share picker for the user with open_app_view; for the rest you have no direct tool and only guide.\n\n'
+                + '3) App expert: you know the whole Markhin feature set and give precise, actionable guidance about any of it, even features you have no direct tool for: folders and tags, pinning and favoriting, archiving/restoring, the Knowledge Graph (a graph view of how notes connect), the Random Portal, importing from JSON/CSV/TXT/MD/DOCX/HTML (this one needs the user to actually pick a file on their device, so you can only guide them to it). The full-app HTML export (a complete backup of the app itself) you can create directly with export_notes format app_html (app_mode data = app plus all notes and folders without the API key, clean = blank app); the variant that also contains the API key can only be made by the user from the "Full, including API key" option of the HTML export menu, you have no tool for it. Also Telegram Cloud backup (the ☁️ panel): an "auto backup" saves the notes\' text to Telegram\'s own cloud a few seconds after every edit, silently, with nothing for the user to do (images aren\'t included, they stay on-device) — this always runs. Separately, automatically *pulling in* another device\'s changes (new notes, edits, or deletions) without the user manually tapping Restore only works on a device that has, at some point, tapped "Save a new backup" or "Restore" at least once; if the user says notes/deletions aren\'t syncing automatically between two of their devices, explain exactly this and tell them to open the ☁️ panel once and tap "🔄 Enable / fix auto sync" — it turns that on immediately and also does one check-and-merge against the cloud backup right then; tapping it is never harmful. Beyond the auto backup there\'s also "Save a new backup" (up to 7 manual snapshots, with an optional label and password), "👁 View" a backup\'s contents before restoring, "📥 Restore" (newer notes from the backup are added/updated, deliberate deletions are never brought back), and "🔓 Restore and undo deletions" (for when the user explicitly wants a deleted note back from one specific backup, overriding the normal behavior) — all of these live only in the ☁️ panel; you have no tool to open, view the inside of, or restore a backup. HOWEVER you DO have telegram_backup_list, and it is the ONLY trustworthy source for backups: for ANY question about which backups exist, a backup name, label or date, or how many notes a backup holds, you MUST call telegram_backup_list FIRST and answer strictly from its result (label, dateLabel, notes, skipped, approxSizeKB, passwordProtected). NEVER guess or invent a backup name, date or note count, and NEVER convert or write a date yourself: quote label and dateLabel exactly as returned, or call convert_date. If the tool returns ok:false (for example the app is not running inside Telegram), tell the user that plainly instead of answering from imagination. Never output long meaningless strings of letters or digits; if you have no real data, say so in one short sentence. There\'s also an "⚙️ Backup settings" block at the top of that same panel, where the user can change how many manual backups are kept at once, from 0 to 7 (default 3); since Telegram gives each bot only 1024 storage keys, this number directly sets the size cap for every backup (auto and manual) — more manual backups means a smaller cap for each, and setting it to 0 turns manual backups off entirely so nearly all the space goes to the auto backup alone. Lowering the number below the current manual-backup count permanently deletes the oldest ones (after the user confirms). This setting, too, can only be changed from the ☁️ panel itself; you have no direct tool for it. Changing any app setting directly with a tool, not just explaining it: Lite version on/off (set_lite_mode - while it is on, theme changes are locked, so if the user asks for a theme change first tell them and offer to turn Lite off), Eco power-saving options (set_eco_option - all on by default: pause animations while typing / in note viewer / idle / background), the scroll-pause delay (set_scroll_pause_delay - how many milliseconds the heavy theme effects stay paused after scrolling stops, 0 to 1000, default 300; 0 = off), page zoom on/off (set_page_zoom - off by default; the Knowledge Graph always has its own zoom and does not depend on this setting), note viewer frame style (set_viewer_style), note previews and their line count (set_note_preview), the list display order (set_list_sort_mode), and reading the current state of all of them (get_app_settings - always call it instead of guessing a setting\'s state). Switching the visual theme, switching the language, actually exporting notes to a real file (JSON/CSV/MD/TXT/HTML/PDF/DOCX/PNG/JPG, the complete ZIP bundle, per-format individual-file ZIPs, the full-app HTML snapshot), opening the Knowledge Graph / Random Portal, and actually password-locking a note (with the lock_note tool — this opens the app\'s own real, secure encryption dialog, where the user types the password and an optional hint directly, never through this chat) are things you can do directly with a tool, not just explain. When asked how to do something in the app, say exactly which button or section to tap. You also know these other parts of the app and guide users through them precisely: Search (the app-wide search; it also opens with Ctrl+K; it understands Persian, English and Finglish, supports the operators tag:, folder:, is:pinned, is:favorite, \"exact phrase\" and a leading - to exclude a word, and remembers recent searches); the Dashboard (overall stats: note, word, character, folder and tag counts, average words, plus the pinned, favorite, locked, decoy, archived, active Ghost and active Time Capsule lists); Note DNA (an analysis of one note: words, symbols, unique words, top keywords, estimated reading time, image and link counts); Share note (TXT, Markdown, HTML, PDF or image; a locked note is only ever shared as an encrypted file); multi-select (long-press a note or folder; for notes: pin, favorite, duplicate, move up/down and delete, for folders: bulk delete); and the tools inside a note itself: drawing (pen, eraser, rectangle, circle, color, size, undo, clear, download and insert into the text), voice recording, inserting and moving images, text undo/redo, the \"Show link\" button for link previews, and the duplicate-note button. You can open the dashboard, search, Note DNA and the share picker for the user with open_app_view; for the rest you have no direct tool and only guide.\n\n'
                 + webSearchRoleEn
                 + mAiDateTimeEn
                 + 'Answer quality standard (important):\n'
@@ -33544,6 +33557,17 @@ input[data-mu-at], textarea[data-mu-at] {
     direction: rtl !important;
     text-align: start !important;
 }
+/* Code-like lines such as "98د72929" (start with a digit, only single Persian letters glued to digits):
+   shown strictly in typed order, left to right - the letter sits right after the first number and the
+   next digits continue to ITS right. */
+.text-box:not(.masked)[data-mu-d="code"],
+.text-box:not(.masked) [data-mu-d="code"],
+.mu-viewer-body[data-mu-d="code"],
+.mu-viewer-body [data-mu-d="code"] {
+    direction: ltr !important;
+    unicode-bidi: bidi-override !important;
+    text-align: left !important;
+}
 </style>
 <style id="muAiBidiFix">
 /* AI chat: same per-line Persian/English/number direction as notes.
@@ -33660,10 +33684,27 @@ input[data-mu-at], textarea[data-mu-at] {
         var d = (document.documentElement.getAttribute('dir') || '').toLowerCase();
         return d === 'rtl' ? 'rtl' : 'ltr';
     }
+    // "98د72929": line starts with a digit, has Persian/Arabic letters, but every such letter is a lone
+    // letter (no 2+ letter word) stuck directly to a digit => plate / code style, keep typed order LTR.
+    var DIG_CH = /[0-9\u06F0-\u06F9\u0660-\u0669]/;
+    function isCodeLine(t){
+        var s = String(t == null ? '' : t).replace(LEAD, '');
+        if (!s || !DIG_CH.test(s.charAt(0))) return false;
+        var found = false;
+        for (var i = 0; i < s.length; i++) {
+            if (!RTL_CH.test(s.charAt(i))) continue;
+            found = true;
+            if (i + 1 < s.length && RTL_CH.test(s.charAt(i + 1))) return false;
+            if (i > 0 && RTL_CH.test(s.charAt(i - 1))) return false;
+            var nearDigit = (i > 0 && DIG_CH.test(s.charAt(i - 1))) || (i + 1 < s.length && DIG_CH.test(s.charAt(i + 1)));
+            if (!nearDigit) return false;
+        }
+        return found;
+    }
     function markEl(el){
         if (el.classList && el.classList.contains('mu-img-row')) { setDir(el, null); return; }
         var t = firstLine(ownText(el));
-        setDir(el, t ? strongDir(t) : appDir());
+        setDir(el, t ? (isCodeLine(t) ? 'code' : strongDir(t)) : appDir());
     }
     function clearTree(root){
         setDir(root, null);
@@ -33680,6 +33721,7 @@ input[data-mu-at], textarea[data-mu-at] {
     // Used by the read-only note viewer too.
     window.muBidiMark = markTree;
     window.muBidiDir = function(text){ return strongDir(firstLine(text) || text); };
+    window.muIsCodeLine = isCodeLine;
 
     function refreshBlock(b, box){
         if (b.closest('.text-box') !== box) return;
@@ -33785,6 +33827,100 @@ input[data-mu-at], textarea[data-mu-at] {
     else window.addEventListener('load', function(){ setTimeout(initialPass, 300); });
 })();
 </script>
+<style id="muBidiGlobalCss">
+/* Same direction rule everywhere (fields, AI chat, titles, lists, answers):
+   first strong letter decides per line; "98د72929"-style lines keep typed order, left to right. */
+:where(input:not([type]):not([dir="ltr"]):not([dir="rtl"]), input[type="text"]:not([dir="ltr"]):not([dir="rtl"]),
+       input[type="search"]:not([dir="ltr"]):not([dir="rtl"]), input[type="url"]:not([dir="ltr"]):not([dir="rtl"]),
+       input[type="email"]:not([dir="ltr"]):not([dir="rtl"]), input[type="tel"]:not([dir="ltr"]):not([dir="rtl"]),
+       textarea:not([dir="ltr"]):not([dir="rtl"])) { unicode-bidi: plaintext; }
+input[data-mu-code], textarea[data-mu-code] { direction: ltr !important; unicode-bidi: bidi-override !important; text-align: left !important; }
+.mAi-bubble [data-mu-code], .mAi-bubble[data-mu-code] { direction: ltr !important; unicode-bidi: bidi-override !important; text-align: left !important; }
+:is(.note-item-title, .note-item-meta-line, .snippet, .mh-name, .kg-info-row-name, .markhin-tag, .mAi-history-item-title, .mAi-history-item-preview, .mAi-quote-text, .mAi-reply-bar-text, .qa-response-box, #muAiAnswerBox, .mu-viewer-title)[data-mu-d="ltr"], :is(.note-item-title, .note-item-meta-line, .snippet, .mh-name, .kg-info-row-name, .markhin-tag, .mAi-history-item-title, .mAi-history-item-preview, .mAi-quote-text, .mAi-reply-bar-text, .qa-response-box, #muAiAnswerBox, .mu-viewer-title) [data-mu-d="ltr"] { direction: ltr !important; text-align: start !important; }
+:is(.note-item-title, .note-item-meta-line, .snippet, .mh-name, .kg-info-row-name, .markhin-tag, .mAi-history-item-title, .mAi-history-item-preview, .mAi-quote-text, .mAi-reply-bar-text, .qa-response-box, #muAiAnswerBox, .mu-viewer-title)[data-mu-d="rtl"], :is(.note-item-title, .note-item-meta-line, .snippet, .mh-name, .kg-info-row-name, .markhin-tag, .mAi-history-item-title, .mAi-history-item-preview, .mAi-quote-text, .mAi-reply-bar-text, .qa-response-box, #muAiAnswerBox, .mu-viewer-title) [data-mu-d="rtl"] { direction: rtl !important; text-align: start !important; }
+:is(.note-item-title, .note-item-meta-line, .snippet, .mh-name, .kg-info-row-name, .markhin-tag, .mAi-history-item-title, .mAi-history-item-preview, .mAi-quote-text, .mAi-reply-bar-text, .qa-response-box, #muAiAnswerBox, .mu-viewer-title)[data-mu-d="code"], :is(.note-item-title, .note-item-meta-line, .snippet, .mh-name, .kg-info-row-name, .markhin-tag, .mAi-history-item-title, .mAi-history-item-preview, .mAi-quote-text, .mAi-reply-bar-text, .qa-response-box, #muAiAnswerBox, .mu-viewer-title) [data-mu-d="code"] { direction: ltr !important; unicode-bidi: bidi-override !important; text-align: left !important; }
+</style>
+<script id="muBidiGlobalJs">
+(function(){
+    'use strict';
+    var Z = '.note-item-title, .note-item-meta-line, .snippet, .mh-name, .kg-info-row-name, .markhin-tag, .mAi-history-item-title, .mAi-history-item-preview, .mAi-quote-text, .mAi-reply-bar-text, .qa-response-box, #muAiAnswerBox, .mu-viewer-title';
+    var mark = window.muBidiMark, isCode = window.muIsCodeLine;
+    if (typeof mark !== 'function' || typeof isCode !== 'function') return;
+    var RTL = /[\u0590-\u05FF\u0620-\u064A\u066E-\u06D5\u06E5\u06E6\u06EE\u06EF\u06FA-\u06FF\u0700-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFC]/;
+    var BLANK = /^[\s\u200B-\u200D\u2060\uFEFF]*$/;
+    var TYPES = { '': 1, text: 1, search: 1, url: 1, email: 1, tel: 1 };
+    var A = 'data-mu-code';
+    function isField(el){
+        if (!el || el.nodeType !== 1) return false;
+        if (el.nodeName === 'TEXTAREA') return true;
+        if (el.nodeName !== 'INPUT') return false;
+        return Object.prototype.hasOwnProperty.call(TYPES, (el.getAttribute('type') || '').toLowerCase());
+    }
+    // Code-like value: at least one "98د72929" line, and no other line with RTL letters.
+    function wantsCode(v){
+        var lines = String(v == null ? '' : v).split(/[\r\n\u2028\u2029]+/), any = false;
+        for (var i = 0; i < lines.length; i++) {
+            if (BLANK.test(lines[i])) continue;
+            if (isCode(lines[i])) { any = true; continue; }
+            if (RTL.test(lines[i])) return false;
+        }
+        return any;
+    }
+    function refreshField(el){
+        var on = wantsCode(el.value);
+        if (on) { if (el.getAttribute(A) !== '1') el.setAttribute(A, '1'); }
+        else if (el.hasAttribute(A)) el.removeAttribute(A);
+    }
+    function onEv(e){ if (isField(e.target)) refreshField(e.target); }
+    ['input', 'compositionend', 'focusin', 'focusout', 'change'].forEach(function(n){ document.addEventListener(n, onEv, true); });
+
+    // Programmatic .value = ... (clearing after send, prefilled titles) has no event: refresh there too.
+    [window.HTMLInputElement, window.HTMLTextAreaElement].forEach(function(C){
+        try {
+            var d = C && Object.getOwnPropertyDescriptor(C.prototype, 'value');
+            if (!d || !d.set) return;
+            Object.defineProperty(C.prototype, 'value', {
+                get: d.get, enumerable: d.enumerable, configurable: true,
+                set: function(v){ d.set.call(this, v); try { if (isField(this)) refreshField(this); } catch (e) {} }
+            });
+        } catch (e) {}
+    });
+
+    var pend = new Set(), queued = false;
+    function flush(){
+        queued = false;
+        pend.forEach(function(n){
+            if (!n.isConnected) return;
+            if (isField(n)) refreshField(n); else { try { mark(n); } catch (e) {} }
+        });
+        pend.clear();
+    }
+    function queue(n){ pend.add(n); if (!queued) { queued = true; requestAnimationFrame(flush); } }
+    function scan(root){
+        if (!root || root.nodeType !== 1) return;
+        if (root.matches && root.matches(Z)) queue(root);
+        if (isField(root)) queue(root);
+        if (root.querySelectorAll) {
+            var zs = root.querySelectorAll(Z); for (var i = 0; i < zs.length; i++) queue(zs[i]);
+            var fs = root.querySelectorAll('input,textarea'); for (var j = 0; j < fs.length; j++) if (isField(fs[j])) queue(fs[j]);
+        }
+    }
+    function start(){
+        if (!window.MutationObserver || !document.body) return;
+        new MutationObserver(function(recs){
+            for (var i = 0; i < recs.length; i++) {
+                var r = recs[i];
+                var t = r.target && (r.target.nodeType === 1 ? r.target : r.target.parentElement);
+                if (t && t.closest) { var z = t.closest(Z); if (z) queue(z); }
+                for (var j = 0; j < r.addedNodes.length; j++) scan(r.addedNodes[j]);
+            }
+        }).observe(document.body, { childList: true, subtree: true, characterData: true });
+        scan(document.body);
+    }
+    if (document.body) start(); else document.addEventListener('DOMContentLoaded', start);
+})();
+</script>
+
 
 <script>
 /* Bug fix: the "Last Edited" line inside an open note only refreshed on a full
@@ -33836,8 +33972,16 @@ body.mu-busy [aria-hidden="true"]::before,body.mu-busy [aria-hidden="true"]::aft
   var b=document.body,t=null;
   function busy(){
     if(!b)return;
+    // Same setting as "pause animations while scrolling": 0 = off, so touching / clicking / scrolling never
+    // freezes the decorative layers; otherwise they stay frozen for that many ms after the last interaction.
+    var d=(window.MU_ScrollPause&&MU_ScrollPause.get)?MU_ScrollPause.get():300;
+    if(d<=0){
+      clearTimeout(t);
+      if(!document.hidden&&b.classList.contains('mu-busy'))b.classList.remove('mu-busy');
+      return;
+    }
     if(!b.classList.contains('mu-busy'))b.classList.add('mu-busy');
-    clearTimeout(t);t=setTimeout(function(){b.classList.remove('mu-busy')},650);
+    clearTimeout(t);t=setTimeout(function(){b.classList.remove('mu-busy')},d);
   }
   var o={passive:true,capture:true};
   document.addEventListener('pointerdown',busy,o);
@@ -34357,13 +34501,74 @@ html[dir="rtl"] .mu-viewer-progress>i{margin-left:auto;transform-origin:right ce
 .mu-ed-ghost .mu-ed-ctl{display:none}
 .mu-ed-drop{position:fixed;z-index:10091;pointer-events:none;background:#ff9f1c;border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.45);display:none}
 </style>
+<style id="muLiveViewerCss">
+/* ===== Viewer: Live — the note is "streamed" into the window word by word ===== */
+.mu-viewer.mu-vs-live .mu-viewer-backdrop{background:radial-gradient(ellipse at 50% 0%,#1d0e16 0%,#07080c 72%);-webkit-backdrop-filter:none;backdrop-filter:none}
+.mu-viewer.mu-vs-live .mu-viewer-card{width:min(640px,100%);border:1px solid rgba(255,77,94,.40);border-radius:16px;color:#eef1f6;background:linear-gradient(180deg,#13151c,#0a0b10);-webkit-backdrop-filter:none;backdrop-filter:none;box-shadow:0 18px 50px rgba(0,0,0,.6),0 0 38px rgba(255,77,94,.11)}
+.mu-viewer.mu-vs-live .mu-viewer-card::before,.mu-viewer.mu-vs-live .mu-viewer-card::after{display:none}
+.mu-viewer.mu-vs-live .mu-viewer-head{padding:18px 58px 12px;padding-inline:58px;text-align:center}
+.mu-viewer.mu-vs-live .mu-viewer-title{color:#fff;text-shadow:none;font-weight:800}
+.mu-viewer.mu-vs-live .mu-viewer-rule{width:min(120px,40%);height:2px;margin:10px auto 0;opacity:1;background:linear-gradient(90deg,transparent,#ff4d5e,transparent)}
+.mu-viewer.mu-vs-live .mu-viewer-rule::after{display:none}
+.mu-viewer.mu-vs-live .mu-viewer-close{border:1px solid rgba(255,77,94,.5);background:rgba(255,77,94,.13);color:#fff;-webkit-backdrop-filter:none;backdrop-filter:none}
+.mu-viewer.mu-vs-live .mu-viewer-close:hover{background:rgba(255,77,94,.32)}
+.mu-viewer.mu-vs-live .mu-viewer-body{color:#e6eaf1;text-shadow:none;scrollbar-color:rgba(255,77,94,.55) transparent}
+.mu-viewer.mu-vs-live .mu-viewer-body::-webkit-scrollbar-thumb{background:rgba(255,77,94,.55)}
+.mu-viewer.mu-vs-live .mu-viewer-body ::selection,.mu-viewer.mu-vs-live .mu-viewer-body::selection{background:#c42b3d;color:#fff}
+.mu-viewer.mu-vs-live .mu-viewer-body,.mu-viewer.mu-vs-live .mu-viewer-body *:not(a):not(a *){color:#fff!important;-webkit-text-fill-color:#fff!important;text-shadow:none!important}
+.mu-viewer.mu-vs-live .mu-viewer-body a{color:#8cc0ff}
+.mu-viewer.mu-vs-live .mu-viewer-body blockquote{background:rgba(255,77,94,.09);border-inline-start:3px solid #ff4d5e}
+.mu-viewer.mu-vs-live .mu-viewer-body td,.mu-viewer.mu-vs-live .mu-viewer-body th{border:1px solid rgba(255,77,94,.3)}
+.mu-viewer.mu-vs-live .mu-viewer-progress>i{background:#ff4d5e;opacity:.9}
+.mu-viewer.mu-vs-live .mu-viewer-tools{order:4;padding-top:6px}
+.mu-viewer.mu-vs-live .mu-viewer-foot{order:5}
+/* LIVE badge (only shown in the Live style) */
+.mu-live-badge{display:none;align-items:center;gap:6px;width:max-content;margin:0 auto 8px;padding:2px 10px;border-radius:999px;border:1px solid rgba(255,77,94,.6);background:rgba(255,77,94,.14);color:#ff8791;font:800 11px/18px system-ui,Arial,sans-serif;letter-spacing:.14em;direction:ltr}
+.mu-viewer.mu-vs-live .mu-live-badge{display:flex}
+.mu-live-badge i{width:8px;height:8px;border-radius:50%;background:#ff3b4e;box-shadow:0 0 8px #ff3b4e;animation:muLivePulse 1.2s ease-in-out infinite}
+.mu-live-badge.is-done{border-color:rgba(160,170,185,.45);background:rgba(160,170,185,.12);color:#aab3c0}
+.mu-live-badge.is-done i{background:#8a94a3;box-shadow:none;animation:none}
+@keyframes muLivePulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.8)}}
+/* control strip: pause / speed / replay / show all */
+.mu-viewer-livebar{display:none}
+.mu-viewer.mu-vs-live .mu-viewer-livebar{display:flex;order:3;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px;padding:8px 16px 0;background:rgba(0,0,0,.22);direction:ltr}
+.mu-viewer-livebar .mu-viewer-tool{gap:6px}
+.mu-viewer-livebar .mu-live-spd{direction:ltr;unicode-bidi:isolate;font:700 12px/1 system-ui,Arial,sans-serif;min-width:30px}
+.mu-viewer-livebar .mu-live-skip{background:rgba(255,77,94,.26);border-color:rgba(255,77,94,.7)}
+/* streaming states */
+.mu-live-pend{display:none!important}
+.mu-live-pop{animation:muLivePop .5s ease-out both}
+@keyframes muLivePop{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:none}}
+.mu-live-caret{display:inline-block;width:2px;height:1.05em;margin:0 1px;vertical-align:text-bottom;background:#ff4d5e;box-shadow:0 0 6px rgba(255,77,94,.85);animation:muLiveBlink 1s steps(1) infinite;pointer-events:none}
+@keyframes muLiveBlink{50%{opacity:0}}
+html.mu-lite .mu-live-caret,html.mu-lite .mu-live-badge i{animation:none!important}
+.mu-viewer.mu-vs-live .mu-viewer-title{text-align:center!important}
+.mu-viewer-eye{display:none;position:absolute;top:14px;inset-inline-start:12px;z-index:3;width:34px;height:34px;padding:0;align-items:center;justify-content:center;border-radius:50%;border:1px solid rgba(255,77,94,.5);background:rgba(255,77,94,.13);color:#fff;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .16s ease,opacity .2s ease,transform .12s ease}
+.mu-viewer-eye svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.mu-viewer-eye:hover{background:rgba(255,77,94,.32)}
+.mu-viewer-eye:active{transform:scale(.92)}
+.mu-viewer.mu-vs-live .mu-viewer-eye{display:inline-flex}
+.mu-viewer.mu-live-clean .mu-viewer-livebar,.mu-viewer.mu-live-clean .mu-viewer-tools,.mu-viewer.mu-live-clean .mu-viewer-progress,.mu-viewer.mu-live-clean .mu-viewer-foot,.mu-viewer.mu-live-clean .mu-live-badge{display:none!important}
+.mu-viewer.mu-vs-live.mu-live-clean .mu-viewer-eye,.mu-viewer.mu-vs-live.mu-live-clean .mu-viewer-close{opacity:.5}
+.mu-viewer.mu-vs-live.mu-live-clean .mu-viewer-eye:hover,.mu-viewer.mu-vs-live.mu-live-clean .mu-viewer-close:hover{opacity:1}
+.mu-viewer.mu-vs-live .mu-viewer-tool[data-act="play"],.mu-viewer.mu-vs-live .mu-viewer-tool[data-act="pspeed"]{display:none}
+.mu-viewer:not(.mu-typing-prog) .mu-viewer-tool[data-act="pspeed"]{display:none}
+.mu-viewer-tools .mu-live-spd{direction:ltr;unicode-bidi:isolate;font:700 12px/1 system-ui,Arial,sans-serif;min-width:30px}
+.mu-viewer.mu-vs-retro .mu-viewer-tools .mu-live-spd{font:12px Tahoma,"MS Sans Serif",Arial,sans-serif;min-width:28px}
+/* Ocean / Windows 95: while Play is typing, every option is hidden except the Play/Stop button; stopping (or finishing) brings them back. */
+.mu-viewer.mu-typing-prog:not(.mu-vs-live) .mu-viewer-tools>:not(.mu-viewer-tools-grp),.mu-viewer.mu-typing-prog:not(.mu-vs-live) .mu-viewer-tools-grp>:not([data-act="play"]):not([data-act="pspeed"]),.mu-viewer.mu-typing-prog:not(.mu-vs-live) .mu-viewer-foot{display:none!important}
+.mu-viewer.mu-typing-prog .mu-viewer-progress>i{transition:width .25s linear}
+.mu-viewer-tool[data-act="play"] svg{fill:currentColor}
+.mu-viewer.mu-vs-ocean .mu-live-caret{background:#5ecde6;box-shadow:0 0 6px rgba(94,205,230,.85)}
+.mu-viewer.mu-vs-retro .mu-live-caret{background:#000;box-shadow:none;animation-duration:.8s}
+</style>
 <script id="muNoteViewerJs">
-// Read-only note viewer style: 'ask' (default: pick each time), 'ocean' or 'retro' (Windows 95).
+// Read-only note viewer style: 'ask' (default: pick each time), 'ocean', 'retro' (Windows 95) or 'live' (typed/streamed word by word).
 window.mu_getViewerStyle = function(){
-    try { var v = localStorage.getItem('markhin_viewer_style_v1'); return (v === 'retro' || v === 'ocean' || v === 'ask') ? v : 'ask'; } catch(e){ return 'ask'; }
+    try { var v = localStorage.getItem('markhin_viewer_style_v1'); return (v === 'retro' || v === 'ocean' || v === 'live' || v === 'ask') ? v : 'ask'; } catch(e){ return 'ask'; }
 };
 window.mu_setViewerStyle = function(v){
-    v = (v === 'retro' || v === 'ocean' || v === 'ask') ? v : 'ask';
+    v = (v === 'retro' || v === 'ocean' || v === 'live' || v === 'ask') ? v : 'ask';
     try { localStorage.setItem('markhin_viewer_style_v1', v); } catch(e){}
 };
 (function(){
@@ -34844,7 +35049,7 @@ window.mu_setViewerStyle = function(v){
       +'<article class="mu-viewer-card">'
       +'<button type="button" class="mu-viewer-close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg></button>'
       +'<header class="mu-viewer-head"><h2 class="mu-viewer-title" dir="auto"></h2><div class="mu-viewer-rule"></div></header>'
-      +'<div class="mu-viewer-tools" role="toolbar"><button type="button" class="mu-viewer-tool" data-act="dec"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18l5-12 5 12M5.8 14h6.4M17 11h4"/></svg></button><button type="button" class="mu-viewer-tool" data-act="inc"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 18l5-12 5 12M4.8 14h6.4M18 8v6M15 11h6"/></svg></button><span class="mu-viewer-tools-sep"></span><span class="mu-viewer-tools-grp"><button type="button" class="mu-viewer-tool" data-act="copy"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 012-2h9"/></svg><span class="mu-viewer-tool-label"></span></button><button type="button" class="mu-viewer-tool" data-act="edit" aria-pressed="false" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l1-4L16.5 4.5a2 2 0 013 3L8 19z"/><path d="M14 7l3 3"/></svg></button><button type="button" class="mu-viewer-tool" data-act="img" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M4 17l5-4.5 3.5 3 3-2.5 4.5 4"/></svg></button></span></div><div class="mu-viewer-progress"><i></i></div>'
+      +'<div class="mu-viewer-tools" role="toolbar"><button type="button" class="mu-viewer-tool" data-act="dec"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18l5-12 5 12M5.8 14h6.4M17 11h4"/></svg></button><button type="button" class="mu-viewer-tool" data-act="inc"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 18l5-12 5 12M4.8 14h6.4M18 8v6M15 11h6"/></svg></button><span class="mu-viewer-tools-sep"></span><span class="mu-viewer-tools-grp"><button type="button" class="mu-viewer-tool" data-act="copy"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 012-2h9"/></svg><span class="mu-viewer-tool-label"></span></button><button type="button" class="mu-viewer-tool" data-act="play"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5l12 7.5-12 7.5z"/></svg></button><button type="button" class="mu-viewer-tool" data-act="pspeed"><span class="mu-live-spd">×1</span></button><button type="button" class="mu-viewer-tool" data-act="edit" aria-pressed="false" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l1-4L16.5 4.5a2 2 0 013 3L8 19z"/><path d="M14 7l3 3"/></svg></button><button type="button" class="mu-viewer-tool" data-act="img" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M4 17l5-4.5 3.5 3 3-2.5 4.5 4"/></svg></button></span></div><div class="mu-viewer-progress"><i></i></div>'
       +'<div class="mu-viewer-body" dir="auto"></div>'
       +'<footer class="mu-viewer-foot"><button type="button" class="mu-viewer-ok">OK</button></footer>'
       +'<input type="file" accept="image/*" class="mu-ed-file" hidden>'
@@ -34865,6 +35070,8 @@ window.mu_setViewerStyle = function(v){
     root.__applyScale=applyScale;
     function updProg(){
       var bar=root.querySelector('.mu-viewer-progress>i'), max=vb.scrollHeight-vb.clientHeight;
+      var LS=root.__live;
+      if(LS&&LS.play&&!LS.done&&root.__liveFrac){ bar.style.width=(root.__liveFrac(LS)*100)+'%'; return; }
       bar.style.width=(max>4?Math.min(100,Math.max(0,vb.scrollTop/max*100)):100)+'%';
     }
     root.__updProg=updProg;
@@ -34877,7 +35084,7 @@ window.mu_setViewerStyle = function(v){
         try{ localStorage.setItem(fsKey(),String(sc)); }catch(err){}
         applyScale(); updProg();
       } else if(act==='copy'){
-        var txt=vb.innerText||vb.textContent||'', fa=(document.documentElement.lang||'fa')==='fa';
+        var txt=vb.__liveFull||vb.innerText||vb.textContent||'', fa=(document.documentElement.lang||'fa')==='fa';
         var done=function(){
           var l=b.querySelector('.mu-viewer-tool-label'); b.classList.add('is-done'); l.textContent=fa?'کپی شد':'Copied';
           setTimeout(function(){ b.classList.remove('is-done'); l.textContent=fa?'کپی':'Copy'; },1400);
@@ -34886,6 +35093,56 @@ window.mu_setViewerStyle = function(v){
         if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done,fb); } else fb();
       }
     });
+    // ---- Live style extras: LIVE badge + control strip (visible only in the Live style via CSS) ----
+    (function(){
+      var head=root.querySelector('.mu-viewer-head');
+      var bd=document.createElement('span'); bd.className='mu-live-badge'; bd.innerHTML='<i></i><b>LIVE</b>';
+      head.insertBefore(bd, head.firstChild);
+      var lb=document.createElement('div'); lb.className='mu-viewer-livebar'; lb.setAttribute('role','toolbar');
+      lb.innerHTML=''
+        +'<button type="button" class="mu-viewer-tool" data-live="pause"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg></button>'
+        +'<button type="button" class="mu-viewer-tool" data-live="speed"><span class="mu-live-spd">×1</span></button>'
+        +'<button type="button" class="mu-viewer-tool" data-live="mode"><span class="mu-live-spd mu-live-mode"></span></button>'
+        +'<button type="button" class="mu-viewer-tool" data-live="replay"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.6-5.9M4 4v4.6h4.6"/></svg></button>'
+        +'<button type="button" class="mu-viewer-tool mu-live-skip" data-live="skip"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l7 7-7 7M13 5l7 7-7 7"/></svg><span class="mu-viewer-tool-label"></span></button>';
+      root.querySelector('.mu-viewer-progress').insertAdjacentElement('afterend', lb);
+      // Eye button (Live style): hides every option so only the frame and the typing text remain; press again to bring them back.
+      var eye=document.createElement('button'); eye.type='button'; eye.className='mu-viewer-eye';
+      root.querySelector('.mu-viewer-close').insertAdjacentElement('afterend', eye);
+      eye.addEventListener('click',function(){
+        var on=root.classList.contains('mu-live-clean');
+        if(!on && root.__ed && root.__ed.active) return;
+        setEyeBtn(!on);
+      });
+      setEyeBtn(false);
+      lb.addEventListener('click',function(e){
+        var b=e.target.closest('[data-live]'); if(!b||b.disabled||!root.__live) return;
+        liveAct(root.__live, b.getAttribute('data-live'));
+      });
+      // Speed button (Ocean + Windows 95): 0.25x -> 0.5x -> 0.75x -> 1x, also while typing.
+      root.querySelector('.mu-viewer-tools').addEventListener('click',function(e){
+        var b=e.target.closest&&e.target.closest('[data-act="pspeed"]'); if(!b) return;
+        var cur=root.__playSpeed||0.25, nx=PSPEEDS[(PSPEEDS.indexOf(cur)+1)%PSPEEDS.length];
+        setPSpeed(nx);
+        var S=root.__live; if(S&&S.play&&!S.done){ S.speed=nx; }
+      });
+      // Play / Stop button (Ocean + Windows 95): types the note letter by letter at 0.25x; pressing it again shows the whole note.
+      root.querySelector('.mu-viewer-tools').addEventListener('click',function(e){
+        var b=e.target.closest&&e.target.closest('[data-act="play"]'); if(!b) return;
+        var S=root.__live;
+        if(S&&!S.done){ liveEnd(S); return; }
+        var body=root.querySelector('.mu-viewer-body');
+        if(body.classList.contains('mu-viewer-empty')||(root.__ed&&root.__ed.active)) return;
+        body.scrollTop=0;
+        try{ liveInit(body,currentLang==='fa',{speed:root.__playSpeed||0.25,mode:'char',play:true}); }
+        catch(err){ try{ if(root.__live) liveEnd(root.__live); }catch(e2){} }
+      });
+      // Editing (pencil / add image) needs the complete note in the DOM: finish the typing first.
+      root.querySelector('.mu-viewer-tools').addEventListener('click',function(e){
+        var b=e.target.closest&&e.target.closest('[data-act="edit"],[data-act="img"]');
+        if(b&&root.__live&&!root.__live.done) liveEnd(root.__live);
+      },true);
+    })();
     document.body.appendChild(root);
     setupEdit(root);
     return root;
@@ -34893,6 +35150,7 @@ window.mu_setViewerStyle = function(v){
   function close(){
     if(!root||root.hidden) return;
     if(root.__ed&&root.__ed.active) root.__ed.exit();
+    if(root.__live){ try{ clearTimeout(root.__live.t); }catch(e){} root.__live=null; }
     root.hidden=true;
     root.querySelector('.mu-viewer-body').innerHTML='';
     document.documentElement.classList.remove('mu-viewer-open');
@@ -34945,7 +35203,7 @@ window.mu_setViewerStyle = function(v){
       '<div class="advanced-head image-export-picker-head"><div>'+
         '<h3 style="margin:0">'+(fa?'نمایش یادداشت':'View note')+'</h3>'+
       '</div><button class="btn-main" type="button" onclick="closeAdvancedModal()">✕</button></div>'+
-      '<div class="image-export-choice-grid" style="grid-template-columns:1fr 1fr">'+
+      '<div class="image-export-choice-grid" style="grid-template-columns:1fr 1fr 1fr">'+
         '<button type="button" class="image-export-choice" style="min-height:0;align-items:center;text-align:center" onclick="mu_viewerChoicePick(\'ocean\')">'+
           '<span class="image-export-choice-icon">🌊</span>'+
           '<span class="image-export-choice-name">'+(fa?'اقیانوسی':'Ocean')+'</span>'+
@@ -34954,12 +35212,207 @@ window.mu_setViewerStyle = function(v){
           '<span class="image-export-choice-icon">🪟</span>'+
           '<span class="image-export-choice-name">'+(fa?'ویندوز ۹۵':'Windows 95')+'</span>'+
         '</button>'+
+        '<button type="button" class="image-export-choice" style="min-height:0;align-items:center;text-align:center" onclick="mu_viewerChoicePick(\'live\')">'+
+          '<span class="image-export-choice-icon">🔴</span>'+
+          '<span class="image-export-choice-name">Live</span>'+
+        '</button>'+
       '</div>');
   };
 
+  // ===== Live style: the note is typed into the window word by word (text, images, audio... in order) =====
+  var LIVE_ATOM='img,video,canvas,audio,iframe,svg,hr,br,.img-drag-wrapper,.audio-wrapper';
+  function liveClean(el){ el.classList.remove('mu-live-pend','mu-live-pop'); if(!el.getAttribute('class')) el.removeAttribute('class'); }
+  function liveBuild(body){
+    var q=[];
+    (function walk(n,anc){
+      for(var c=n.firstChild;c;c=c.nextSibling){
+        if(c.nodeType===3){
+          if(!/\S/.test(c.nodeValue)) continue;
+          q.push({node:c,full:c.nodeValue,anc:anc.slice()});
+        } else if(c.nodeType===1){
+          var tg=c.tagName;
+          if(tg==='SCRIPT'||tg==='STYLE'||tg==='TEMPLATE') continue;
+          if(c.matches(LIVE_ATOM)) q.push({el:c,anc:anc.slice()});
+          else walk(c,anc.concat([c]));
+        }
+      }
+    })(body,[]);
+    return q;
+  }
+  var PLAY_SVG='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5l12 7.5-12 7.5z"/></svg>', STOP_SVG='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>';
+  var EYE_SVG='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>', EYEOFF_SVG='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path d="M4 4l16 16"/></svg>';
+  function setEyeBtn(clean){
+    var eb=root&&root.querySelector('.mu-viewer-eye'); if(!eb) return;
+    var fa=currentLang==='fa';
+    root.classList.toggle('mu-live-clean',!!clean);
+    eb.innerHTML=clean?EYEOFF_SVG:EYE_SVG;
+    var l=clean?(fa?'نمایش گزینه‌ها':'Show controls'):(fa?'پنهان‌کردن گزینه‌ها':'Hide controls');
+    eb.title=l; eb.setAttribute('aria-label',l); eb.setAttribute('aria-pressed',clean?'true':'false');
+  }
+  var PSPEEDS=[0.25,0.5,0.75,1];
+  function setPSpeed(v){
+    if(!root) return;
+    root.__playSpeed=v;
+    var pb=root.querySelector('[data-act="pspeed"]'); if(!pb) return;
+    var fa=currentLang==='fa';
+    pb.querySelector('.mu-live-spd').textContent='×'+Math.round(v*4*100)/100;
+    pb.title=fa?'سرعت تایپ':'Typing speed'; pb.setAttribute('aria-label',pb.title);
+  }
+  function setPlayBtn(run){
+    var pb=root&&root.querySelector('[data-act="play"]'); if(!pb) return;
+    var fa=currentLang==='fa';
+    pb.setAttribute('data-state',run?'stop':'play');
+    pb.innerHTML=run?STOP_SVG:PLAY_SVG;
+    var l=run?(fa?'توقف و نمایش کامل یادداشت':'Stop and show the full note'):(fa?'پخش (تایپ حرف‌به‌حرف از اول)':'Play (type letter by letter from the start)');
+    pb.title=l; pb.setAttribute('aria-label',l);
+  }
+  // How much of the note has been typed so far (0..1): letters count 1 each, images/audio count like ~12 letters.
+  function liveFrac(S){
+    var tot=0, got=0;
+    for(var k=0;k<S.q.length;k++){
+      var it=S.q[k];
+      if(it.node){ tot+=it.full.length; got+=(it.pos||0); }
+      else { var w=(it.el.tagName==='BR')?1:12; tot+=w; if(!it.el.classList.contains('mu-live-pend')) got+=w; }
+    }
+    return tot>0?Math.min(1,got/tot):1;
+  }
+  function liveUI(S){
+    setPlayBtn(!S.done);
+    root.classList.toggle('mu-typing-prog',!!S.play&&!S.done);
+    var lb=root.querySelector('.mu-viewer-livebar'), bd=root.querySelector('.mu-live-badge'), fa=S.fa;
+    var bp=lb.querySelector('[data-live="pause"]'), bs=lb.querySelector('[data-live="skip"]'), bsp=lb.querySelector('[data-live="speed"]'), br=lb.querySelector('[data-live="replay"]');
+    bp.innerHTML=S.paused
+      ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5l12 7.5-12 7.5z"/></svg>'
+      : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>';
+    var pl=S.paused?(fa?'ادامه':'Resume'):(fa?'توقف':'Pause');
+    bp.setAttribute('aria-label',pl); bp.title=pl; bp.disabled=S.done;
+    bsp.querySelector('.mu-live-spd').textContent='×'+Math.round(S.speed*4*100)/100; bsp.title=fa?'سرعت':'Speed'; bsp.setAttribute('aria-label',bsp.title); bsp.disabled=S.done;
+    var bm=lb.querySelector('[data-live="mode"]');
+    if(bm){ var ml=S.mode==='char'?(fa?'حرف‌به‌حرف':'Letters'):(fa?'کلمه‌به‌کلمه':'Words'); bm.querySelector('.mu-live-spd').textContent=ml; bm.title=fa?'روش تایپ: کلمه‌به‌کلمه / حرف‌به‌حرف':'Typing: word by word / letter by letter'; bm.setAttribute('aria-label',bm.title); }
+    br.title=fa?'پخش دوباره':'Replay'; br.setAttribute('aria-label',br.title);
+    bs.querySelector('.mu-viewer-tool-label').textContent=fa?'نمایش یکجا':'Show all'; bs.title=bs.querySelector('.mu-viewer-tool-label').textContent; bs.disabled=S.done;
+    bd.classList.toggle('is-done',S.done||S.paused);
+    bd.querySelector('b').textContent=S.done?(fa?'پایان':'DONE'):(S.paused?(fa?'مکث':'PAUSED'):'LIVE');
+  }
+  function liveReveal(anc){ for(var i=0;i<anc.length;i++) liveClean(anc[i]); }
+  function liveEnd(S){
+    if(!S||S.done) return;
+    clearTimeout(S.t); S.t=0;
+    S.q.forEach(function(it){
+      if(it.node) it.node.nodeValue=it.full; else liveClean(it.el);
+      liveReveal(it.anc);
+    });
+    if(S.caret&&S.caret.parentNode) S.caret.parentNode.removeChild(S.caret);
+    S.done=true; S.paused=false; S.body.__liveFull=null;
+    liveUI(S);
+    try{ if(root.__updProg) root.__updProg(); }catch(e){}
+  }
+  function livePrepare(S){
+    S.q.forEach(function(it){
+      if(it.node){ it.node.nodeValue=''; it.pos=0; }
+      else it.el.classList.add('mu-live-pend');
+      it.anc.forEach(function(a){ a.classList.add('mu-live-pend'); });
+    });
+    S.i=0; S.done=false; S.paused=false; S.follow=true; S.lastProg=0;
+  }
+  function liveDelay(tk){
+    var t=tk.replace(/\s+$/,''), d=80+Math.min(t.length,10)*6;
+    if(/[.!?؟…]["'»)\]]*$/.test(t)) d+=260; else if(/[,،;؛:]$/.test(t)) d+=120;
+    return d*(0.8+Math.random()*0.45);
+  }
+  var LIVE_CH=/^(?:[\uD800-\uDBFF][\uDC00-\uDFFF]|[\s\S])[\u0300-\u036f\u064B-\u065F\u0670\u200C\u200D\uFE0F]*/;
+  function liveDelayCh(ch){
+    var d=44;
+    if(/\s/.test(ch)) d=ch==='\n'?120:58;
+    else if(/[.!?؟…]/.test(ch)) d=190;
+    else if(/[,،;؛:]/.test(ch)) d=120;
+    return d*(0.85+Math.random()*0.35);
+  }
+  function liveStep(S){
+    S.t=0;
+    if(S.done||S.paused||root.__live!==S) return;
+    var it=S.q[S.i];
+    if(!it){ liveEnd(S); return; }
+    var d, host;
+    if(it.node){
+      if(!it.pos) liveReveal(it.anc);
+      var rest=it.full.slice(it.pos), tk, mm;
+      if(S.mode==='char'){ mm=rest.match(LIVE_CH); tk=mm?mm[0]:rest; d=liveDelayCh(tk); }
+      else { mm=rest.match(/^\s*\S+\s*/); tk=mm?mm[0]:rest; d=liveDelay(tk); }
+      it.pos+=tk.length; it.node.nodeValue=it.full.slice(0,it.pos); host=it.node;
+      if(it.pos>=it.full.length){
+        S.i++;
+        var nx=S.q[S.i];
+        if(nx && (nx.node?nx.node.parentNode:nx.el.parentNode)!==it.node.parentNode) d+=110;
+      }
+    } else {
+      liveReveal(it.anc); it.el.classList.remove('mu-live-pend'); it.el.classList.add('mu-live-pop');
+      host=it.el; S.i++; d=(it.el.tagName==='BR')?45:520;
+    }
+    if(host.parentNode) host.parentNode.insertBefore(S.caret,host.nextSibling);
+    if(S.follow){
+      var cr=S.caret.getBoundingClientRect(), br=S.body.getBoundingClientRect();
+      if(it.el&&!it.node){ var er=it.el.getBoundingClientRect(); if(er.bottom>cr.bottom) cr=er; }
+      if(cr.bottom>br.bottom-28){ S.lastProg=Date.now(); S.body.scrollTop+=cr.bottom-br.bottom+40; }
+    }
+    try{ root.__updProg(); }catch(e){}
+    S.t=setTimeout(function(){ liveStep(S); }, d/S.speed);
+  }
+  function liveAct(S,act){
+    if(act==='skip'){ liveEnd(S); return; }
+    if(act==='pause'){
+      if(S.done) return;
+      S.paused=!S.paused;
+      if(S.paused){ clearTimeout(S.t); S.t=0; } else liveStep(S);
+      liveUI(S); return;
+    }
+    if(act==='mode'){
+      S.mode=(S.mode==='char')?'word':'char';
+      try{ localStorage.setItem('mu_live_mode',S.mode); }catch(e){}
+      liveUI(S); return;
+    }
+    if(act==='speed'){ var SP=[0.25,0.5,0.75,1,2,4]; S.speed=SP[(SP.indexOf(S.speed)+1)%SP.length]; liveUI(S); return; }
+    if(act==='replay'){
+      clearTimeout(S.t); S.t=0;
+      if(S.caret&&S.caret.parentNode) S.caret.parentNode.removeChild(S.caret);
+      S.q.forEach(function(it){ if(it.node) it.node.nodeValue=it.full; else liveClean(it.el); liveReveal(it.anc); });
+      S.body.__liveFull=S.fullText;
+      livePrepare(S); S.body.scrollTop=0; liveUI(S);
+      S.t=setTimeout(function(){ liveStep(S); },350);
+    }
+  }
+  function liveInit(body,fa,opts){
+    if(root.__live){ try{ clearTimeout(root.__live.t); }catch(e){} }
+    if(body.__liveOff){ try{ body.__liveOff(); }catch(e){} body.__liveOff=null; }
+    var S={body:body,fa:fa,speed:0.25,mode:'char',t:0,i:0,done:false,paused:false,follow:true,lastProg:0};
+    try{ if(localStorage.getItem('mu_live_mode')==='word') S.mode='word'; }catch(e){}
+    if(opts&&opts.mode) S.mode=opts.mode;
+    if(opts&&opts.speed) S.speed=opts.speed;
+    if(opts&&opts.play) S.play=true;
+    S.fullText=body.innerText||body.textContent||'';
+    body.__liveFull=S.fullText;
+    S.q=liveBuild(body);
+    if(!S.q.length){ body.__liveFull=null; return null; }
+    S.caret=document.createElement('span'); S.caret.className='mu-live-caret'; S.caret.setAttribute('aria-hidden','true');
+    livePrepare(S);
+    var off=function(){ S.follow=false; };
+    var onScroll=function(){
+      if(S.done||Date.now()-S.lastProg<120) return;
+      S.follow=(body.scrollHeight-body.scrollTop-body.clientHeight)<32;
+    };
+    body.addEventListener('wheel',off,{passive:true});
+    body.addEventListener('touchmove',off,{passive:true});
+    body.addEventListener('scroll',onScroll,{passive:true});
+    body.__liveOff=function(){ body.removeEventListener('wheel',off); body.removeEventListener('touchmove',off); body.removeEventListener('scroll',onScroll); };
+    root.__live=S; root.__liveFrac=liveFrac;
+    liveUI(S);
+    S.t=setTimeout(function(){ liveStep(S); },400);
+    return S;
+  }
+
   window.mu_openNoteViewer=async function(id,styleOverride){
     // Default setting = "ask": show the Ocean / Windows 95 picker first, then open with the chosen look.
-    if(styleOverride!=='retro' && styleOverride!=='ocean' && window.mu_getViewerStyle && window.mu_getViewerStyle()==='ask'){
+    if(styleOverride!=='retro' && styleOverride!=='ocean' && styleOverride!=='live' && window.mu_getViewerStyle && window.mu_getViewerStyle()==='ask'){
       window.mu_openViewerStyleChooser(id); return;
     }
     var item=categories.find(function(c){return String(c.id)===String(id);});
@@ -34995,12 +35448,23 @@ window.mu_setViewerStyle = function(v){
     try{ root.querySelector('.mu-viewer-title').setAttribute('dir', window.muBidiDir?window.muBidiDir(title):'auto'); }catch(e){}
     root.querySelector('.mu-viewer-close').setAttribute('aria-label',fa?'بستن':'Close');
     root.querySelector('.mu-viewer-ok').textContent=fa?'باشه':'OK';
-    var vStyle=(styleOverride==='retro'||styleOverride==='ocean')?styleOverride:((window.mu_getViewerStyle&&window.mu_getViewerStyle()!=='ask'&&window.mu_getViewerStyle())||'ocean');
+    var vStyle=(styleOverride==='retro'||styleOverride==='ocean'||styleOverride==='live')?styleOverride:((window.mu_getViewerStyle&&window.mu_getViewerStyle()!=='ask'&&window.mu_getViewerStyle())||'ocean');
     root.classList.toggle('mu-vs-retro', vStyle==='retro');
     root.classList.toggle('mu-vs-ocean', vStyle==='ocean');
+    root.classList.toggle('mu-vs-live', vStyle==='live');
+    // Live style: options start hidden (eye active) and the title is centred. An inline !important is needed because the
+    // bidi rules (data-mu-d) force text-align:start !important with an #id-weight selector.
+    setEyeBtn(vStyle==='live');
+    var ttl=root.querySelector('.mu-viewer-title');
+    if(vStyle==='live') ttl.style.setProperty('text-align','center','important'); else ttl.style.removeProperty('text-align');
+    if(root.__live){ try{ clearTimeout(root.__live.t); }catch(e){} root.__live=null; }
+    setPlayBtn(false);
+    setPSpeed(0.25);
+    root.classList.remove('mu-typing-prog');
     var body=root.querySelector('.mu-viewer-body');
     var empty=!String(html).replace(/<[^>]*>/g,'').trim() && !/<(img|canvas|video|audio|table)/i.test(html);
     body.classList.toggle('mu-viewer-empty',empty);
+    body.__liveFull=null;
     body.innerHTML=empty?(fa?'این یادداشت خالی است.':'This note is empty.'):html;
     // Strictly read-only: nothing inside can be edited or dragged.
     body.querySelectorAll('[contenteditable]').forEach(function(n){n.removeAttribute('contenteditable');});
@@ -35027,6 +35491,8 @@ window.mu_setViewerStyle = function(v){
     root.hidden=false;
     document.documentElement.classList.add('mu-viewer-open');
     if(root.__applyScale) root.__applyScale();
+    // Live style: hide the finished note and start typing it (done in the same task, so there is no flash of full text).
+    if(vStyle==='live' && !empty){ try{ liveInit(body,fa); }catch(e){ try{ if(root.__live) liveEnd(root.__live); }catch(e2){} } }
     if(root.__updProg) root.__updProg();
     root.querySelector('.mu-viewer-close').focus({preventScroll:true});
   };
@@ -35592,7 +36058,7 @@ html.mu-zooming .header-nav{-webkit-backdrop-filter:blur(15px) !important;backdr
           '<div class="mu-set-desc">' + (fa ? 'با «نمایش یادداشت» هر بار بپرسد، یا همیشه با یک سبک ثابت باز شود.' : 'Ask each time you press “View note”, or always open with one fixed style.') + '</div>' +
         '</div>' +
         '<div class="mu-vs-seg" id="muViewerStyleSeg" role="group">' +
-          [['ask', fa ? 'انتخاب هر بار (پیش‌فرض)' : 'Ask each time (default)'], ['ocean', fa ? 'اقیانوسی' : 'Ocean'], ['retro', fa ? 'ویندوز ۹۵' : 'Windows 95']].map(function (o) {
+          [['ask', fa ? 'انتخاب هر بار (پیش‌فرض)' : 'Ask each time (default)'], ['ocean', fa ? 'اقیانوسی' : 'Ocean'], ['retro', fa ? 'ویندوز ۹۵' : 'Windows 95'], ['live', 'Live']].map(function (o) {
             return '<button type="button" class="mu-vs-opt" data-vs="' + o[0] + '" aria-pressed="' + ((window.mu_getViewerStyle && window.mu_getViewerStyle() === o[0]) ? 'true' : 'false') + '" onclick="MU_Lite.setViewerStyle(\'' + o[0] + '\')">' + o[1] + '</button>';
           }).join('') +
         '</div>' +
@@ -35600,6 +36066,7 @@ html.mu-zooming .header-nav{-webkit-backdrop-filter:blur(15px) !important;backdr
       + (window.MU_ScrollPause ? MU_ScrollPause.html(fa) : '')
       + (window.MU_Eco ? MU_Eco.html(fa) : '')
     );
+    try { if (window.MU_ScrollPause && MU_ScrollPause.sync) MU_ScrollPause.sync(); } catch (e) {}
     if (card) card.classList.remove('kg-wide');
   }
 
@@ -35607,6 +36074,7 @@ html.mu-zooming .header-nav{-webkit-backdrop-filter:blur(15px) !important;backdr
     var sw = document.getElementById('muLiteSwitch'), b = document.getElementById('muLiteBadge'), fa = isFa();
     if (sw) sw.setAttribute('aria-checked', isOn() ? 'true' : 'false');
     if (b) b.textContent = isOn() ? (fa ? 'روشن' : 'ON') : (fa ? 'خاموش' : 'OFF');
+    try { if (window.MU_ScrollPause && MU_ScrollPause.sync) MU_ScrollPause.sync(); } catch (e) {}
   }
 
   function openWarning() {
@@ -36682,29 +37150,40 @@ html.mu-eco-deep .note-btn-wrap { content-visibility: auto; contain-intrinsic-si
   };
 })();
 
-/* Scroll-pause delay: how long (ms) the heavy theme effects stay paused after scrolling stops. 100-400, default 150. */
+/* Scroll-pause delay: how long (ms) the heavy theme effects stay paused after scrolling stops. 0-1000, default 300. 0 = never pause while scrolling. */
 (function(){
-  var KEY='app_scrollpause_ms', MIN=100, MAX=400, DEFV=150;
+  var KEY='app_scrollpause_ms', MIN=0, MAX=1000, DEFV=300;
   function clamp(v){ v=Math.round(Number(v)); if(!isFinite(v)) v=DEFV; return Math.max(MIN,Math.min(MAX,v)); }
   function get(){ try{ var r=localStorage.getItem(KEY); return r===null?DEFV:clamp(r); }catch(e){ return DEFV; } }
-  function set(v){ v=clamp(v); try{ localStorage.setItem(KEY,String(v)); }catch(e){} sync(); return v; }
+  function isLite(){ try{ return !!(window.MU_Lite && MU_Lite.isOn && MU_Lite.isOn()); }catch(e){ return false; } }
+  function set(v){
+    v=clamp(v); try{ localStorage.setItem(KEY,String(v)); }catch(e){}
+    // turning the feature off (0) while the page is mid-scroll must release the freeze right away
+    if(v===0){ try{ if(!window.__muZoomBusy && document.body) document.body.classList.remove('mu-scrolling'); if(!document.hidden && document.body) document.body.classList.remove('mu-busy'); }catch(e){} }
+    sync(); return v;
+  }
   function sync(){
-    var v=get(), s=document.getElementById('muSpRange'), l=document.getElementById('muSpVal');
-    if(s) s.value=v;
-    if(l) l.textContent=v+' ms';
+    var v=get(), lite=isLite(), f=(document.documentElement.getAttribute('lang')||'fa')==='fa';
+    var s=document.getElementById('muSpRange'), l=document.getElementById('muSpVal'), n=document.getElementById('muSpNote');
+    if(s){ s.value=v; s.disabled=lite; s.style.opacity=lite?'.45':''; }
+    if(l) l.textContent=(v===0?(f?'خاموش':'Off'):v+' ms');
+    if(n) n.textContent=lite?(f?'نسخه سبک روشن است و انیمیشنی وجود ندارد، پس این تنظیم فعلاً اثری ندارد.':'Lite version is on and has no animations, so this setting has no effect right now.')
+                              :(v===0?(f?'۰ = خاموش: انیمیشن‌ها هنگام اسکرول متوقف نمی‌شوند.':'0 = off: animations are not paused while scrolling.'):'');
   }
   function html(f){
     var v=get();
     return '<div class="mu-set-row" style="flex-direction:column;align-items:stretch">'+
       '<div class="mu-set-text"><div class="mu-set-title">'+(f?'توقف انیمیشن‌ها هنگام اسکرول':'Pause animations while scrolling')+
-      '<span class="mu-set-badge" id="muSpVal" dir="ltr">'+v+' ms</span></div>'+
-      '<div class="mu-set-desc">'+(f?'افکت‌های سنگین تم هنگام اسکرول متوقف می‌شوند و بعد از ایستادن اسکرول، به اندازه‌ی این زمان صبر می‌کنند و ادامه می‌یابند. از ۱۰۰ تا ۴۰۰ میلی‌ثانیه؛ پیش‌فرض ۱۵۰.'
-        :'Heavy theme effects freeze while you scroll and resume after this delay once scrolling stops. 100 to 400 ms; default 150.')+'</div></div>'+
+      '<span class="mu-set-badge" id="muSpVal" dir="ltr">'+(v===0?(f?'خاموش':'Off'):v+' ms')+'</span></div>'+
+      '<div class="mu-set-desc">'+(f?'افکت‌های سنگین تم هنگام اسکرول متوقف می‌شوند و بعد از ایستادن اسکرول، به اندازه‌ی این زمان صبر می‌کنند و ادامه می‌یابند. از ۰ تا ۱۰۰۰ میلی‌ثانیه؛ پیش‌فرض ۳۰۰. اگر ۰ باشد، انیمیشن‌ها هنگام اسکرول متوقف نمی‌شوند (در نسخه سبک که انیمیشنی نیست، این تنظیم اثری ندارد).'
+        :'Heavy theme effects freeze while you scroll and resume after this delay once scrolling stops. 0 to 1000 ms; default 300. At 0 animations are never paused while scrolling (Lite version has no animations, so it has no effect there).')+'</div><div class="mu-set-desc" id="muSpNote" style="margin-top:4px;opacity:.85"></div></div>'+
       '<input type="range" id="muSpRange" min="'+MIN+'" max="'+MAX+'" step="10" value="'+v+'" dir="ltr" style="width:100%;margin-top:10px;accent-color:#ff3d57" oninput="MU_ScrollPause.set(this.value)" aria-label="'+(f?'تأخیر توقف اسکرول':'Scroll pause delay')+'">'+
-      '<button type="button" class="btn-main" style="margin-top:8px;font-size:11px;padding:6px 12px;align-self:flex-start" onclick="MU_ScrollPause.set('+DEFV+')">↺ '+(f?'بازنشانی (۱۵۰)':'Reset (150)')+'</button>'+
+      '<button type="button" class="btn-main" style="margin-top:8px;font-size:11px;padding:6px 12px;align-self:flex-start" onclick="MU_ScrollPause.set('+DEFV+')">↺ '+(f?'بازنشانی (۳۰۰)':'Reset (300)')+'</button>'+
     '</div>';
   }
-  window.MU_ScrollPause={ get:get, set:set, html:html, min:MIN, max:MAX, def:DEFV };
+  window.MU_ScrollPause={ get:get, set:set, html:html, sync:sync, min:MIN, max:MAX, def:DEFV };
+  // settings markup is injected after this runs: fill in the note / Lite state once it exists
+  setTimeout(sync, 0);
 })();
 </script>
 </body>
