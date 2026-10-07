@@ -6406,6 +6406,426 @@ html, body, button, input, textarea, select, [contenteditable="true"] {
 }
 
 </style>
+<style id="muNumBidiCss">
+/* digits + ONE Persian/Arabic letter + digits (e.g. 5373د8292, 12ب345):
+   always shown left-to-right exactly in the order it was typed,
+   even inside a Persian (RTL) line. */
+.mu-nb { direction: ltr; unicode-bidi: isolate-override; }
+</style>
+<script id="muNumBidi">
+(function () {
+  'use strict';
+  if (window.__muNumBidi) return;
+  window.__muNumBidi = true;
+
+  /* digit (ASCII / Arabic-Indic / Persian) */
+  var D = '0-9\\u0660-\\u0669\\u06F0-\\u06F9';
+  /* a single Arabic-script letter (Persian letters included, no diacritics) */
+  var L = '\\u0621-\\u063A\\u0641-\\u064A\\u066E\\u066F\\u0671-\\u06D3\\u06D5\\u06FA-\\u06FF';
+  var CHAIN_SRC = '[' + D + ']+(?:[' + L + '][' + D + ']+)+';
+  var QUICK = new RegExp('[' + D + '][' + L + '][' + D + ']');
+
+  /* ------------------------------------------------------------------
+     Part 1 — plain string helpers (used for <input> / <textarea>).
+     In a field we cannot put a <span>, so the chain is wrapped in
+     invisible bidi controls: LRI LRO ... PDF PDI  (isolate + override).
+     The value seen by the app's own code is always the clean text
+     (see the value / selection patches below).
+     ------------------------------------------------------------------ */
+  var MARK_RE = /[\u2066\u2069\u202C\u202D]/;
+  var MARK_RE_G = /[\u2066\u2069\u202C\u202D]/g;
+  var OPEN = '\u2066\u202D', CLOSE = '\u202C\u2069';
+
+  function hasMarks(s) { return typeof s === 'string' && MARK_RE.test(s); }
+  function strip(s) { return s.replace(MARK_RE_G, ''); }
+  function wrap(s) {
+    if (!QUICK.test(s)) return s;
+    return s.replace(new RegExp(CHAIN_SRC, 'g'), function (m) { return OPEN + m + CLOSE; });
+  }
+  function isMarkCode(c) { return c === 0x2066 || c === 0x2069 || c === 0x202C || c === 0x202D; }
+  function rawToClean(raw, n) {
+    var c = 0;
+    for (var i = 0; i < n && i < raw.length; i++) if (!isMarkCode(raw.charCodeAt(i))) c++;
+    return c;
+  }
+  /* position right after the c-th real character (before any marks that follow it) */
+  function cleanToRaw(raw, c) {
+    if (c <= 0) return 0;
+    var k = 0;
+    for (var i = 0; i < raw.length; i++) {
+      if (!isMarkCode(raw.charCodeAt(i))) { k++; if (k === c) return i + 1; }
+    }
+    return raw.length;
+  }
+
+  /* ------------------------------------------------------------------
+     Part 2 — transparent patch of value / selection on input+textarea
+     ------------------------------------------------------------------ */
+  function grab(proto) {
+    var o = {};
+    var dv = Object.getOwnPropertyDescriptor(proto, 'value');
+    var ds = Object.getOwnPropertyDescriptor(proto, 'selectionStart');
+    var de = Object.getOwnPropertyDescriptor(proto, 'selectionEnd');
+    if (!dv || !ds || !de) return null;
+    o.proto = proto;
+    o.vGet = dv.get; o.vSet = dv.set;
+    o.sGet = ds.get; o.sSet = ds.set;
+    o.eGet = de.get; o.eSet = de.set;
+    o.ssr = proto.setSelectionRange;
+    return o;
+  }
+  var NI = grab(window.HTMLInputElement && HTMLInputElement.prototype);
+  var NT = grab(window.HTMLTextAreaElement && HTMLTextAreaElement.prototype);
+
+  function natOf(el) { return el.tagName === 'TEXTAREA' ? NT : NI; }
+  function isField(el) { return !!el && el.nodeType === 1 && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA'); }
+  function isTextField(el) {
+    if (!isField(el)) return false;
+    if (el.classList && (el.classList.contains('mc-tool-textarea') || el.hasAttribute('data-mu-nobidi'))) return false;
+    if (el.tagName === 'TEXTAREA') return true;
+    var t = (el.getAttribute('type') || 'text').toLowerCase();
+    return t === 'text' || t === 'search';
+  }
+  function getRaw(el) { return natOf(el).vGet.call(el); }
+  function setRaw(el, v) { natOf(el).vSet.call(el, v); }
+  function selS(el) { try { return natOf(el).sGet.call(el); } catch (e) { return null; } }
+  function selE(el) { try { return natOf(el).eGet.call(el); } catch (e) { return null; } }
+
+  function patchProto(N) {
+    if (!N) return;
+    var p = N.proto;
+    Object.defineProperty(p, 'value', {
+      configurable: true, enumerable: true,
+      get: function () {
+        var v = N.vGet.call(this);
+        return hasMarks(v) ? strip(v) : v;
+      },
+      set: function (v) {
+        if (isTextField(this)) { v = (v === null) ? '' : String(v); v = wrap(hasMarks(v) ? strip(v) : v); }
+        N.vSet.call(this, v);
+      }
+    });
+    Object.defineProperty(p, 'selectionStart', {
+      configurable: true, enumerable: true,
+      get: function () {
+        var n = N.sGet.call(this);
+        if (n == null) return n;
+        var raw = N.vGet.call(this);
+        return hasMarks(raw) ? rawToClean(raw, n) : n;
+      },
+      set: function (c) {
+        var raw = N.vGet.call(this);
+        N.sSet.call(this, hasMarks(raw) ? cleanToRaw(raw, c) : c);
+      }
+    });
+    Object.defineProperty(p, 'selectionEnd', {
+      configurable: true, enumerable: true,
+      get: function () {
+        var n = N.eGet.call(this);
+        if (n == null) return n;
+        var raw = N.vGet.call(this);
+        return hasMarks(raw) ? rawToClean(raw, n) : n;
+      },
+      set: function (c) {
+        var raw = N.vGet.call(this);
+        N.eSet.call(this, hasMarks(raw) ? cleanToRaw(raw, c) : c);
+      }
+    });
+    p.setSelectionRange = function (a, b, dir) {
+      var raw = N.vGet.call(this);
+      if (hasMarks(raw)) { a = cleanToRaw(raw, a); b = cleanToRaw(raw, b); }
+      return N.ssr.call(this, a, b, dir);
+    };
+  }
+  patchProto(NI);
+  patchProto(NT);
+
+  /* re-wrap a field's content (used when a field is created / typed in) */
+  function fixField(el, e) {
+    if (!isTextField(el)) return;
+    var raw = getRaw(el);
+    var clean = hasMarks(raw) ? strip(raw) : raw;
+    var want = wrap(clean);
+    var s = null, en = null, active = document.activeElement === el;
+    if (active) {
+      s = selS(el); en = selE(el);
+      if (s != null) { s = rawToClean(raw, s); en = rawToClean(raw, en); }
+    }
+    /* Backspace/Delete that only removed an invisible mark: delete the
+       neighbouring real character instead, so the key never feels "dead". */
+    var it = (e && e.inputType) || '';
+    if (active && s != null && s === en && it.indexOf('delete') === 0 &&
+        el.__muPre != null && clean === el.__muPre) {
+      if (it.indexOf('Backward') > 0 && s > 0) { clean = clean.slice(0, s - 1) + clean.slice(s); s--; en = s; }
+      else if (it.indexOf('Forward') > 0 && s < clean.length) { clean = clean.slice(0, s) + clean.slice(s + 1); en = s; }
+      want = wrap(clean);
+    }
+    if (want !== raw) {
+      setRaw(el, want);
+      if (active && s != null) {
+        try { natOf(el).ssr.call(el, cleanToRaw(want, s), cleanToRaw(want, en), 'none'); } catch (err) {}
+      }
+    }
+    el.__muPre = null;
+  }
+
+  /* ------------------------------------------------------------------
+     Part 3 — rich text (contenteditable) and every read-only display
+     (preview, viewer, AI messages, lists, toasts …): wrap the chain in
+     <span class="mu-nb">. Only direct text runs inside one parent are
+     touched, so bold/links/images are never disturbed.
+     ------------------------------------------------------------------ */
+  var XHTML = 'http://www.w3.org/1999/xhtml';
+  var SKIP = { SCRIPT: 1, STYLE: 1, TEXTAREA: 1, INPUT: 1, SELECT: 1, OPTION: 1, NOSCRIPT: 1,
+               TEMPLATE: 1, TITLE: 1, HEAD: 1, META: 1, LINK: 1, CANVAS: 1, IFRAME: 1 };
+  function skipEl(el) {
+    if (!el || el.nodeType !== 1) return true;
+    if (el.namespaceURI !== XHTML) return true;
+    if (SKIP[el.tagName]) return true;
+    if (el.closest && el.closest('svg,[data-mu-nobidi]')) return true;
+    return false;
+  }
+  function isNb(n) {
+    if (n.nodeType !== 1 || n.tagName !== 'SPAN' || !n.classList.contains('mu-nb')) return false;
+    for (var c = n.firstChild; c; c = c.nextSibling) if (c.nodeType !== 3) return false;
+    return true;
+  }
+  function ensureAttrs(sp) {
+    if (sp.getAttribute('dir') !== 'ltr') sp.setAttribute('dir', 'ltr');
+    if (!sp.getAttribute('style')) sp.setAttribute('style', 'direction:ltr;unicode-bidi:isolate-override');
+  }
+  function makeNb(text) {
+    var sp = document.createElement('span');
+    sp.className = 'mu-nb';
+    sp.appendChild(document.createTextNode(text));
+    ensureAttrs(sp);
+    return sp;
+  }
+  function lenOf(n) { return n.textContent.length; }
+
+  var composing = false;
+
+  /* offset (in characters) of a DOM position inside the run, or null */
+  function posIn(run, parent, container, off) {
+    var i, acc = 0;
+    if (container === parent) {
+      var kids = parent.childNodes, i0 = -1, i1 = -1;
+      for (i = 0; i < kids.length; i++) {
+        if (kids[i] === run[0]) i0 = i;
+        if (kids[i] === run[run.length - 1]) i1 = i;
+      }
+      if (i0 < 0 || i1 < 0 || off < i0 || off > i1 + 1) return null;
+      for (i = i0; i < off && i <= i1; i++) acc += lenOf(kids[i]);
+      return acc;
+    }
+    for (i = 0; i < run.length; i++) {
+      var n = run[i];
+      if (n === container || (n.nodeType === 1 && n.contains(container))) {
+        if (container.nodeType === 3) return acc + off;
+        var s = 0;
+        for (var k = 0; k < off && k < container.childNodes.length; k++) s += lenOf(container.childNodes[k]);
+        return acc + s;
+      }
+      acc += lenOf(n);
+    }
+    return null;
+  }
+  function posFrom(nodes, o) {
+    for (var i = 0; i < nodes.length; i++) {
+      var n = nodes[i], l = lenOf(n);
+      if (o <= l) return [n.nodeType === 3 ? n : n.firstChild, o];
+      o -= l;
+    }
+    var last = nodes[nodes.length - 1];
+    return [last.nodeType === 3 ? last : last.firstChild, lenOf(last)];
+  }
+  function sameRanges(a, b) {
+    if (a.length !== b.length) return false;
+    for (var i = 0; i < a.length; i++) if (a[i][0] !== b[i][0] || a[i][1] !== b[i][1]) return false;
+    return true;
+  }
+
+  function processRun(parent, run) {
+    var i, S = '', cur = [];
+    for (i = 0; i < run.length; i++) {
+      var n = run[i];
+      if (n.nodeType === 1) n.normalize();
+      var t = n.textContent;
+      if (n.nodeType === 1) cur.push([S.length, S.length + t.length]);
+      S += t;
+    }
+    var has = QUICK.test(S);
+    if (!has && !cur.length) return;
+    var want = [];
+    if (has) {
+      var re = new RegExp(CHAIN_SRC, 'g'), m;
+      while ((m = re.exec(S))) want.push([m.index, m.index + m[0].length]);
+    }
+    if (sameRanges(cur, want)) {
+      for (i = 0; i < run.length; i++) if (run[i].nodeType === 1) ensureAttrs(run[i]);
+      return;
+    }
+    var sel = document.getSelection(), saved = null;
+    if (sel && sel.rangeCount) {
+      var r = sel.getRangeAt(0);
+      var a = posIn(run, parent, r.startContainer, r.startOffset);
+      var b = posIn(run, parent, r.endContainer, r.endOffset);
+      if (a !== null && b !== null) saved = [a, b];
+    }
+    if (saved && composing) return;           /* never touch the DOM in the middle of IME composition */
+
+    var frag = document.createDocumentFragment(), nodes = [], pos = 0;
+    function addText(s) { if (s) { var tn = document.createTextNode(s); frag.appendChild(tn); nodes.push(tn); } }
+    for (i = 0; i < want.length; i++) {
+      addText(S.slice(pos, want[i][0]));
+      var sp = makeNb(S.slice(want[i][0], want[i][1]));
+      frag.appendChild(sp); nodes.push(sp);
+      pos = want[i][1];
+    }
+    addText(S.slice(pos));
+    parent.insertBefore(frag, run[0]);
+    for (i = 0; i < run.length; i++) parent.removeChild(run[i]);
+
+    if (saved && nodes.length) {
+      try {
+        var p1 = posFrom(nodes, saved[0]), p2 = posFrom(nodes, saved[1]);
+        var rg = document.createRange();
+        rg.setStart(p1[0], p1[1]); rg.setEnd(p2[0], p2[1]);
+        sel.removeAllRanges(); sel.addRange(rg);
+      } catch (err) {}
+    }
+  }
+
+  function processParent(parent) {
+    if (!parent || skipEl(parent)) return;
+    var cn = parent.firstChild;
+    while (cn) {
+      if (cn.nodeType === 3 || isNb(cn)) {
+        var run = [], n = cn;
+        while (n && (n.nodeType === 3 || isNb(n))) { run.push(n); n = n.nextSibling; }
+        processRun(parent, run);
+        cn = n;
+      } else {
+        cn = cn.nextSibling;
+      }
+    }
+  }
+
+  /* collect everything under `el` that might need work */
+  function textParent(t) {
+    var p = t.parentNode;
+    if (p && p.nodeType === 1 && p.classList && p.classList.contains('mu-nb')) p = p.parentNode;
+    return p;
+  }
+  function collectTree(el, parents, fields) {
+    if (!el || el.nodeType !== 1 || skipEl(el)) {
+      if (el && el.nodeType === 1 && isField(el)) fields.push(el);
+      return;
+    }
+    var w = document.createTreeWalker(el, 4 /* SHOW_TEXT */, null), n;
+    while ((n = w.nextNode())) {
+      if (QUICK.test(n.nodeValue)) {
+        var p = textParent(n);
+        if (p && !skipEl(p)) parents.add(p);
+      }
+    }
+    var nbs = el.querySelectorAll ? el.querySelectorAll('span.mu-nb') : [];
+    for (var i = 0; i < nbs.length; i++) if (nbs[i].parentNode) parents.add(nbs[i].parentNode);
+    if (el.classList && el.classList.contains('mu-nb') && el.parentNode) parents.add(el.parentNode);
+    var fs = el.querySelectorAll ? el.querySelectorAll('input,textarea') : [];
+    for (var j = 0; j < fs.length; j++) fields.push(fs[j]);
+  }
+
+  var mo = null;
+  function flush(parents, fields) {
+    parents.forEach(function (p) { try { processParent(p); } catch (e) {} });
+    fields.forEach(function (f) { try { if (isTextField(f)) fixField(f, null); } catch (e) {} });
+    if (mo) mo.takeRecords();                 /* ignore the changes we just made ourselves */
+  }
+
+  function onRecords(recs) {
+    var parents = new Set(), fields = [];
+    for (var i = 0; i < recs.length; i++) {
+      var r = recs[i];
+      if (r.type === 'characterData') {
+        var tp = textParent(r.target);
+        if (tp) parents.add(tp);
+      } else {
+        var t = r.target;
+        if (t && t.nodeType === 1) {
+          parents.add(t);
+          if (t.classList && t.classList.contains('mu-nb') && t.parentNode) parents.add(t.parentNode);
+        }
+        for (var k = 0; k < r.addedNodes.length; k++) {
+          var a = r.addedNodes[k];
+          if (a.nodeType === 3) { var ap = textParent(a); if (ap) parents.add(ap); }
+          else if (a.nodeType === 1) collectTree(a, parents, fields);
+        }
+      }
+    }
+    flush(parents, fields);
+  }
+
+  function afterEdit(e) {
+    var el = e.target;
+    if (isField(el)) {
+      if (!composing && !(e.isComposing)) fixField(el, e);
+      return;
+    }
+    if (composing) return;
+    var sel = document.getSelection();
+    if (!sel || !sel.anchorNode) return;
+    var n = sel.anchorNode;
+    var p = n.nodeType === 3 ? textParent(n) : n;
+    if (p && p.nodeType === 1 && p.classList.contains('mu-nb')) p = p.parentNode;
+    var ps = new Set(); if (p) ps.add(p);
+    flush(ps, []);
+  }
+
+  document.addEventListener('beforeinput', function (e) {
+    var el = e.target;
+    if (isTextField(el)) { var raw = getRaw(el); el.__muPre = hasMarks(raw) ? strip(raw) : raw; }
+  }, true);
+  document.addEventListener('input', afterEdit, true);
+  document.addEventListener('compositionstart', function () { composing = true; }, true);
+  document.addEventListener('compositionend', function (e) { composing = false; afterEdit(e); }, true);
+
+  /* copying out of a field never leaks the invisible marks */
+  function onCopy(e) {
+    var el = document.activeElement;
+    if (!isTextField(el)) return;
+    var raw = getRaw(el);
+    if (!hasMarks(raw)) return;
+    var s = selS(el), en = selE(el);
+    if (s == null || s === en) return;
+    if (!e.clipboardData) return;
+    e.clipboardData.setData('text/plain', strip(raw.slice(s, en)));
+    e.preventDefault();
+    if (e.type === 'cut') { try { document.execCommand('delete'); } catch (err) {} }
+  }
+  document.addEventListener('copy', onCopy, true);
+  document.addEventListener('cut', onCopy, true);
+
+  /* start */
+  function scanAll() {
+    if (!document.body) return;
+    var parents = new Set(), fields = [];
+    collectTree(document.body, parents, fields);
+    flush(parents, fields);
+  }
+  try {
+    mo = new MutationObserver(onRecords);
+    mo.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+  } catch (e) {}
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', scanAll);
+  else scanAll();
+  window.addEventListener('load', scanAll);
+
+  /* tiny hook so the logic can be unit-tested outside a browser */
+  window.__muNumBidiApi = { wrap: wrap, strip: strip, rawToClean: rawToClean, cleanToRaw: cleanToRaw, QUICK: QUICK, CHAIN_SRC: CHAIN_SRC };
+})();
+</script>
+
 <style id="muLiteCss">
 /* ===== Settings button (3rd icon in the top-right corner grid) ===== */
 .markhin-corner-controls { grid-template-columns: repeat(3, auto) !important; justify-content: center !important; }
@@ -29717,7 +30137,7 @@ const MU_AI = (function(){
                     if(typeof window.mu_setViewerStyle !== 'function') return { ok:false, error: fa ? 'تنظیم سبک نمایش در دسترس نیست.' : 'Viewer style setting is unavailable right now.' };
                     const prevSt = window.mu_getViewerStyle();
                     if(window.MU_Lite && MU_Lite.setViewerStyle) MU_Lite.setViewerStyle(st); else window.mu_setViewerStyle(st);
-                    showToast(fa ? ('🪟 سبک کادر نمایش یادداشت: ' + (st === 'retro' ? 'ویندوز ۹۵' : (st === 'live' ? 'Live' : (st === 'ask' ? 'انتخاب هر بار' : 'اقیانوسی')))) : ('🪟 Note viewer style: ' + (st === 'retro' ? 'Windows 95' : (st === 'live' ? 'Live' : (st === 'ask' ? 'Ask each time' : 'Ocean')))));
+                    showToast(fa ? ('🪟 سبک کادر نمایش یادداشت: ' + (st === 'retro' ? 'ویندوز ۹۵' : (st === 'live' ? 'زنده' : (st === 'ask' ? 'انتخاب هر بار' : 'اقیانوسی')))) : ('🪟 Note viewer style: ' + (st === 'retro' ? 'Windows 95' : (st === 'live' ? 'Live' : (st === 'ask' ? 'Ask each time' : 'Ocean')))));
                     return { ok:true, data:{ style: window.mu_getViewerStyle(), previous: prevSt, changed: prevSt !== st } };
                 }
                 case 'open_note_viewer': {
@@ -34560,6 +34980,8 @@ html.mu-lite .mu-live-caret,html.mu-lite .mu-live-badge i{animation:none!importa
 .mu-viewer.mu-typing-prog .mu-viewer-progress>i{transition:width .25s linear}
 .mu-viewer-tool[data-act="play"] svg{fill:currentColor}
 .mu-viewer.mu-vs-ocean .mu-live-caret{background:#5ecde6;box-shadow:0 0 6px rgba(94,205,230,.85)}
+.mu-viewer.mu-vs-ocean .mu-viewer-title{text-align:center!important}
+.mu-viewer.mu-vs-ocean .mu-viewer-body,.mu-viewer.mu-vs-ocean .mu-viewer-body *:not(a):not(a *){color:#fff!important;-webkit-text-fill-color:#fff!important;text-shadow:none!important}
 .mu-viewer.mu-vs-retro .mu-live-caret{background:#000;box-shadow:none;animation-duration:.8s}
 </style>
 <script id="muNoteViewerJs">
@@ -34827,7 +35249,7 @@ window.mu_setViewerStyle = function(v){
     function enter(){
       if(S.active||!ctx||!ctx.canEdit) return;
       S.active=true; dirty=false; lastRange=null;
-      r.classList.add('is-editing'); bEdit.classList.add('is-active'); bEdit.setAttribute('aria-pressed','true'); bImg.hidden=false;
+      r.classList.add('is-editing'); bEdit.classList.add('is-active'); bEdit.setAttribute('aria-pressed','true'); bImg.hidden=false; try{ r.__updOk&&r.__updOk(); }catch(e){}
       if(vb.classList.contains('mu-viewer-empty')){ vb.classList.remove('mu-viewer-empty'); vb.innerHTML=''; r.classList.remove('is-empty'); }
       vb.setAttribute('data-ph',L('اینجا بنویس…','Type here…'));
       vt.setAttribute('data-ph',L('عنوان یادداشت','Note title'));
@@ -34847,7 +35269,7 @@ window.mu_setViewerStyle = function(v){
       vb.querySelectorAll('[contenteditable]').forEach(function(n){ n.removeAttribute('contenteditable'); });
       vb.removeAttribute('contenteditable'); vb.removeAttribute('data-ph');
       vt.removeAttribute('contenteditable'); vt.removeAttribute('data-ph');
-      r.classList.remove('is-editing'); bEdit.classList.remove('is-active'); bEdit.setAttribute('aria-pressed','false'); bImg.hidden=true;
+      r.classList.remove('is-editing'); bEdit.classList.remove('is-active'); bEdit.setAttribute('aria-pressed','false'); bImg.hidden=true; try{ r.__updOk&&r.__updOk(); }catch(e){}
       try{ var s=window.getSelection(); if(s) s.removeAllRanges(); }catch(e){}
     }
     function exit(){
@@ -35056,7 +35478,8 @@ window.mu_setViewerStyle = function(v){
       +'</article>';
     root.querySelector('.mu-viewer-backdrop').addEventListener('click',close);
     root.querySelector('.mu-viewer-close').addEventListener('click',close);
-    root.querySelector('.mu-viewer-ok').addEventListener('click',close);
+    root.__updOk=function(){ try{ var ok=root.querySelector('.mu-viewer-ok'), fa=currentLang==='fa'; if(root.classList.contains('is-editing')) ok.textContent=fa?'ذخیره':'Save'; else ok.textContent=fa?'باشه':'OK'; }catch(e){} };
+    root.querySelector('.mu-viewer-ok').addEventListener('click',function(){ if(root.__ed&&root.__ed.active){ root.__ed.exit(); try{ root.__updOk(); }catch(e){} } else close(); });
     var vb=root.querySelector('.mu-viewer-body');
     function fsKey(){ return 'markhin_viewer_fs_v1'; }
     function getScale(){ try{ var n=parseFloat(localStorage.getItem(fsKey())); return (n>=0.8&&n<=1.8)?n:1; }catch(e){ return 1; } }
@@ -35205,16 +35628,13 @@ window.mu_setViewerStyle = function(v){
       '</div><button class="btn-main" type="button" onclick="closeAdvancedModal()">✕</button></div>'+
       '<div class="image-export-choice-grid" style="grid-template-columns:1fr 1fr 1fr">'+
         '<button type="button" class="image-export-choice" style="min-height:0;align-items:center;text-align:center" onclick="mu_viewerChoicePick(\'ocean\')">'+
-          '<span class="image-export-choice-icon">🌊</span>'+
-          '<span class="image-export-choice-name">'+(fa?'اقیانوسی':'Ocean')+'</span>'+
+                    '<span class="image-export-choice-name">'+(fa?'اقیانوسی':'Ocean')+'</span>'+
         '</button>'+
         '<button type="button" class="image-export-choice" style="min-height:0;align-items:center;text-align:center" onclick="mu_viewerChoicePick(\'retro\')">'+
-          '<span class="image-export-choice-icon">🪟</span>'+
-          '<span class="image-export-choice-name">'+(fa?'ویندوز ۹۵':'Windows 95')+'</span>'+
+                    '<span class="image-export-choice-name">'+(fa?'ویندوز ۹۵':'Windows 95')+'</span>'+
         '</button>'+
         '<button type="button" class="image-export-choice" style="min-height:0;align-items:center;text-align:center" onclick="mu_viewerChoicePick(\'live\')">'+
-          '<span class="image-export-choice-icon">🔴</span>'+
-          '<span class="image-export-choice-name">Live</span>'+
+                    '<span class="image-export-choice-name">'+(fa?'زنده':'Live')+'</span>'+
         '</button>'+
       '</div>');
   };
@@ -35447,7 +35867,7 @@ window.mu_setViewerStyle = function(v){
     root.querySelector('.mu-viewer-title').textContent=title;
     try{ root.querySelector('.mu-viewer-title').setAttribute('dir', window.muBidiDir?window.muBidiDir(title):'auto'); }catch(e){}
     root.querySelector('.mu-viewer-close').setAttribute('aria-label',fa?'بستن':'Close');
-    root.querySelector('.mu-viewer-ok').textContent=fa?'باشه':'OK';
+    root.querySelector('.mu-viewer-ok').textContent=fa?'باشه':'OK'; try{ root.__updOk&&root.__updOk(); }catch(e){}
     var vStyle=(styleOverride==='retro'||styleOverride==='ocean'||styleOverride==='live')?styleOverride:((window.mu_getViewerStyle&&window.mu_getViewerStyle()!=='ask'&&window.mu_getViewerStyle())||'ocean');
     root.classList.toggle('mu-vs-retro', vStyle==='retro');
     root.classList.toggle('mu-vs-ocean', vStyle==='ocean');
@@ -35456,7 +35876,7 @@ window.mu_setViewerStyle = function(v){
     // bidi rules (data-mu-d) force text-align:start !important with an #id-weight selector.
     setEyeBtn(vStyle==='live');
     var ttl=root.querySelector('.mu-viewer-title');
-    if(vStyle==='live') ttl.style.setProperty('text-align','center','important'); else ttl.style.removeProperty('text-align');
+    if(vStyle==='live'||vStyle==='ocean') ttl.style.setProperty('text-align','center','important'); else ttl.style.removeProperty('text-align');
     if(root.__live){ try{ clearTimeout(root.__live.t); }catch(e){} root.__live=null; }
     setPlayBtn(false);
     setPSpeed(0.25);
@@ -36058,7 +36478,7 @@ html.mu-zooming .header-nav{-webkit-backdrop-filter:blur(15px) !important;backdr
           '<div class="mu-set-desc">' + (fa ? 'با «نمایش یادداشت» هر بار بپرسد، یا همیشه با یک سبک ثابت باز شود.' : 'Ask each time you press “View note”, or always open with one fixed style.') + '</div>' +
         '</div>' +
         '<div class="mu-vs-seg" id="muViewerStyleSeg" role="group">' +
-          [['ask', fa ? 'انتخاب هر بار (پیش‌فرض)' : 'Ask each time (default)'], ['ocean', fa ? 'اقیانوسی' : 'Ocean'], ['retro', fa ? 'ویندوز ۹۵' : 'Windows 95'], ['live', 'Live']].map(function (o) {
+          [['ask', fa ? 'انتخاب هر بار (پیش‌فرض)' : 'Ask each time (default)'], ['ocean', fa ? 'اقیانوسی' : 'Ocean'], ['retro', fa ? 'ویندوز ۹۵' : 'Windows 95'], ['live', fa ? 'زنده' : 'Live']].map(function (o) {
             return '<button type="button" class="mu-vs-opt" data-vs="' + o[0] + '" aria-pressed="' + ((window.mu_getViewerStyle && window.mu_getViewerStyle() === o[0]) ? 'true' : 'false') + '" onclick="MU_Lite.setViewerStyle(\'' + o[0] + '\')">' + o[1] + '</button>';
           }).join('') +
         '</div>' +
