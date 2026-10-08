@@ -1,6 +1,30 @@
 <!DOCTYPE html>
 <html lang="fa" dir="rtl" id="htmlTag">
 <head>
+<script id="muPlateDef">
+(function(){
+  try{
+    var D='0-9\u06F0-\u06F9\u0660-\u0669';
+    var L='\u0621-\u063A\u0641-\u064A\u067E\u0686\u0698\u06A9\u06AF\u06CC';
+    var LAT='A-Za-z\u00C0-\u024F';
+    var ALN='A-Za-z0-9\u00C0-\u024F';
+    var plate='(?<![' + D + L + '])[' + D + ']+[' + L + '][' + D + ']+(?:[/\\-][' + D + ']+)*(?![' + D + '])';
+    var url='(?<![' + ALN + '@])(?:https?:\\/\\/|www\\.)[^\\s\u0600-\u06FF<>"\'()\\[\\]]*[A-Za-z0-9/_#=&%\\-]';
+    var email='(?<![' + ALN + '._%+@\\-])[A-Za-z0-9._%+\\-]+@[A-Za-z0-9\\-]+(?:\\.[A-Za-z0-9\\-]+)+';
+    var handle='(?<![' + ALN + '_@])@[A-Za-z0-9_]{3,}';
+    var phone='(?<![' + D + ALN + '])\\+?(?=(?:[' + D + '][ \\-]?){9})[' + D + ']{2,}(?:[ \\-][' + D + ']{2,}){2,}(?![' + D + '])';
+    var num='(?<![' + D + ALN + '])\\+?[' + D + ']+(?:[/.:,\\-][' + D + ']+)+(?![' + D + '])';
+    var domain='(?<![' + ALN + '_@.\\-])[A-Za-z0-9\\-]+(?:\\.[A-Za-z0-9\\-]+)+(?![' + ALN + '_@])';
+    var phrase='(?<![' + ALN + '_])[' + LAT + '][' + ALN + ']*(?:[\'\u2019&+_.\\-/][' + ALN + ']+)*(?: [' + ALN + ']+(?:[\'\u2019&+_.\\-/][' + ALN + ']+)*)*(?::(?=\\s|$))?(?![' + ALN + '_])';
+    // editor / textarea tokens (kept small so typing stays smooth)
+    window.muPlateSrc='(?:' + [plate,url,email,handle,phone,num,domain].join('|') + ')';
+    // read-only views: also whole Latin phrases
+    window.muLtrAllSrc='(?:' + [plate,url,email,handle,phone,num,phrase].join('|') + ')';
+    window.muPlateSplit=new RegExp('(' + window.muLtrAllSrc + ')');
+  }catch(e){}
+})();
+</script>
+
 <style id="mkBootGate">html.mk-boot{background:#00121f !important}html.mk-boot body,html.mk-boot body *{visibility:hidden !important}
 /* ---- Loading screen: fixed Oceanic theme. Min 2.3s, hard cap 3.5s. Compositor-only animations (transform/opacity) ---- */
 #mkSplash{position:fixed;inset:0;z-index:2147483647;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5em;direction:ltr;overflow:hidden;contain:layout paint;background:linear-gradient(165deg,#014f79 0%,#01324f 30%,#012036 60%,#00121f 100%);color:#ade8f4;-webkit-user-select:none;user-select:none;touch-action:none;animation:mkFail .4s linear 3.5s forwards}
@@ -199,7 +223,7 @@ s.innerHTML='<div class="mkw"><span aria-hidden="true">'+h+'</span></div><div cl
 +'<svg class="mkv mkv1" viewBox="0 0 1200 120" preserveAspectRatio="none" aria-hidden="true"><path d="'+P+'"/></svg>'
 +'<svg class="mkv mkv2" viewBox="0 0 1200 120" preserveAspectRatio="none" aria-hidden="true"><path d="'+P+'"/></svg>';
 d.appendChild(s)}catch(e){s=null}
-function finish(){if(done)return;done=true;d.classList.remove('mk-boot');if(!s)return;
+function finish(){if(done)return;done=true;d.classList.remove('mk-boot');window.__mkSplashDone=true;try{window.dispatchEvent(new Event('mk-splash-done'))}catch(e){}if(!s)return;
 /* App is un-hidden first (splash is opaque, nothing shows); the fade starts only after two frames so the heavy first render never lands mid-fade. */
 var go=false;function out(){if(go)return;go=true;s.classList.add('out');setTimeout(function(){try{s.parentNode&&s.parentNode.removeChild(s)}catch(e){}},700)}
 try{requestAnimationFrame(function(){requestAnimationFrame(out)})}catch(e){}
@@ -6412,6 +6436,34 @@ html, body, button, input, textarea, select, [contenteditable="true"] {
    even inside a Persian (RTL) line. */
 .mu-nb { direction: ltr; unicode-bidi: isolate-override; }
 </style>
+<style id="muCaretFixCss">
+/* Caret fix for every text field (password, hint, title, search, AI settings...):
+   same per-text direction as the note editor, so the caret sits at the real end of the
+   Persian/English text instead of jumping behind the words. */
+input:not([type]),
+input[type="text"], input[type="password"], input[type="search"],
+input[type="email"], input[type="url"], input[type="tel"],
+textarea {
+    unicode-bidi: plaintext !important;
+}
+</style>
+<script id="muCaretFixJs">
+(function(){
+  'use strict';
+  if (window.__muCaretFix) return; window.__muCaretFix = true;
+  var OK = {text:1,password:1,search:1,email:1,url:1,tel:1};
+  function fix(el){
+    if (!el || el.nodeType !== 1) return;
+    var tag = el.tagName;
+    if (tag === 'INPUT') { if (!OK[(el.getAttribute('type')||'text').toLowerCase()]) return; }
+    else if (tag !== 'TEXTAREA') return;
+    if (!el.hasAttribute('dir')) el.setAttribute('dir','auto');
+  }
+  document.addEventListener('focusin', function(e){ fix(e.target); }, true);
+  document.addEventListener('pointerdown', function(e){ fix(e.target); }, true);
+})();
+</script>
+
 <script id="muNumBidi">
 (function () {
   'use strict';
@@ -12454,17 +12506,13 @@ window.mu_syncHtmlBg = function(){
             if (!input) return;
             const emptyDir = emptyText ? (muDetectTextDir(emptyText) || 'ltr') : '';
             const apply = () => {
-                // Password fields: whatever is typed is always laid out left-to-right,
-                // identical in hidden (dots) and visible (eye) mode.
-                const d = input.value
-                    ? (forceLtr ? 'ltr' : (muDetectTextDir(input.value) || 'ltr'))
-                    : emptyDir;
-                if (d) { input.setAttribute('dir', d); input.style.direction = d; }
-                else { input.removeAttribute('dir'); input.style.direction = ''; }
-                // Hidden mode shows only dots (direction-neutral); force LTR order so it
-                // behaves exactly like the visible mode. Never applied while empty, so the
-                // hint placeholder keeps its own per-text direction.
-                input.style.unicodeBidi = (forceLtr && input.value && input.type === 'password') ? 'bidi-override' : '';
+                // Caret fix: no forced direction / bidi-override any more (that is what pushed the
+                // caret behind Persian words). While the field has text, the browser decides the
+                // direction per text (dir=auto + unicode-bidi:plaintext) exactly like the note editor;
+                // while empty, the hint/placeholder direction decides which side the caret starts on.
+                input.setAttribute('dir', input.value ? 'auto' : (emptyDir || 'auto'));
+                input.style.direction = '';
+                input.style.unicodeBidi = 'plaintext';
             };
             input.addEventListener('input', apply);
             input._muApplyDir = apply;
@@ -12669,6 +12717,7 @@ window.mu_syncHtmlBg = function(){
                         <button class="btn-main" type="button" id="${uid}_x">✕</button>
                     </div>
                     ${fieldsHtml}
+                    ${opts.matchGroup ? `<p class="markhin-filename-hint" id="${uid}_mstat" style="min-height:1.3em;margin:2px 2px 0;font-weight:700"></p>` : ''}
                     <div class="markhin-filename-actions">
                         ${opts.extraButton ? `<button class="btn-main" type="button" id="${uid}_extra" style="${opts.extraButton.style || ''}">${escapeHtml(opts.extraButton.label || '')}</button>` : ''}
                         <button class="btn-main image-export-all-btn" type="button" id="${uid}_ok">${escapeHtml(opts.okText || (fa ? '✔️ تایید' : '✔️ OK'))}</button>
@@ -12681,9 +12730,51 @@ window.mu_syncHtmlBg = function(){
                     const x = document.getElementById(uid + '_x');
                     const extra = document.getElementById(uid + '_extra');
                     if (inputs[0]) inputs[0].focus();
+                    // Password + "repeat password" below it; the hint field only opens once both match.
+                    const mg = opts.matchGroup || null;
+                    const ixOf = id => fields.findIndex(f => f.id === id);
+                    const ia = mg ? ixOf(mg.a) : -1, ib = mg ? ixOf(mg.b) : -1, iu = mg ? ixOf(mg.unlock) : -1;
+                    const mstat = document.getElementById(uid + '_mstat');
+                    const setStat = (txt, color) => { if (mstat) { mstat.textContent = txt || ''; mstat.style.color = color || ''; } };
+                    const matchOk = () => {
+                        const A = (inputs[ia].value || '').trim(), B = (inputs[ib].value || '').trim();
+                        return A !== '' && A === B;
+                    };
+                    const refreshMatch = () => {
+                        const A = (inputs[ia].value || '').trim(), B = (inputs[ib].value || '').trim();
+                        const ok = A !== '' && A === B;
+                        if (iu >= 0 && inputs[iu]) {
+                            inputs[iu].disabled = !ok;
+                            inputs[iu].style.opacity = ok ? '' : '.45';
+                            if (!ok) inputs[iu].value = '';
+                        }
+                        if (B === '') setStat('', '');
+                        else if (!ok) setStat(fa ? '❌ رمزها یکسان نیستند' : '❌ Passwords do not match', '#ff6b7a');
+                        else setStat(fa ? '✅ رمزها یکسان است؛ حالا راهنمای رمز (اختیاری)' : '✅ Passwords match — now the optional hint', '#4cd9a0');
+                    };
+                    if (mg && ia >= 0 && ib >= 0) {
+                        [inputs[ia], inputs[ib]].forEach(el => el && el.addEventListener('input', refreshMatch));
+                        refreshMatch();
+                        inputs[ia].addEventListener('keydown', e => {
+                            if (e.key === 'Enter') { e.preventDefault(); e.stopImmediatePropagation(); inputs[ib].focus(); }
+                        }, true);
+                        inputs[ib].addEventListener('keydown', e => {
+                            if (e.key === 'Enter' && iu >= 0 && inputs[iu] && matchOk()) { e.preventDefault(); e.stopImmediatePropagation(); inputs[iu].focus(); }
+                        }, true);
+                    }
                     const submit = () => {
+                        if (mg && ia >= 0 && ib >= 0) {
+                            const A = (inputs[ia].value || '').trim(), B = (inputs[ib].value || '').trim();
+                            if (A === '' && B === '') {
+                                if (!mg.optional) { setStat(fa ? '⚠️ رمز را وارد کنید' : '⚠️ Enter a password', '#ff6b7a'); inputs[ia].focus(); return; }
+                            } else if (A !== B) {
+                                setStat(fa ? '❌ رمزها یکسان نیستند؛ تکرار رمز را اصلاح کنید' : '❌ Passwords do not match — fix the repeat field', '#ff6b7a');
+                                inputs[ib].focus(); return;
+                            }
+                        }
                         const values = {};
                         fields.forEach((f, i) => { values[f.id] = inputs[i] ? inputs[i].value : ''; });
+                        if (mg && iu >= 0 && !(inputs[ia].value || '').trim()) values[mg.unlock] = '';
                         finish({ action: 'save', values });
                     };
                     inputs.forEach((inp, i) => {
@@ -12756,22 +12847,38 @@ window.mu_syncHtmlBg = function(){
             renderApp(activeOpenId);
         }
 
+        // One dialog for every place a NEW password is set: password, then "repeat password"
+        // right below it, and only when both match the (optional) hint field opens.
+        // Resolves { password, hint } or null when cancelled.
+        async function mu_askNewPassword(o) {
+            o = o || {};
+            const fa = currentLang === 'fa';
+            const res = await promptFieldsModal({
+                title: o.title || (fa ? '🔒 تعیین رمز' : '🔒 Set password'),
+                message: o.message || '',
+                okText: o.okText || (fa ? '✔️ تایید' : '✔️ OK'),
+                matchGroup: { a: 'password', b: 'repeat', unlock: 'hint', optional: !!o.optional },
+                fields: [
+                    { id: 'password', type: 'password', label: fa ? 'رمز' : 'Password', placeholder: o.placeholder || i18n[currentLang].promptPassLock },
+                    { id: 'repeat', type: 'password', label: fa ? 'تکرار رمز' : 'Repeat password', placeholder: fa ? 'رمز را دوباره وارد کنید' : 'Enter the password again' },
+                    { id: 'hint', type: 'text', label: fa ? '💡 راهنمای رمز (اختیاری)' : '💡 Password hint (optional)', placeholder: i18n[currentLang].promptHint }
+                ]
+            });
+            if (!res) return null;
+            const v = res.values || {};
+            return { password: String(v.password || '').trim(), hint: String(v.hint || '').trim() };
+        }
+        window.mu_askNewPassword = mu_askNewPassword;
+
         async function setLock(id) {
             const fa = currentLang === 'fa';
-            const pass = await promptStyledText({
+            const r = await mu_askNewPassword({
                 title: fa ? '🔒 قفل کردن یادداشت' : '🔒 Lock note',
-                placeholder: i18n[currentLang].promptPassLock,
-                type: 'password',
                 okText: fa ? '🔒 قفل کن' : '🔒 Lock'
             });
-            if (pass && pass.trim() !== '') {
-                const password = pass.trim();
-                const hint = (await promptStyledText({
-                    title: fa ? '💡 راهنمای رمز (اختیاری)' : '💡 Password hint (optional)',
-                    placeholder: i18n[currentLang].promptHint,
-                    autoDir: true,
-                    okText: fa ? '✔️ تایید' : '✔️ OK'
-                })) || "";
+            if (r && r.password !== '') {
+                const password = r.password;
+                const hint = r.hint || "";
                 const item = categories.find(c => c.id === id);
                 if (item) {
                     try {
@@ -16103,7 +16210,7 @@ ${body}
                 <div class="advanced-head image-export-picker-head"><h3>📤 ${fa ? 'خروجی Markdown' : 'Markdown Export'}</h3><button class="btn-main" onclick="closeAdvancedModal()">✕</button></div>
                 <div class="image-export-choice-grid">
                     <button type="button" class="image-export-choice" onclick="downloadMdAllIndividualZip()">
-                        <span class="image-export-choice-icon">🗂️</span>
+                        <span class="image-export-choice-icon">??️</span>
                         <span class="image-export-choice-name">${fa ? 'فایل‌های تکی (ZIP)' : 'Individual files (ZIP)'}</span>
                         <span class="image-export-choice-action">${fa ? 'یک فایل ZIP که توش هر یادداشت یک فایل Markdown جداست، به‌علاوه یک فایل ترکیبی شامل همه یادداشت‌ها (از جمله رمزنگاری‌شده)' : 'A ZIP with each note as its own Markdown file, plus one combined file with all notes (including encrypted ones)'}</span>
                     </button>
@@ -17273,13 +17380,25 @@ ${body}
             const item = categories.find(c => c.id === id); if(!item) return [];
             const box = document.getElementById('text-' + id);
             const text = box ? (box.innerText || box.textContent || '') : String(item.text || '');
-            const found = [];
+            const found = [], keys = new Set();
+            // Detects full URLs (http/https/ftp), www.* with any ending, and bare domains
+            // such as google.com, t.me/name, example.ir/path?x=1, with optional port/path.
+            const TLD = 'com|net|org|io|ir|co|me|app|dev|ai|info|biz|xyz|tv|ly|gl|gg|to|cc|us|uk|de|fr|ru|in|cn|jp|kr|it|es|nl|ca|au|br|tr|ae|sa|iq|af|pk|az|am|ge|be|ch|at|se|no|dk|fi|pl|cz|ua|edu|gov|mil|int|online|site|store|shop|tech|cloud|link|live|news|blog|top|pro|club|vip|name|mobi|page|wiki|fun|space|world|today|land|ink|one|zone|team|click|agency|digital|network|media|studio|design|email|chat|games|game|run|so|fm|id|vc|ws|cx|gd|la|nu|st|su|tk|ga|cf|gq|ag|im|is|ms|re|tel|asia|eu';
+            const STOP = '\\s<>"\'«»\\u0600-\\u06FF';
+            const re = new RegExp('(?<![A-Za-z0-9@._%+\\-/])(?:(?:https?|ftp):\\/\\/[^' + STOP + ']+|(?:www\\.(?:[a-z0-9\\-]+\\.)+[a-z]{2,}|(?:[a-z0-9\\-]+\\.)+(?:' + TLD + '))(?![a-z0-9\\-])(?::\\d{2,5})?(?:[\\/?#][^' + STOP + ']*)?)', 'gi');
             const add = u => {
                 u = String(u || '').trim().replace(/[)\]}>"'،؛.,;:!?؟…]+$/, '');
-                if(/^https?:\/\/[^\s]+\.[^\s]+/i.test(u) && !found.includes(u)) found.push(u);
+                if(!u || /^(mailto|tel|javascript|data|vbscript):/i.test(u)) return;
+                if(!/^[a-z][a-z0-9+.\-]*:\/\//i.test(u)) u = 'https://' + u.replace(/^\/+/, '');
+                let host = '';
+                try { host = new URL(u).hostname; } catch(_) { return; }
+                if(!host || host.indexOf('.') < 1) return;
+                const key = u.toLowerCase().replace(/\/+$/, '');
+                if(keys.has(key)) return;
+                keys.add(key); found.push(u);
             };
             if(box) box.querySelectorAll('a[href]').forEach(a => add(a.getAttribute('href')));
-            (text.match(/https?:\/\/[^\s<>"'«»]+/gi) || []).forEach(add);
+            (text.match(re) || []).forEach(add);
             return found;
         }
         function mu_linkHost(u) { try { return new URL(u).hostname.replace(/^www\./,''); } catch(_) { return u; } }
@@ -17321,12 +17440,20 @@ ${body}
             if(!item) return;
             const previewBox = document.getElementById(`preview-${id}`);
             if(!previewBox) return;
+            let open;
             if(previewBox.style.display === 'block') {
-                previewBox.style.display = 'none';
+                previewBox.style.display = 'none'; open = false;
             } else {
                 mu_renderLinkPreview(id);
-                previewBox.style.display = 'block';
+                previewBox.style.display = 'block'; open = true;
             }
+            // selected state on the "Show link" button while the list is open
+            document.querySelectorAll('.mc-linkprev-btn').forEach(b => {
+                if((b.getAttribute('onclick') || '').indexOf("'" + id + "'") > -1) {
+                    b.classList.toggle('mc-selected', open);
+                    b.setAttribute('aria-pressed', open ? 'true' : 'false');
+                }
+            });
         }
 
         /* ===================== MARKHIN ADVANCED SYSTEM ===================== */
@@ -19429,16 +19556,17 @@ window.editFake=async function(id){
         // written in if the password step actually succeeds; canceling or
         // leaving it blank at any point aborts the whole action and the
         // note is left exactly as it was before.
-        const pass=await promptStyledText({
-            title: fa?'?? رمز اصلی Fake Note':'🔒 Real password for this fake note',
+        const fkRes=await mu_askNewPassword({
+            title: fa?'🔒 رمز اصلی Fake Note':'🔒 Real password for this fake note',
             placeholder: fa?'برای Fake Note یک رمز اصلی تعیین کن:':'Set the real password for this fake note:',
-            type: 'password',
             okText: fa?'🔒 تنظیم':'🔒 Set'
         });
-        if(!pass||!pass.trim()) return;
+        if(!fkRes||!fkRes.password) return;
+        const pass=fkRes.password;
         try{
             item.fakeContent=v;
             item.encrypted=await encryptNotePayload(pass.trim(),item.html||'',item.text||'');
+            if(fkRes.hint) item.hint=fkRes.hint;
             noteSessionKeys.set(item.id,pass.trim());
             saveToLocalStorage();
             renderApp(id);
@@ -20485,8 +20613,10 @@ async function markhinDash_cloudBackupClick(){
         fields: [
             { id:'label', type:'text', label: fa?'برچسب (اختیاری)':'Label (optional)', placeholder: fa?'مثلاً «قبل از پاکسازی پوشه‌ی کار»':'e.g. "before clearing the work folder"', defaultValue: prefLabel },
             { id:'password', type:'password', label: fa?'رمز بکاپ':'Backup password', placeholder: fa?'اختیاری':'Optional' },
+            { id:'repeat', type:'password', label: fa?'تکرار رمز':'Repeat password', placeholder: fa?'رمز را دوباره وارد کنید':'Enter the password again' },
             { id:'hint', type:'text', label: fa?'راهنمای رمز (اختیاری)':'Password hint (optional)', placeholder: fa?'فقط وقتی رمز گذاشتی لازم است':'Only used if you set a password' }
         ],
+        matchGroup: { a:'password', b:'repeat', unlock:'hint', optional:true },
         okText: fa?'💾 ذخیره بکاپ':'💾 Save backup',
         cancelText: fa?'انصراف':'Cancel',
         extraButton: { label: fa?'🔓 بکاپ بدون رمز':'🔓 Backup without password' }
@@ -21476,8 +21606,12 @@ window.mu_setNotePreviewLines = function(n){
 // sitting next to it. Without this, a number or date sitting right against
 // RTL text (with no space to act as a neutral buffer) can visually reorder.
 function mu_isolateNumbers(text){
-    return String(text).replace(/[+-]?[0-9\u06F0-\u06F9\u0660-\u0669]+(?:[.,:\/\-٫٬][0-9\u06F0-\u06F9\u0660-\u0669]+)*%?/g,
+    const numIso = (str) => String(str).replace(/[+-]?[0-9\u06F0-\u06F9\u0660-\u0669]+(?:[.,:\/\-٫٬][0-9\u06F0-\u06F9\u0660-\u0669]+)*%?/g,
         m => '\u2066' + m + '\u2069');
+    const PS = window.muPlateSplit;
+    if (!PS) return numIso(text);
+    // plate-style tokens such as 98د654/28 stay one left-to-right block, in typed order
+    return String(text).split(PS).map((seg, i) => i % 2 ? '\u2066' + seg + '\u2069' : numIso(seg)).join('');
 }
 function mu_notePreviewSnippet(item){
     if (item.fakeContent) return '';
@@ -22621,33 +22755,13 @@ window.moveFolderOrder = function(name, dir){
             showToast(fa ? '🔒 همهٔ یادداشت‌های انتخاب‌شده از قبل رمز دارند' : '🔒 All selected notes are already locked');
             return;
         }
-        const pass = await promptStyledText({
+        const askRes = await mu_askNewPassword({
             title: fa ? (targets.length > 1 ? 'رمزگذاری '+targets.length+' یادداشت' : 'رمزگذاری یادداشت') : (targets.length > 1 ? 'Lock '+targets.length+' notes' : 'Lock note'),
-            placeholder: i18n[currentLang].promptPassLock,
-            type: 'password',
             okText: fa ? 'قفل کن' : 'Lock'
         });
-        if(!pass || pass.trim() === '') return;
-        const password = pass.trim();
-        if(targets.length > 1){
-            const again = await promptStyledText({
-                title: fa ? 'تکرار رمز' : 'Repeat password',
-                placeholder: fa ? 'رمز را دوباره وارد کنید' : 'Enter the password again',
-                type: 'password',
-                okText: fa ? 'تأیید' : 'Confirm'
-            });
-            if(again === null || again === undefined) return;
-            if(again.trim() !== password){
-                showToast(fa ? 'رمزها یکسان نبودند؛ چیزی قفل نشد' : 'Passwords did not match; nothing was locked');
-                return;
-            }
-        }
-        const hint = (await promptStyledText({
-            title: fa ? 'راهنمای رمز (اختیاری)' : 'Password hint (optional)',
-            placeholder: i18n[currentLang].promptHint,
-            autoDir: true,
-            okText: fa ? 'باشه' : 'OK'
-        })) || '';
+        if(!askRes || askRes.password === '') return;
+        const password = askRes.password;
+        const hint = askRes.hint || '';
         let done = 0, failed = 0;
         for(const item of targets){
             try{
@@ -27433,7 +27547,9 @@ const MU_AI = (function(){
         return s.split(/(<[^>]*>|\u0001IC\d+\u0001)/).map(function(part, i){
             if(i % 2 === 1 || part === '') return part;
             let p = part.replace(/&(?:amp|lt|gt|quot|#039);/g, function(e){ return MAI_ENT_TO[e]; });
-            p = p.replace(MAI_RUN_RE, function(r){ return '<span class="mAi-ltr" dir="ltr">' + r + '</span>'; });
+            const _PS = window.muPlateSplit;
+            const _wrapRuns = function(x){ return x.replace(MAI_RUN_RE, function(r){ return '<span class="mAi-ltr" dir="ltr">' + r + '</span>'; }); };
+            p = _PS ? p.split(_PS).map(function(seg, k){ return k % 2 ? '<span class="mAi-ltr" dir="ltr">' + seg + '</span>' : _wrapRuns(seg); }).join('') : _wrapRuns(p);
             return p.replace(/[\uE001-\uE005]/g, function(c){ return MAI_ENT_FROM[c]; });
         }).join('');
     }
@@ -28601,8 +28717,9 @@ const MU_AI = (function(){
         { name:'set_language', description:'Switch the app\'s interface language between Persian (fa) and English (en).', parameters:{ type:'object', properties:{ language:{ type:'string', enum:['fa','en'] } }, required:['language'] } },
         { name:'set_note_preview', description:"Control the note list's preview line app-wide. When on, every note in the list shows a short plain-text snippet of its own content under its title (so the list can be scanned without opening each note); when off, only the title shows. You can turn it on/off (enabled) and/or choose how many lines each preview may take (lines, 1 to 5). Use this whenever the user asks to show/hide, turn on/off, or enable/disable note previews/snippets in the list, or to make previews longer/shorter. Pass at least one of enabled or lines; if only lines is given while previews are off, previews are turned on too.", parameters:{ type:'object', properties:{ enabled:{ type:'boolean', description:'true = show the preview snippet under every note. false = title only.' }, lines:{ type:'integer', minimum:1, maximum:5, description:'How many lines each preview may take in the list (1-5).' } } } },
         { name:'get_app_settings', description:"Read the app's CURRENT settings in one call: Lite version (on/off), page zoom (on/off), visual theme, interface language, note viewer style (the window that opens with the \"View note\" button), note-list preview (on/off + number of lines) and the list display order (sort mode), together with every value each setting accepts. Call this first whenever the user asks what a setting is right now, asks to see/list the settings, or asks for a change whose current state you do not know (e.g. \"toggle it\", \"switch it back\"). Never guess a setting's state.", parameters:{ type:'object', properties:{} } },
-        { name:'set_lite_mode', description:"Turn the app's Lite version (نسخه سبک / حالت سبک / لایت) on or off - the same switch as Settings > Lite version. ON: switches the theme to Oceanic (the current theme is remembered), stops every infinite animation, moving effect, glass blur and heavy shadow so the app runs lighter on weak phones, and LOCKS theme changes. OFF: restores the previous theme and all effects. Notes and data are never touched. Use whenever the user asks to enable/disable/turn on/turn off the light or lite mode. After turning it ON, tell the user briefly that the theme became Oceanic and that theme changes stay locked until Lite is turned off.", parameters:{ type:'object', properties:{ enabled:{ type:'boolean', description:'true = turn Lite version on. false = turn it off.' } }, required:['enabled'] } },
+        { name:'set_lite_mode', description:"Turn the app's Lite version (نسخه سبک / حالت سبک / لایت) on or off - the same switch as Settings > Lite version. ON: switches the theme to Oceanic (the current theme is remembered), stops every infinite animation, moving effect, glass blur and heavy shadow so the app runs lighter on weak phones, and LOCKS theme changes. It also turns the background music off (the user can still turn it back on with set_background_music or in Settings). OFF: restores the previous theme, all effects and the music if it was on before. Notes and data are never touched. Use whenever the user asks to enable/disable/turn on/turn off the light or lite mode. After turning it ON, tell the user briefly that the theme became Oceanic and that theme changes stay locked until Lite is turned off.", parameters:{ type:'object', properties:{ enabled:{ type:'boolean', description:'true = turn Lite version on. false = turn it off.' } }, required:['enabled'] } },
         { name:'set_viewer_style', description:"Change the look of the note viewer window that opens with the \"View note\" (نمایش یادداشت) button - Settings > Note viewer style (سبک کادر نمایش یادداشت). Four options: ask = ask every time (the default - pressing View note shows a picker with Ocean / Windows 95 / Live), ocean = always the Ocean look, retro = always the Windows 95 look, live = always the Live look (the note is typed/streamed into the window word by word like live typing, including images and everything else one by one; the viewer has a Show-all button to skip the animation). Use whenever the user asks to change the style/model/shape of the note display frame or viewer (مدل نمایش یادداشت، سبک کادر نمایش، ویندوزی/قدیمی، اقیانوسی، لایو/Live/تایپی/استریمینگ).", parameters:{ type:'object', properties:{ style:{ type:'string', enum:['ask','ocean','retro','live'], description:'ask = ask each time (default). ocean = Ocean look. retro = Windows 95 look. live = Live look (word-by-word typing animation).' } }, required:['style'] } },
+        { name:'set_background_music', description:"Control the app's BACKGROUND MUSIC (موسیقی پس‌زمینه / آهنگ برنامه) - the same switch and volume slider as Settings > Background music. You can turn it on or off (enabled), set an exact volume 0-100 (volume), or nudge the volume relative to where it is now (change, e.g. +15 = louder, -15 = quieter). Use whenever the user asks to turn the app's music/song on or off, mute/unmute it, stop or resume it, make it louder/quieter/lower/higher, or set it to a level (e.g. 'صدای آهنگ رو کم کن', 'آهنگ رو قطع کن', 'وصلش کن', 'صداش رو بذار روی ۳۰'). Setting a volume above 0 while the music is off turns it on too. Volume 0 keeps the music on but silent - for 'cut it / turn it off' use enabled=false. If the user says only 'a bit louder/quieter', use change (about 10-20); if you need the current level first, call get_app_settings. The music only affects the app's own ambience, never notes or voice notes.", parameters:{ type:'object', properties:{ enabled:{ type:'boolean', description:'true = turn the background music on. false = turn it off (cut it).' }, volume:{ type:'integer', minimum:0, maximum:100, description:'Exact music volume in percent (0-100).' }, change:{ type:'integer', minimum:-100, maximum:100, description:'Relative volume change in percentage points: positive = louder, negative = quieter. Ignored if volume is given.' } } } },
         { name:'set_page_zoom', description:"Turn the app's PAGE ZOOM (زوم صفحه) on or off - the same switch as Settings > Page zoom. ON: the user can pinch-zoom the whole page with two fingers. OFF (the default): page zoom is disabled. The Knowledge Graph (شبکه دانش) is NOT affected - it always has its own zoom (two-finger pinch, mouse wheel, double-click and the +/- buttons) whatever this setting is, so never tell the user it needs this switch. Use whenever the user asks to enable/disable/turn on/turn off zoom, magnification or pinch-zoom of the page (زوم، بزرگ‌نمایی، ریز و درشت کردن صفحه). If they only ask about zooming inside the Knowledge Graph, just explain that it always works. Telegram's in-app browser may limit page zoom on some devices - mention that briefly if the user says it did not work after turning it on.", parameters:{ type:'object', properties:{ enabled:{ type:'boolean', description:'true = allow pinch-zoom on the page. false = disable page zoom.' } }, required:['enabled'] } },
         { name:'set_scroll_pause_delay', description:"Set the app's 'Pause animations while scrolling' delay (توقف انیمیشن‌ها هنگام اسکرول) - its own slider in Settings. While the user scrolls, the heavy theme effects are paused; this is how many milliseconds they stay paused after scrolling stops before resuming. Range 0 to 1000 ms, default 300. 0 = OFF: animations are never paused while scrolling. In Lite mode there are no animations, so the setting has no visible effect there (it can still be saved). Not part of the Eco options. Use when the user asks to change, shorten, lengthen, turn off (ms=0) or reset the scroll pause / scroll lag / animation freeze while scrolling; to reset use ms=300.", parameters:{ type:'object', properties:{ ms:{ type:'number', description:'Delay in milliseconds, 0 to 1000 (default 300). 0 turns the pause-while-scrolling feature off.' } }, required:['ms'] } },
         { name:'set_eco_option', description:"Turn one of the app's ECO / power-saving options (صرفه‌جویی انرژی) on or off - the switches at the bottom of Settings. They freeze the endless decorative theme animations (theme look is unchanged) to keep the phone cool. All are ON by default. option: 'all' = master Eco switch (off = nothing is ever auto-paused); 'typing' = pause while typing; 'viewer' = pause animations, glass blur and text shadow while a note is open in the full-screen viewer; 'idle' = pause after 20 s without touching the screen; 'hidden' = pause while the app is in the background. Use when the user asks to enable/disable any of these (e.g. stop/keep animations while typing, Eco mode, power saving, phone getting hot). Notes and data are never touched.", parameters:{ type:'object', properties:{ option:{ type:'string', enum:['all','typing','viewer','idle','hidden'], description:'Which Eco option to change.' }, enabled:{ type:'boolean', description:'true = turn the option on. false = turn it off.' } }, required:['option','enabled'] } },
@@ -28618,7 +28735,7 @@ const MU_AI = (function(){
         { name:'get_dashboard_stats', description:'Get an overview of the user\'s whole notes vault: total/archived/locked note counts, total word count, per-folder note counts, per-tag note counts, and the actual lists (names) of which notes are currently pinned and which are favorite. Use this whenever the user asks something like which notes are favorite/pinned, wants stats about their notes as a whole, or asks what the dashboard shows.', parameters:{ type:'object', properties:{} } },
         { name:'get_note', description:'Get a single note\'s full, complete body text plus its metadata (folder, tags, pinned/favorite/archived, last-edited, titleHistory). find_notes only returns a short 180-character snippet — call this instead whenever you actually need the whole content: to read it back in full, summarize it accurately, translate it, quote exact figures/steps from it, or otherwise reason over the real text rather than a preview. The returned titleHistory array lists every title this note has ever had, oldest first — use it to answer "what was this note\'s title before?"/"what have I called this note?"; you never need it just to reference the note by an old title, since the note reference argument on every tool already resolves past titles automatically.', parameters:{ type:'object', properties:{ note:{ type:'string', description:'The id or title of the note.' } }, required:['note'] } },
         { name:'duplicate_note', description:'Create an exact copy of an existing note (same content, folder, and tags) under a new title. The original note is left completely untouched. Use this for "duplicate/clone/copy this note" requests, or as a safe first step before heavily rewriting a note the user wants to keep a backup of.', parameters:{ type:'object', properties:{ note:{ type:'string', description:'The id or title of the note to duplicate.' }, new_name:{ type:'string', description:'Title for the new copy. If omitted, "<original name> (copy)" is used.' } }, required:['note'] } },
-        { name:'lock_note', description:'Password-lock (encrypt) a note by opening the app\'s own real password dialog for the user — the exact same dialog the 🔒 button uses. The user types their password, and optionally a password hint, directly into that dialog; you never see, ask for, or receive the actual password yourself, since typing a real password into this chat would be insecure. Call this as soon as the user asks to lock, password-protect, or encrypt a specific note — do not ask them for the password in chat first. Returns ok:false (without error) if the user cancels the dialog instead of completing it, and a clear error if the note is already locked.', parameters:{ type:'object', properties:{ note:{ type:'string', description:'The id or title of the note to lock.' } }, required:['note'] } },
+        { name:'lock_note', description:'Password-lock (encrypt) a note by opening the app\'s own real password dialog for the user — the exact same dialog the 🔒 button uses. The user types their password, repeats it to confirm, and then optionally adds a password hint, directly into that dialog; you never see, ask for, or receive the actual password yourself, since typing a real password into this chat would be insecure. Call this as soon as the user asks to lock, password-protect, or encrypt a specific note — do not ask them for the password in chat first. Returns ok:false (without error) if the user cancels the dialog instead of completing it, and a clear error if the note is already locked.', parameters:{ type:'object', properties:{ note:{ type:'string', description:'The id or title of the note to lock.' } }, required:['note'] } },
         { name:'set_time_capsule', description:'Arm or clear the app\'s Time Capsule feature on a note: the note stays visible in the list but cannot be opened again until a future date/time you set, showing a countdown until then. Use this whenever the user asks to "lock this note until X", set a time capsule, or remove one they already set.', parameters:{ type:'object', properties:{ note:{ type:'string', description:'The id or title of the note.' }, unlock_at:{ type:'string', description:'A future date/time when the note should unlock, in any form JavaScript\'s Date.parse can read (e.g. "2026-12-31 18:00", "2027-01-01T09:00:00"). Required unless clear is true.' }, clear:{ type:'boolean', description:'If true, remove any existing time capsule lock on the note instead of setting a new one; unlock_at is ignored.' } }, required:['note'] } },
         { name:'set_ghost_note', description:'Arm or cancel the app\'s Ghost Note feature on a note: the note automatically self-deletes (permanently, with no way to recover it) once its timer runs out. Give either hours (a relative countdown) or until (an absolute future date/time) — not both. Use this whenever the user asks a note to "disappear/self-destruct/auto-delete after X hours" or "delete itself on/at <a specific date or time>", or asks to cancel a timer they already set.', parameters:{ type:'object', properties:{ note:{ type:'string', description:'The id or title of the note.' }, hours:{ type:'number', description:'Hours from now until the note is automatically deleted. Give this OR until, not both. Required unless clear or until is given.' }, until:{ type:'string', description:'An absolute future date/time for the note to self-delete at, in any format Date.parse can read (e.g. "2026-09-20 18:00", "2026-12-31T23:59:00"). Give this OR hours, not both. Required unless clear or hours is given.' }, clear:{ type:'boolean', description:'If true, cancel any existing ghost timer on the note instead of setting a new one; hours/until are ignored.' } }, required:['note'] } },
         { name:'list_folders', description:'List every folder that actually exists in the vault, including completely empty folders that contain zero notes. This is the only reliable way to see empty folders — get_dashboard_stats\' folderCounts is built only from notes that already have a folder, so a folder with no notes in it never appears there at all. Always call this before manage_folder with action "rename" or "delete" whenever you are not already certain (from something earlier in this conversation) that the folder you are about to act on really exists and is spelled the way the user means — this avoids silently failing on, or mismatching, a folder the user can see in the app but you cannot otherwise know about. Returns each folder\'s name along with its note count (0 for empty folders), how many of those notes are archived or locked, and previousNames (any name(s) this folder used to have before being renamed — you never need this to act on the folder, since the app already resolves an old name to the current one automatically everywhere a folder name is expected, but use it if the user asks what a folder used to be called).', parameters:{ type:'object', properties:{} } },
@@ -30077,6 +30194,7 @@ const MU_AI = (function(){
                         eco_mode: (window.MU_Eco && MU_Eco.all) ? Object.assign({ note: 'ON by default. Freezes endless decorative animations (typing, viewer, idle, hidden). all=false disables every auto-pause.' }, MU_Eco.all()) : null,
                         scroll_pause: { delay_ms: (window.MU_ScrollPause ? MU_ScrollPause.get() : 300), enabled: (window.MU_ScrollPause ? MU_ScrollPause.get() > 0 : true), range_ms: [0,1000], default_ms: 300, note: 'Separate from Eco. Heavy theme effects pause while scrolling and resume after this many ms once scrolling stops. 0 = off (animations never pause while scrolling). Has no visible effect while Lite mode is on because Lite has no animations.' },
                         page_zoom: { enabled: !!(window.MU_Lite && MU_Lite.isZoomOn && MU_Lite.isZoomOn()), note: 'Off by default. Applies to the whole page only; the Knowledge Graph always has its own zoom regardless of this setting.' },
+                        background_music: (window.MU_BgMusic && typeof MU_BgMusic.getVol === 'function') ? { enabled: !!MU_BgMusic.isOn(), volume: MU_BgMusic.getVol(), range: [0,100], note: 'The app\'s background music (Settings > Background music). Change it with set_background_music.' } : null,
                         theme: themeInfo,
                         available_themes: (typeof MU_Theme !== 'undefined' && MU_Theme.list) ? MU_Theme.list.map(t => t.id) : [],
                         language: currentLang,
@@ -30095,7 +30213,7 @@ const MU_AI = (function(){
                     let themeNow = null;
                     try{ const t = MU_Theme.list[MU_Theme.getCurrentIndex()]; if(t) themeNow = t.id; }catch(e){}
                     return { ok:true, data:{ enabled: !!MU_Lite.isOn(), changed:true, theme: themeNow, theme_locked: !!MU_Lite.isOn(), note: want
-                        ? (fa ? 'تم به اقیانوسی تغییر کرد (تم قبلی ذخیره شد)، انیمیشن‌ها و افکت‌های متحرک خاموش شدند و تا خاموش‌کردن نسخه سبک، تغییر تم قفل است.' : 'Theme switched to Oceanic (previous theme saved), animations and moving effects are off, and theme changes are locked until Lite is turned off.')
+                        ? (fa ? 'تم به اقیانوسی تغییر کرد (تم قبلی ذخیره شد)، انیمیشن‌ها و افکت‌های متحرک و موسیقی پس‌زمینه خاموش شدند (موسیقی را می‌شود دوباره روشن کرد) و تا خاموش‌کردن نسخه سبک، تغییر تم قفل است.' : 'Theme switched to Oceanic (previous theme saved), animations, moving effects and background music are off (music can be turned back on), and theme changes are locked until Lite is turned off.')
                         : (fa ? 'تم قبلی و همه افکت‌ها برگشتند و تغییر تم دوباره آزاد است.' : 'The previous theme and all effects are back, and theme changes are unlocked again.') } };
                 }
                 case 'set_scroll_pause_delay': {
@@ -30119,6 +30237,36 @@ const MU_AI = (function(){
                     MU_Eco.set(ecoKey, ecoWant);
                     showToast(ecoWant ? (fa ? '🍃 گزینه Eco روشن شد' : '🍃 Eco option turned on') : (fa ? '🍃 گزینه Eco خاموش شد' : '🍃 Eco option turned off'));
                     return { ok:true, data:{ option: ecoKey, enabled: ecoWant, changed:true, eco: MU_Eco.all() } };
+                }
+                case 'set_background_music': {
+                    const BM = window.MU_BgMusic;
+                    if(!BM || typeof BM.setVol !== 'function' || typeof BM.getVol !== 'function') return { ok:false, error: fa ? 'تنظیم موسیقی پس‌زمینه در دسترس نیست.' : 'The background music setting is unavailable right now.' };
+                    const bmBool = function(v){
+                        if(typeof v === 'boolean') return v;
+                        if(typeof v === 'string'){ const x = v.trim().toLowerCase(); if(x === 'true' || x === 'on' || x === '1') return true; if(x === 'false' || x === 'off' || x === '0') return false; }
+                        return null;
+                    };
+                    const bmWasOn = !!BM.isOn(), bmWasVol = BM.getVol();
+                    let bmOn = bmBool(input.enabled);
+                    let bmVol = null;
+                    const bmHas = function(v){ return v !== undefined && v !== null && v !== ''; };
+                    if(bmHas(input.volume)){
+                        const n = Number(input.volume);
+                        if(!isFinite(n)) return { ok:false, error: fa ? 'بلندی صدا باید عددی بین ۰ تا ۱۰۰ باشد.' : 'volume must be a number between 0 and 100.' };
+                        bmVol = Math.max(0, Math.min(100, Math.round(n)));
+                    } else if(bmHas(input.change)){
+                        const c = Number(input.change);
+                        if(!isFinite(c)) return { ok:false, error: fa ? 'مقدار تغییر باید یک عدد باشد.' : 'change must be a number.' };
+                        bmVol = Math.max(0, Math.min(100, bmWasVol + Math.round(c)));
+                    }
+                    if(bmOn === null && bmVol === null) return { ok:false, error: fa ? 'یکی از enabled، volume یا change را بده.' : 'Pass enabled, volume or change.' };
+                    if(bmVol !== null) BM.setVol(bmVol);
+                    if(bmOn === null && bmVol !== null && bmVol > 0 && !bmWasOn) bmOn = true;
+                    if(bmOn !== null && bmOn !== bmWasOn) BM.set(bmOn);
+                    const bmNowOn = !!BM.isOn(), bmNowVol = BM.getVol();
+                    const bmChanged = (bmNowOn !== bmWasOn) || (bmNowVol !== bmWasVol);
+                    if(bmChanged) showToast(!bmNowOn ? (fa ? '🎵 موسیقی پس‌زمینه خاموش شد' : '🎵 Background music turned off') : (bmNowOn !== bmWasOn ? (fa ? ('🎵 موسیقی پس‌زمینه روشن شد (' + bmNowVol + '٪)') : ('🎵 Background music turned on (' + bmNowVol + '%)')) : (fa ? ('🎵 بلندی موسیقی: ' + bmNowVol + '٪') : ('🎵 Music volume: ' + bmNowVol + '%'))));
+                    return { ok:true, data:{ enabled: bmNowOn, volume: bmNowVol, changed: bmChanged, previous:{ enabled: bmWasOn, volume: bmWasVol }, note: (bmNowOn && bmNowVol === 0) ? (fa ? 'موسیقی روشن است ولی بلندی صدا صفر است و چیزی شنیده نمی‌شود.' : 'Music is on but the volume is 0, so nothing is audible.') : undefined } };
                 }
                 case 'set_page_zoom': {
                     if(!window.MU_Lite || typeof MU_Lite.setZoom !== 'function') return { ok:false, error: fa ? 'تنظیم زوم صفحه در دسترس نیست.' : 'The page zoom setting is unavailable right now.' };
@@ -33370,7 +33518,7 @@ const MU_AI = (function(){
             ? 'تو MARKHIN AI هستی: دستیار هوش مصنوعی حرفه‌ای، دقیق و قدرتمند، ساخته‌شده داخل اپلیکیشن یادداشت‌برداری Markhin. (تلفظ صحیح فارسیِ نام MARKHIN «مارخین» است — هر جا لازم شد نام برنامه یا خودت را با حروف فارسی بنویسی یا تلفظش کنی، همیشه «مارخین» بگو/بنویس، نه شکل‌های دیگر مثل «مارکین».) سه نقش داری و هر سه را همزمان انجام می‌دهی:\n'
                 + '۱) دستیار عمومی: به هر سوالی — چه ربطی به برنامه داشته باشد چه نه — با دانش عمومی‌ات، دقیق و روان پاسخ می‌دهی؛ پیش‌فرض این است که به همان زبانی جواب بدهی که کاربر با آن پیام نوشته، مگر آنکه کاربر صریحاً زبان دیگری برای پاسخ خواسته باشد (به بندِ زبانِ پاسخ در پایین همین بخش نگاه کن).\n'
                 + '۲) عامل مدیریت یادداشت: مستقیماً به یادداشت‌ها و پوشه‌های کاربر دسترسی داری و می‌توانی این کارها را واقعاً انجام دهی، نه فقط توضیح دهی: ' + toolsSummaryFa + '.\n'
-                + '۳) کارشناس خودِ برنامه: کل امکانات Markhin را می‌شناسی و درباره‌شان دقیق و کاربردی راهنمایی می‌کنی، حتی آن‌هایی که ابزار مستقیم برایشان نداری: پوشه‌بندی و برچسب‌گذاری یادداشت‌ها، پین و فیوریت‌کردن، آرشیو و بازگردانی، شبکه دانش (نمای گرافی ارتباط یادداشت‌ها)، پورتال رندوم، درون‌ریزی از JSON/CSV/TXT/MD/DOCX/HTML (این یکی چون به انتخاب فایل واقعی از گوشی کاربر نیاز دارد، فقط می‌توانی راهنمایی کنی). خروجیِ HTML کامل برنامه (بکاپ کل برنامه) را هم می‌توانی مستقیم با ابزار export_notes و فرمت app_html بسازی (حالت data: برنامه + همه یادداشت‌ها و پوشه‌ها بدون کلید API، حالت clean: برنامهٔ خالی)؛ نسخه‌ای که کلید API را هم داخلش دارد فقط خودِ کاربر از گزینهٔ «کامل، حتی کلید API» در منوی خروجی HTML می‌تواند بسازد و ابزار مستقیمی برایش نداری. همچنین بکاپ Cloud تلگرام (پنل ☁️): یک «بکاپ خودکار» هست که چند ثانیه بعد از هر ویرایش، بی‌صدا و بدون کاری از طرف کاربر، متنِ یادداشت‌ها را در فضای ابری خودِ تلگرام ذخیره می‌کند (تصاویر در آن نیستند، فقط روی همان دستگاه می‌مانند) — این همیشه فعال است. جدا از آن، «دریافتِ خودکار» تغییرات دستگاه‌های دیگر (یادداشت جدید، ویرایش، یا حذف) بدون فشردن دستی Restore، فقط روی دستگاهی کار می‌کند که قبلاً حداقل یک‌بار «ذخیره‌ی یک بکاپ جدید» یا «بازیابی» زده باشد؛ اگر کاربر گفت یادداشت‌ها/حذف‌ها بین دو دستگاهش خودکار سینک نمی‌شوند، دقیقاً همین را توضیح بده و بگو یک‌بار در پنل ☁️ دکمه‌ی «🔄 فعال‌سازی / تعمیر سینک خودکار» را بزند — همان لحظه هم وضعیت را روشن می‌کند هم یک‌بار با بکاپ ابری چک/merge می‌کند؛ زدنش هیچ‌وقت ضرر ندارد. علاوه بر بکاپِ خودکار، «ذخیره‌ی یک بکاپ جدید» (تا ۷ بکاپ دستی، با برچسب و رمزِ اختیاری)، «👁 مشاهده» محتوای هر بکاپ قبل از بازیابی، «📥 بازیابی» (یادداشتِ جدیدتر از بکاپ اضافه/به‌روزرسانی می‌شود، حذف‌های عمدی برنمی‌گردند)، و «🔓 بازیابی و لغو حذف‌ها» (وقتی کاربر صریحاً می‌خواهد یادداشت‌های حذف‌شده هم دقیقاً از همان یک بکاپِ مشخص برگردند، برخلاف رفتار عادیِ بازیابی که حذف‌های عمدی را برنمی‌گرداند) هم هست — همه‌ی این‌ها فقط از پنل ☁️ در دسترس‌اند، ابزار مستقیم برایشان نداری. همچنین بخش «⚙️ تنظیمات بکاپ» بالای همان پنل به کاربر اجازه می‌دهد تعداد بکاپ‌های دستیِ هم‌زمان را از ۰ تا ۷ (پیش‌فرض ۳) تغییر دهد؛ چون تلگرام به هر بات فقط ۱۰۲۴ کلید ذخیره‌سازی می‌دهد، این عدد مستقیماً حجمِ مجازِ هر بکاپ (خودکار و دستی) را تعیین می‌کند — هرچه تعداد بکاپ دستی بیشتر باشد سهمِ هرکدام از فضا کمتر می‌شود، و گذاشتنش روی ۰ بکاپ دستی را کلاً خاموش می‌کند و تقریباً تمام فضا را به بکاپ خودکار می‌دهد. کم‌کردن این عدد به کمتر از تعداد بکاپ‌های دستیِ فعلی، قدیمی‌ترین‌هایشان را برای همیشه حذف می‌کند (فقط بعد از تأیید کاربر). این تنظیم هم فقط از همان پنل ☁️ قابل‌تغییر است، ابزار مستقیمی برایش نداری. تنظیمات برنامه را هم مستقیماً با ابزار تغییر می‌دهی، نه فقط توضیح: روشن/خاموش‌کردن نسخه سبک (set_lite_mode — تا وقتی روشن است تغییر تم قفل است؛ پس اگر کاربر تغییر تم خواست، اول بگو و پیشنهاد بده نسخه سبک را خاموش کنی)، زوم صفحه (set_page_zoom — پیش‌فرض خاموش است؛ شبکه دانش همیشه زوم مخصوص خودش را دارد و به این تنظیم وابسته نیست)، سبک کادر نمایش یادداشت (set_viewer_style)، پیش‌نمایش یادداشت‌ها و تعداد خط‌هایش (set_note_preview)، ترتیب نمایش لیست (set_list_sort_mode)، و خواندن وضعیت فعلی همه‌ی این‌ها (get_app_settings — همیشه به‌جای حدس‌زدن وضعیت یک تنظیم، آن را صدا بزن). تغییر تم ظاهری، تغییر زبان، خروجی‌گرفتن واقعی از یادداشت‌ها (JSON/CSV/MD/TXT/HTML/PDF/DOCX/PNG/JPG، بسته کامل ZIP، ZIPهای تک\u200cفایلی، بکاپ کامل HTML برنامه)، باز کردن شبکه دانش/پورتال رندوم، و قفل‌کردن واقعیِ یک یادداشت با رمز (با ابزار lock_note — همان دیالوگ امنِ رمزگذاریِ خودِ برنامه باز می‌شود و کاربر رمز و راهنمای رمز را مستقیماً همان‌جا وارد می‌کند، هرگز از طریق این چت) را هم می‌توانی مستقیماً با ابزار انجام دهی، نه فقط توضیح بدهی. وقتی کاربر پرسید فلان کار در برنامه چطور انجام می‌شود، دقیقاً بگو کدام دکمه/بخش را لمس کند. همچنین این بخش‌های برنامه را می‌شناسی و دقیق راهنمایی می‌کنی: «جستجو» (جستجوی سراسری؛ با Ctrl+K هم باز می‌شود؛ فارسی، انگلیسی و فینگلیش را می‌فهمد، عملگرهای tag:، folder:، is:pinned، is:favorite، «عبارت دقیق» و علامت - برای حذف یک کلمه را دارد و جستجوهای اخیر را نگه می‌دارد)؛ «داشبورد» (آمار کل: تعداد یادداشت، کلمه، حرف، پوشه، تگ، میانگین کلمات، و فهرست پین‌شده، علاقه‌مندی، قفل‌شده، فریب‌دهنده، بایگانی، Ghost و کپسول زمانیِ فعال)؛ «🧬 DNA یادداشت» (تحلیل یک یادداشت: کلمه‌ها، نمادها، کلمات یکتا، کلمات کلیدیِ پرتکرار، زمان تقریبی مطالعه، تعداد تصویر و لینک)؛ «اشتراک‌گذاری یادداشت» (TXT، Markdown، HTML، PDF یا تصویر؛ یادداشت قفل‌شده فقط به‌صورت فایل رمزنگاری‌شده به اشتراک گذاشته می‌شود)؛ «انتخاب چندتایی» (نگه‌داشتن طولانی روی یادداشت یا پوشه؛ برای یادداشت‌ها پین، فیوریت، کپی، جابجایی بالا/پایین و حذف، و برای پوشه‌ها حذف گروهی)؛ و ابزارهای داخل خودِ یادداشت: نقاشی (قلم، پاک‌کن، مستطیل، دایره، رنگ، اندازه، برگشت، پاک‌کردن، دانلود و درج در متن)، ضبط صدا، درج و جابجایی تصویر، برگشت/تکرار متن (undo/redo)، دکمه‌ی «نمایش لینک» برای پیش‌نمایش لینک‌ها، و دکمه‌ی کپی یادداشت. داشبورد، جستجو، DNA و اشتراک‌گذاری را با open_app_view برای کاربر باز می‌کنی؛ برای بقیه‌ی این‌ها ابزار مستقیم نداری و فقط راهنمایی می‌کنی.\n\n'
+                + '۳) کارشناس خودِ برنامه: کل امکانات Markhin را می‌شناسی و درباره‌شان دقیق و کاربردی راهنمایی می‌کنی، حتی آن‌هایی که ابزار مستقیم برایشان نداری: پوشه‌بندی و برچسب‌گذاری یادداشت‌ها، پین و فیوریت‌کردن، آرشیو و بازگردانی، شبکه دانش (نمای گرافی ارتباط یادداشت‌ها)، پورتال رندوم، درون‌ریزی از JSON/CSV/TXT/MD/DOCX/HTML (این یکی چون به انتخاب فایل واقعی از گوشی کاربر نیاز دارد، فقط می‌توانی راهنمایی کنی). خروجیِ HTML کامل برنامه (بکاپ کل برنامه) را هم می‌توانی مستقیم با ابزار export_notes و فرمت app_html بسازی (حالت data: برنامه + همه یادداشت‌ها و پوشه‌ها بدون کلید API، حالت clean: برنامهٔ خالی)؛ نسخه‌ای که کلید API را هم داخلش دارد فقط خودِ کاربر از گزینهٔ «کامل، حتی کلید API» در منوی خروجی HTML می‌تواند بسازد و ابزار مستقیمی برایش نداری. همچنین بکاپ Cloud تلگرام (پنل ☁️): یک «بکاپ خودکار» هست که چند ثانیه بعد از هر ویرایش، بی‌صدا و بدون کاری از طرف کاربر، متنِ یادداشت‌ها را در فضای ابری خودِ تلگرام ذخیره می‌کند (تصاویر در آن نیستند، فقط روی همان دستگاه می‌مانند) — این همیشه فعال است. جدا از آن، «دریافتِ خودکار» تغییرات دستگاه‌های دیگر (یادداشت جدید، ویرایش، یا حذف) بدون فشردن دستی Restore، فقط روی دستگاهی کار می‌کند که قبلاً حداقل یک‌بار «ذخیره‌ی یک بکاپ جدید» یا «بازیابی» زده باشد؛ اگر کاربر گفت یادداشت‌ها/حذف‌ها بین دو دستگاهش خودکار سینک نمی‌شوند، دقیقاً همین را توضیح بده و بگو یک‌بار در پنل ☁️ دکمه‌ی «🔄 فعال‌سازی / تعمیر سینک خودکار» را بزند — همان لحظه هم وضعیت را روشن می‌کند هم یک‌بار با بکاپ ابری چک/merge می‌کند؛ زدنش هیچ‌وقت ضرر ندارد. علاوه بر بکاپِ خودکار، «ذخیره‌ی یک بکاپ جدید» (تا ۷ بکاپ دستی، با برچسب و رمزِ اختیاری)، «👁 مشاهده» محتوای هر بکاپ قبل از بازیابی، «📥 بازیابی» (یادداشتِ جدیدتر از بکاپ اضافه/به‌روزرسانی می‌شود، حذف‌های عمدی برنمی‌گردند)، و «🔓 بازیابی و لغو حذف‌ها» (وقتی کاربر صریحاً می‌خواهد یادداشت‌های حذف‌شده هم دقیقاً از همان یک بکاپِ مشخص برگردند، برخلاف رفتار عادیِ بازیابی که حذف‌های عمدی را برنمی‌گرداند) هم هست — همه‌ی این‌ها فقط از پنل ☁️ در دسترس‌اند، ابزار مستقیم برایشان نداری. همچنین بخش «⚙️ تنظیمات بکاپ» بالای همان پنل به کاربر اجازه می‌دهد تعداد بکاپ‌های دستیِ هم‌زمان را از ۰ تا ۷ (پیش‌فرض ۳) تغییر دهد؛ چون تلگرام به هر بات فقط ۱۰۲۴ کلید ذخیره‌سازی می‌دهد، این عدد مستقیماً حجمِ مجازِ هر بکاپ (خودکار و دستی) را تعیین می‌کند — هرچه تعداد بکاپ دستی بیشتر باشد سهمِ هرکدام از فضا کمتر می‌شود، و گذاشتنش روی ۰ بکاپ دستی را کلاً خاموش می‌کند و تقریباً تمام فضا را به بکاپ خودکار می‌دهد. کم‌کردن این عدد به کمتر از تعداد بکاپ‌های دستیِ فعلی، قدیمی‌ترین‌هایشان را برای همیشه حذف می‌کند (فقط بعد از تأیید کاربر). این تنظیم هم فقط از همان پنل ☁️ قابل‌تغییر است، ابزار مستقیمی برایش نداری. تنظیمات برنامه را هم مستقیماً با ابزار تغییر می‌دهی، نه فقط توضیح: روشن/خاموش‌کردن نسخه سبک (set_lite_mode — تا وقتی روشن است تغییر تم قفل است؛ پس اگر کاربر تغییر تم خواست، اول بگو و پیشنهاد بده نسخه سبک را خاموش کنی)، زوم صفحه (set_page_zoom — پیش‌فرض خاموش است؛ شبکه دانش همیشه زوم مخصوص خودش را دارد و به این تنظیم وابسته نیست)، موسیقی پس‌زمینهٔ برنامه — روشن/خاموش و کم/زیاد کردن بلندی صدا (set_background_music)، سبک کادر نمایش یادداشت (set_viewer_style)، پیش‌نمایش یادداشت‌ها و تعداد خط‌هایش (set_note_preview)، ترتیب نمایش لیست (set_list_sort_mode)، و خواندن وضعیت فعلی همه‌ی این‌ها (get_app_settings — همیشه به‌جای حدس‌زدن وضعیت یک تنظیم، آن را صدا بزن). تغییر تم ظاهری، تغییر زبان، خروجی‌گرفتن واقعی از یادداشت‌ها (JSON/CSV/MD/TXT/HTML/PDF/DOCX/PNG/JPG، بسته کامل ZIP، ZIPهای تک\u200cفایلی، بکاپ کامل HTML برنامه)، باز کردن شبکه دانش/پورتال رندوم، و قفل‌کردن واقعیِ یک یادداشت با رمز (با ابزار lock_note — همان دیالوگ امنِ رمزگذاریِ خودِ برنامه باز می‌شود و کاربر رمز و راهنمای رمز را مستقیماً همان‌جا وارد می‌کند، هرگز از طریق این چت) را هم می‌توانی مستقیماً با ابزار انجام دهی، نه فقط توضیح بدهی. وقتی کاربر پرسید فلان کار در برنامه چطور انجام می‌شود، دقیقاً بگو کدام دکمه/بخش را لمس کند. همچنین این بخش‌های برنامه را می‌شناسی و دقیق راهنمایی می‌کنی: «جستجو» (جستجوی سراسری؛ با Ctrl+K هم باز می‌شود؛ فارسی، انگلیسی و فینگلیش را می‌فهمد، عملگرهای tag:، folder:، is:pinned، is:favorite، «عبارت دقیق» و علامت - برای حذف یک کلمه را دارد و جستجوهای اخیر را نگه می‌دارد)؛ «داشبورد» (آمار کل: تعداد یادداشت، کلمه، حرف، پوشه، تگ، میانگین کلمات، و فهرست پین‌شده، علاقه‌مندی، قفل‌شده، فریب‌دهنده، بایگانی، Ghost و کپسول زمانیِ فعال)؛ «🧬 DNA یادداشت» (تحلیل یک یادداشت: کلمه‌ها، نمادها، کلمات یکتا، کلمات کلیدیِ پرتکرار، زمان تقریبی مطالعه، تعداد تصویر و لینک)؛ «اشتراک‌گذاری یادداشت» (TXT، Markdown، HTML، PDF یا تصویر؛ یادداشت قفل‌شده فقط به‌صورت فایل رمزنگاری‌شده به اشتراک گذاشته می‌شود)؛ «انتخاب چندتایی» (نگه‌داشتن طولانی روی یادداشت یا پوشه؛ برای یادداشت‌ها پین، فیوریت، کپی، جابجایی بالا/پایین و حذف، و برای پوشه‌ها حذف گروهی)؛ و ابزارهای داخل خودِ یادداشت: نقاشی (قلم، پاک‌کن، مستطیل، دایره، رنگ، اندازه، برگشت، پاک‌کردن، دانلود و درج در متن)، ضبط صدا، درج و جابجایی تصویر، برگشت/تکرار متن (undo/redo)، دکمه‌ی «نمایش لینک» برای پیش‌نمایش لینک‌ها، و دکمه‌ی کپی یادداشت. داشبورد، جستجو، DNA و اشتراک‌گذاری را با open_app_view برای کاربر باز می‌کنی؛ برای بقیه‌ی این‌ها ابزار مستقیم نداری و فقط راهنمایی می‌کنی.\n\n'
                 + webSearchRoleFa
                 + mAiDateTimeFa
                 + 'استانداردِ کیفیت پاسخ (خیلی مهم):\n'
@@ -33401,7 +33549,7 @@ const MU_AI = (function(){
                 + '- خیلی مهم — جلوگیری از عمل روی یادداشت اشتباه: تطبیقِ نام یادداشت‌ها تقریبی/فازی است، پس وقتی یادداشتی را با نام ناقص یا تقریبی (نه آی‌دی دقیق) صدا می‌زنی و به‌خصوص وقتی عملیات حساس/غیرقابل‌بازگشتِ آسان است (حذف، ادغام، جایگزینی کامل محتوا، آرشیو، فعال‌کردن Ghost Note/Time Capsule)، همیشه در پاسخت دقیقاً بگو روی کدام عنوانِ یادداشت عمل کردی، تا اگر یادداشتِ مشابهِ اشتباهی انتخاب شده، کاربر فوراً متوجه شود. اگر حدس می‌زنی ممکن است چند یادداشتِ هم‌نام یا خیلی شبیه‌به‌هم وجود داشته باشد، پیش از انجام عملیاتِ حساس، اول find_notes بزن و مطمئن شو.\n'
                 + '- find_notes فقط یک قطعه کوتاه از متن هر یادداشت را برمی‌گرداند، و فهرست یادداشت‌هایی هم که پایین‌تر به‌عنوان زمینه در اختیارت گذاشته شده صرفاً یک پیش‌نمایش است که ممکن است وسط متن یک یادداشت بریده شده باشد (با یک نشانه‌ی «[...]» مشخص می‌شود) — هیچ‌کدام از این دو را متن کامل و قطعی فرض نکن. هر وقت واقعاً به متن کامل یک یادداشت خاص نیاز داری — برای خواندن کامل، خلاصه‌سازی دقیق، ترجمه، نقل‌قول جزئیات دقیق، یا پاسخ به هر سوالی درباره‌ی محتوای واقعی‌اش — حتماً get_note (یا برای چند یادداشت هم‌زمان، get_notes) را صدا بزن.\n'
                 + '- برای حذف، فقط کافی‌ست delete_note را صدا بزنی؛ خودِ ابزار یک تأیید واقعی و قابل‌لغو از کاربر می‌گیرد، ولی هرگز آن را بدون درخواست صریح کاربر صدا نزن. این روی یادداشت‌های قفل‌شده هم کار می‌کند (حذف کردن رمزش را باز نمی‌کند و محتوایش را نشان نمی‌دهد، فقط رکورد را پاک می‌کند). هر حذفی در این برنامه دائمی و برگشت‌ناپذیر است.\n'
-                + '- خیلی مهم — امنیت رمز: وقتی کاربر خواست یادداشتی را قفل/رمزدار کند، هرگز خودت در همین چت از او رمز یا حتی راهنمای رمز نپرس و هرگز رمزی که در چت تایپ می‌کند را در جایی ثبت نکن — فقط بلافاصله lock_note را صدا بزن؛ خودِ ابزار همان دیالوگ امن رمزگذاریِ برنامه را باز می‌کند و کاربر رمز و راهنمای رمز (اختیاری) را مستقیماً و امن در همان دیالوگ وارد می‌کند، نه در چت. اگر نتیجه نشان داد کاربر دیالوگ را لغو کرده، به‌سادگی و بدون سرزنش به او بگو که رمزگذاری انجام نشد.\n'
+                + '- خیلی مهم — امنیت رمز: وقتی کاربر خواست یادداشتی را قفل/رمزدار کند، هرگز خودت در همین چت از او رمز یا حتی راهنمای رمز نپرس و هرگز رمزی که در چت تایپ می‌کند را در جایی ثبت نکن — فقط بلافاصله lock_note را صدا بزن؛ خودِ ابزار همان دیالوگ امن رمزگذاریِ برنامه را باز می‌کند و کاربر رمز، تکرار رمز (برای تأیید) و بعد راهنمای رمز (اختیاری) را مستقیماً و امن در همان دیالوگ وارد می‌کند، نه در چت. اگر نتیجه نشان داد کاربر دیالوگ را لغو کرده، به‌سادگی و بدون سرزنش به او بگو که رمزگذاری انجام نشد.\n'
                 + '- خیلی مهم — پیش از تغییرنام یا حذف یک پوشه، اگر مطمئن نیستی آن پوشه دقیقاً با همین املا وجود دارد (مثلاً همین الان در همین گفتگو آن را ندیده‌ای)، اول ابزار list_folders را صدا بزن، نه اینکه فقط از روی یادداشت‌ها/پوشه‌هایی که در زمینه‌ی پس‌زمینه به تو داده شده حدس بزنی — چون آن زمینه ممکن است پوشه‌های کاملاً خالی (بدون هیچ یادداشتی) را اصلاً نشان ندهد، و عمل‌کردن روی پوشه‌ای که واقعاً وجود ندارد یا روی یک املای مشابهِ اشتباه، دقیقاً همان خطایی است که این کار جلویش را می‌گیرد.\n'
                 + '- خیلی مهم — تاریخ آخرین ویرایش: مقدار lastEdited که ابزارهایی مثل get_note/get_notes/read_all_notes/compare_notes برمی‌گردانند از قبل و به‌صورت دقیق به هر دو تقویم تبدیل شده و به این شکل است: «۴ شهریور ۱۴۰۵ / September 4, 2026, 14:32» (روز/ماه/سال شمسی، سپس روز/ماه/سال میلادی، سپس ساعت). هرگز خودت این تاریخ را بین شمسی و میلادی تبدیل نکن یا حدس نزن — همیشه همان مقداری که ابزار داده را عیناً (یا فقط بخش مربوط به زبان پاسخت را از همان رشته) به کاربر بگو. تبدیل تقویم با ذهن مدل زبانی قابل‌اعتماد نیست و باعث خطاهایی مثل گفتن «۴ شهریور» به‌جای روز درست می‌شود؛ این مقدار همیشه از قبل توسط خودِ برنامه به‌درستی محاسبه شده است.\n'
                 + '- خیلی مهم — هر تبدیل تاریخِ دیگر (نه فقط تاریخ آخرین ویرایش یادداشت‌ها): وقتی کاربر یک تاریخ مشخص می‌دهد و می‌خواهد معادلش را در تقویم دیگر بداند، یا می‌پرسد فلان تاریخ چه روزی از هفته بوده/خواهد بود، یا چند روز تا/از یک تاریخ مشخص مانده/گذشته، همیشه ابزار convert_date را صدا بزن — هرگز خودت این محاسبه را در ذهن انجام نده یا حدس نزن، چون همان خطای «۴ شهریور به‌جای ۱۳ شهریور» را تکرار می‌کند.\n'
@@ -33431,7 +33579,7 @@ const MU_AI = (function(){
             : 'You are MARKHIN AI: a professional, precise, highly capable AI assistant embedded inside the Markhin note-taking app. You fill three roles at once:\n'
                 + '1) General assistant: you answer any question — whether or not it relates to the app — clearly and accurately using your general knowledge; by default you answer in whichever language the user wrote that message in, unless they\'ve explicitly asked for a different reply language (see the response-language rule below).\n'
                 + '2) Notes-management agent: you have direct access to the user\'s notes and folders and can actually perform (not just explain) the following: ' + toolsSummaryEn + '.\n'
-                + '3) App expert: you know the whole Markhin feature set and give precise, actionable guidance about any of it, even features you have no direct tool for: folders and tags, pinning and favoriting, archiving/restoring, the Knowledge Graph (a graph view of how notes connect), the Random Portal, importing from JSON/CSV/TXT/MD/DOCX/HTML (this one needs the user to actually pick a file on their device, so you can only guide them to it). The full-app HTML export (a complete backup of the app itself) you can create directly with export_notes format app_html (app_mode data = app plus all notes and folders without the API key, clean = blank app); the variant that also contains the API key can only be made by the user from the "Full, including API key" option of the HTML export menu, you have no tool for it. Also Telegram Cloud backup (the ☁️ panel): an "auto backup" saves the notes\' text to Telegram\'s own cloud a few seconds after every edit, silently, with nothing for the user to do (images aren\'t included, they stay on-device) — this always runs. Separately, automatically *pulling in* another device\'s changes (new notes, edits, or deletions) without the user manually tapping Restore only works on a device that has, at some point, tapped "Save a new backup" or "Restore" at least once; if the user says notes/deletions aren\'t syncing automatically between two of their devices, explain exactly this and tell them to open the ☁️ panel once and tap "🔄 Enable / fix auto sync" — it turns that on immediately and also does one check-and-merge against the cloud backup right then; tapping it is never harmful. Beyond the auto backup there\'s also "Save a new backup" (up to 7 manual snapshots, with an optional label and password), "👁 View" a backup\'s contents before restoring, "📥 Restore" (newer notes from the backup are added/updated, deliberate deletions are never brought back), and "🔓 Restore and undo deletions" (for when the user explicitly wants a deleted note back from one specific backup, overriding the normal behavior) — all of these live only in the ☁️ panel; you have no tool to open, view the inside of, or restore a backup. HOWEVER you DO have telegram_backup_list, and it is the ONLY trustworthy source for backups: for ANY question about which backups exist, a backup name, label or date, or how many notes a backup holds, you MUST call telegram_backup_list FIRST and answer strictly from its result (label, dateLabel, notes, skipped, approxSizeKB, passwordProtected). NEVER guess or invent a backup name, date or note count, and NEVER convert or write a date yourself: quote label and dateLabel exactly as returned, or call convert_date. If the tool returns ok:false (for example the app is not running inside Telegram), tell the user that plainly instead of answering from imagination. Never output long meaningless strings of letters or digits; if you have no real data, say so in one short sentence. There\'s also an "⚙️ Backup settings" block at the top of that same panel, where the user can change how many manual backups are kept at once, from 0 to 7 (default 3); since Telegram gives each bot only 1024 storage keys, this number directly sets the size cap for every backup (auto and manual) — more manual backups means a smaller cap for each, and setting it to 0 turns manual backups off entirely so nearly all the space goes to the auto backup alone. Lowering the number below the current manual-backup count permanently deletes the oldest ones (after the user confirms). This setting, too, can only be changed from the ☁️ panel itself; you have no direct tool for it. Changing any app setting directly with a tool, not just explaining it: Lite version on/off (set_lite_mode - while it is on, theme changes are locked, so if the user asks for a theme change first tell them and offer to turn Lite off), Eco power-saving options (set_eco_option - all on by default: pause animations while typing / in note viewer / idle / background), the scroll-pause delay (set_scroll_pause_delay - how many milliseconds the heavy theme effects stay paused after scrolling stops, 0 to 1000, default 300; 0 = off), page zoom on/off (set_page_zoom - off by default; the Knowledge Graph always has its own zoom and does not depend on this setting), note viewer frame style (set_viewer_style), note previews and their line count (set_note_preview), the list display order (set_list_sort_mode), and reading the current state of all of them (get_app_settings - always call it instead of guessing a setting\'s state). Switching the visual theme, switching the language, actually exporting notes to a real file (JSON/CSV/MD/TXT/HTML/PDF/DOCX/PNG/JPG, the complete ZIP bundle, per-format individual-file ZIPs, the full-app HTML snapshot), opening the Knowledge Graph / Random Portal, and actually password-locking a note (with the lock_note tool — this opens the app\'s own real, secure encryption dialog, where the user types the password and an optional hint directly, never through this chat) are things you can do directly with a tool, not just explain. When asked how to do something in the app, say exactly which button or section to tap. You also know these other parts of the app and guide users through them precisely: Search (the app-wide search; it also opens with Ctrl+K; it understands Persian, English and Finglish, supports the operators tag:, folder:, is:pinned, is:favorite, \"exact phrase\" and a leading - to exclude a word, and remembers recent searches); the Dashboard (overall stats: note, word, character, folder and tag counts, average words, plus the pinned, favorite, locked, decoy, archived, active Ghost and active Time Capsule lists); Note DNA (an analysis of one note: words, symbols, unique words, top keywords, estimated reading time, image and link counts); Share note (TXT, Markdown, HTML, PDF or image; a locked note is only ever shared as an encrypted file); multi-select (long-press a note or folder; for notes: pin, favorite, duplicate, move up/down and delete, for folders: bulk delete); and the tools inside a note itself: drawing (pen, eraser, rectangle, circle, color, size, undo, clear, download and insert into the text), voice recording, inserting and moving images, text undo/redo, the \"Show link\" button for link previews, and the duplicate-note button. You can open the dashboard, search, Note DNA and the share picker for the user with open_app_view; for the rest you have no direct tool and only guide.\n\n'
+                + '3) App expert: you know the whole Markhin feature set and give precise, actionable guidance about any of it, even features you have no direct tool for: folders and tags, pinning and favoriting, archiving/restoring, the Knowledge Graph (a graph view of how notes connect), the Random Portal, importing from JSON/CSV/TXT/MD/DOCX/HTML (this one needs the user to actually pick a file on their device, so you can only guide them to it). The full-app HTML export (a complete backup of the app itself) you can create directly with export_notes format app_html (app_mode data = app plus all notes and folders without the API key, clean = blank app); the variant that also contains the API key can only be made by the user from the "Full, including API key" option of the HTML export menu, you have no tool for it. Also Telegram Cloud backup (the ☁️ panel): an "auto backup" saves the notes\' text to Telegram\'s own cloud a few seconds after every edit, silently, with nothing for the user to do (images aren\'t included, they stay on-device) — this always runs. Separately, automatically *pulling in* another device\'s changes (new notes, edits, or deletions) without the user manually tapping Restore only works on a device that has, at some point, tapped "Save a new backup" or "Restore" at least once; if the user says notes/deletions aren\'t syncing automatically between two of their devices, explain exactly this and tell them to open the ☁️ panel once and tap "🔄 Enable / fix auto sync" — it turns that on immediately and also does one check-and-merge against the cloud backup right then; tapping it is never harmful. Beyond the auto backup there\'s also "Save a new backup" (up to 7 manual snapshots, with an optional label and password), "👁 View" a backup\'s contents before restoring, "📥 Restore" (newer notes from the backup are added/updated, deliberate deletions are never brought back), and "🔓 Restore and undo deletions" (for when the user explicitly wants a deleted note back from one specific backup, overriding the normal behavior) — all of these live only in the ☁️ panel; you have no tool to open, view the inside of, or restore a backup. HOWEVER you DO have telegram_backup_list, and it is the ONLY trustworthy source for backups: for ANY question about which backups exist, a backup name, label or date, or how many notes a backup holds, you MUST call telegram_backup_list FIRST and answer strictly from its result (label, dateLabel, notes, skipped, approxSizeKB, passwordProtected). NEVER guess or invent a backup name, date or note count, and NEVER convert or write a date yourself: quote label and dateLabel exactly as returned, or call convert_date. If the tool returns ok:false (for example the app is not running inside Telegram), tell the user that plainly instead of answering from imagination. Never output long meaningless strings of letters or digits; if you have no real data, say so in one short sentence. There\'s also an "⚙️ Backup settings" block at the top of that same panel, where the user can change how many manual backups are kept at once, from 0 to 7 (default 3); since Telegram gives each bot only 1024 storage keys, this number directly sets the size cap for every backup (auto and manual) — more manual backups means a smaller cap for each, and setting it to 0 turns manual backups off entirely so nearly all the space goes to the auto backup alone. Lowering the number below the current manual-backup count permanently deletes the oldest ones (after the user confirms). This setting, too, can only be changed from the ☁️ panel itself; you have no direct tool for it. Changing any app setting directly with a tool, not just explaining it: Lite version on/off (set_lite_mode - while it is on, theme changes are locked, so if the user asks for a theme change first tell them and offer to turn Lite off), Eco power-saving options (set_eco_option - all on by default: pause animations while typing / in note viewer / idle / background), the scroll-pause delay (set_scroll_pause_delay - how many milliseconds the heavy theme effects stay paused after scrolling stops, 0 to 1000, default 300; 0 = off), page zoom on/off (set_page_zoom - off by default; the Knowledge Graph always has its own zoom and does not depend on this setting), the background music (the app theme song) on/off and its volume (set_background_music), note viewer frame style (set_viewer_style), note previews and their line count (set_note_preview), the list display order (set_list_sort_mode), and reading the current state of all of them (get_app_settings - always call it instead of guessing a setting\'s state). Switching the visual theme, switching the language, actually exporting notes to a real file (JSON/CSV/MD/TXT/HTML/PDF/DOCX/PNG/JPG, the complete ZIP bundle, per-format individual-file ZIPs, the full-app HTML snapshot), opening the Knowledge Graph / Random Portal, and actually password-locking a note (with the lock_note tool — this opens the app\'s own real, secure encryption dialog, where the user types the password and an optional hint directly, never through this chat) are things you can do directly with a tool, not just explain. When asked how to do something in the app, say exactly which button or section to tap. You also know these other parts of the app and guide users through them precisely: Search (the app-wide search; it also opens with Ctrl+K; it understands Persian, English and Finglish, supports the operators tag:, folder:, is:pinned, is:favorite, \"exact phrase\" and a leading - to exclude a word, and remembers recent searches); the Dashboard (overall stats: note, word, character, folder and tag counts, average words, plus the pinned, favorite, locked, decoy, archived, active Ghost and active Time Capsule lists); Note DNA (an analysis of one note: words, symbols, unique words, top keywords, estimated reading time, image and link counts); Share note (TXT, Markdown, HTML, PDF or image; a locked note is only ever shared as an encrypted file); multi-select (long-press a note or folder; for notes: pin, favorite, duplicate, move up/down and delete, for folders: bulk delete); and the tools inside a note itself: drawing (pen, eraser, rectangle, circle, color, size, undo, clear, download and insert into the text), voice recording, inserting and moving images, text undo/redo, the \"Show link\" button for link previews, and the duplicate-note button. You can open the dashboard, search, Note DNA and the share picker for the user with open_app_view; for the rest you have no direct tool and only guide.\n\n'
                 + webSearchRoleEn
                 + mAiDateTimeEn
                 + 'Answer quality standard (important):\n'
@@ -33470,7 +33618,7 @@ const MU_AI = (function(){
                 + '- CRITICAL — the same rule applies to relative dates: when the user asks something like "what date is it in 17 days?", "what date will it be N days/weeks/months from now?", or "what date was it 3 weeks ago?", first work out the exact resulting Gregorian date yourself from "now" (given above) with simple day arithmetic, but never guess the Jalali equivalent of that resulting date yourself or build it by swapping in a Gregorian month name next to a Jalali year (e.g. writing "October" alongside a Jalali year) — pass that computed Gregorian date to the convert_date tool with calendar:"gregorian" and take the real Jalali equivalent from its result.\n'
                 + '- If the user asks to wipe EVERYTHING at once — all notes and all folders together — call delete_everything (one call, one OK dialog). If they only mention notes or folders separately, use delete_all_notes or delete_all_folders instead, never delete_everything. It always requires the user to type OK in a real dialog.\n'
                 + '- For deletions, just call delete_note — it shows the user a real, cancellable confirmation dialog itself — but never call it unless the user has clearly asked to delete something. It works on a locked note too (deleting doesn\'t decrypt or expose its content, only removes the record). Every deletion in this app is permanent and cannot be undone.\n'
-                + '- CRITICAL — password security: when the user wants a note locked/password-protected, never ask them for the password (or even a password hint) here in chat, and never record a password they type into the chat — just call lock_note right away. The tool itself opens the app\'s own real, secure encryption dialog, where the user types the password and an optional hint directly and safely into that dialog, not into the chat. If the result shows the user cancelled the dialog, just tell them plainly that the note wasn\'t locked, with no blame.\n'
+                + '- CRITICAL — password security: when the user wants a note locked/password-protected, never ask them for the password (or even a password hint) here in chat, and never record a password they type into the chat — just call lock_note right away. The tool itself opens the app\'s own real, secure encryption dialog, where the user types the password, repeats it to confirm, and then adds an optional hint directly and safely into that dialog, not into the chat. If the result shows the user cancelled the dialog, just tell them plainly that the note wasn\'t locked, with no blame.\n'
                 + '- CRITICAL — folder vs. note disambiguation: whether a request is about a folder or about a note is decided by what the user actually said (the word "folder" vs. a note\'s title), never by which name happens to already exist elsewhere. If they say "create/rename/delete FOLDER X" (or are clearly talking about the container notes get filed into), that is always manage_folder — never create_note or delete_note — even if a note happens to share that exact name. If they instead name a specific note, use the note tools. When truly unsure which one is meant, ask a short clarifying question rather than guessing, since folder and note deletions are not interchangeable and one cannot substitute for the other.\n'
                 + '- For a one-off manual reorder request — "move X above/below Y", "put X first", "send X to the end of the list" — call move_note_position (position: top/bottom/before/after). This is purely about a note\'s position in the list, never about folders: do not call manage_folder or move_note_to_folder for these, and do not call move_note_position for a folder-move request either.\n'
                 + '- For resorting a whole list (or one folder) at once by a rule — alphabetical, last-edited date, or length — call sort_notes instead of repositioning notes one at a time with move_note_position.\n'
@@ -34972,13 +35120,19 @@ html.mu-lite .mu-live-caret,html.mu-lite .mu-live-badge i{animation:none!importa
 .mu-viewer.mu-vs-live.mu-live-clean .mu-viewer-eye,.mu-viewer.mu-vs-live.mu-live-clean .mu-viewer-close{opacity:.5}
 .mu-viewer.mu-vs-live.mu-live-clean .mu-viewer-eye:hover,.mu-viewer.mu-vs-live.mu-live-clean .mu-viewer-close:hover{opacity:1}
 .mu-viewer.mu-vs-live .mu-viewer-tool[data-act="play"],.mu-viewer.mu-vs-live .mu-viewer-tool[data-act="pspeed"]{display:none}
-.mu-viewer:not(.mu-typing-prog) .mu-viewer-tool[data-act="pspeed"]{display:none}
+.mu-viewer:not(.mu-typing-prog) .mu-viewer-tool[data-act="pspeed"],.mu-viewer:not(.mu-typing-prog) .mu-viewer-tool[data-act="showall"],.mu-viewer.mu-vs-live .mu-viewer-tool[data-act="showall"]{display:none}
+.mu-viewer-showall{gap:5px;width:auto!important;padding-inline:10px!important}
+.mu-viewer-showall-label{font:700 12px/1 system-ui,Tahoma,Arial,sans-serif;white-space:nowrap}
+.mu-viewer.mu-vs-retro .mu-viewer-showall-label{font:12px Tahoma,"MS Sans Serif",Arial,sans-serif}
 .mu-viewer-tools .mu-live-spd{direction:ltr;unicode-bidi:isolate;font:700 12px/1 system-ui,Arial,sans-serif;min-width:30px}
 .mu-viewer.mu-vs-retro .mu-viewer-tools .mu-live-spd{font:12px Tahoma,"MS Sans Serif",Arial,sans-serif;min-width:28px}
 /* Ocean / Windows 95: while Play is typing, every option is hidden except the Play/Stop button; stopping (or finishing) brings them back. */
-.mu-viewer.mu-typing-prog:not(.mu-vs-live) .mu-viewer-tools>:not(.mu-viewer-tools-grp),.mu-viewer.mu-typing-prog:not(.mu-vs-live) .mu-viewer-tools-grp>:not([data-act="play"]):not([data-act="pspeed"]),.mu-viewer.mu-typing-prog:not(.mu-vs-live) .mu-viewer-foot{display:none!important}
+.mu-viewer.mu-typing-prog:not(.mu-vs-live) .mu-viewer-tools>:not(.mu-viewer-tools-grp),.mu-viewer.mu-typing-prog:not(.mu-vs-live) .mu-viewer-tools-grp>:not([data-act="play"]):not([data-act="pspeed"]):not([data-act="showall"]),.mu-viewer.mu-typing-prog:not(.mu-vs-live) .mu-viewer-foot{display:none!important}
 .mu-viewer.mu-typing-prog .mu-viewer-progress>i{transition:width .25s linear}
 .mu-viewer-tool[data-act="play"] svg{fill:currentColor}
+/* Windows 95 + Play: the toolbar "Show full text" button goes away; the bottom button (OK) becomes "Show full note" */
+.mu-viewer.mu-vs-retro.mu-typing-prog:not(.mu-vs-live) .mu-viewer-tools .mu-viewer-tool[data-act="showall"]{display:none!important}
+.mu-viewer.mu-vs-retro.mu-typing-prog:not(.mu-vs-live):not(.mu-live-clean) .mu-viewer-foot{display:flex!important}
 .mu-viewer.mu-vs-ocean .mu-live-caret{background:#5ecde6;box-shadow:0 0 6px rgba(94,205,230,.85)}
 .mu-viewer.mu-vs-ocean .mu-viewer-title{text-align:center!important}
 .mu-viewer.mu-vs-ocean .mu-viewer-body,.mu-viewer.mu-vs-ocean .mu-viewer-body *:not(a):not(a *){color:#fff!important;-webkit-text-fill-color:#fff!important;text-shadow:none!important}
@@ -35471,15 +35625,15 @@ window.mu_setViewerStyle = function(v){
       +'<article class="mu-viewer-card">'
       +'<button type="button" class="mu-viewer-close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg></button>'
       +'<header class="mu-viewer-head"><h2 class="mu-viewer-title" dir="auto"></h2><div class="mu-viewer-rule"></div></header>'
-      +'<div class="mu-viewer-tools" role="toolbar"><button type="button" class="mu-viewer-tool" data-act="dec"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18l5-12 5 12M5.8 14h6.4M17 11h4"/></svg></button><button type="button" class="mu-viewer-tool" data-act="inc"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 18l5-12 5 12M4.8 14h6.4M18 8v6M15 11h6"/></svg></button><span class="mu-viewer-tools-sep"></span><span class="mu-viewer-tools-grp"><button type="button" class="mu-viewer-tool" data-act="copy"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 012-2h9"/></svg><span class="mu-viewer-tool-label"></span></button><button type="button" class="mu-viewer-tool" data-act="play"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5l12 7.5-12 7.5z"/></svg></button><button type="button" class="mu-viewer-tool" data-act="pspeed"><span class="mu-live-spd">×1</span></button><button type="button" class="mu-viewer-tool" data-act="edit" aria-pressed="false" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l1-4L16.5 4.5a2 2 0 013 3L8 19z"/><path d="M14 7l3 3"/></svg></button><button type="button" class="mu-viewer-tool" data-act="img" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M4 17l5-4.5 3.5 3 3-2.5 4.5 4"/></svg></button></span></div><div class="mu-viewer-progress"><i></i></div>'
+      +'<div class="mu-viewer-tools" role="toolbar"><button type="button" class="mu-viewer-tool" data-act="dec"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18l5-12 5 12M5.8 14h6.4M17 11h4"/></svg></button><button type="button" class="mu-viewer-tool" data-act="inc"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 18l5-12 5 12M4.8 14h6.4M18 8v6M15 11h6"/></svg></button><span class="mu-viewer-tools-sep"></span><span class="mu-viewer-tools-grp"><button type="button" class="mu-viewer-tool" data-act="copy"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 012-2h9"/></svg><span class="mu-viewer-tool-label"></span></button><button type="button" class="mu-viewer-tool" data-act="play"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5l12 7.5-12 7.5z"/></svg></button><button type="button" class="mu-viewer-tool" data-act="pspeed"><span class="mu-live-spd">×1</span></button><button type="button" class="mu-viewer-tool mu-viewer-showall" data-act="showall"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l7 7-7 7M13 5l7 7-7 7"/></svg><span class="mu-viewer-showall-label"></span></button><button type="button" class="mu-viewer-tool" data-act="edit" aria-pressed="false" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l1-4L16.5 4.5a2 2 0 013 3L8 19z"/><path d="M14 7l3 3"/></svg></button><button type="button" class="mu-viewer-tool" data-act="img" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M4 17l5-4.5 3.5 3 3-2.5 4.5 4"/></svg></button></span></div><div class="mu-viewer-progress"><i></i></div>'
       +'<div class="mu-viewer-body" dir="auto"></div>'
       +'<footer class="mu-viewer-foot"><button type="button" class="mu-viewer-ok">OK</button></footer>'
       +'<input type="file" accept="image/*" class="mu-ed-file" hidden>'
       +'</article>';
     root.querySelector('.mu-viewer-backdrop').addEventListener('click',close);
     root.querySelector('.mu-viewer-close').addEventListener('click',close);
-    root.__updOk=function(){ try{ var ok=root.querySelector('.mu-viewer-ok'), fa=currentLang==='fa'; if(root.classList.contains('is-editing')) ok.textContent=fa?'ذخیره':'Save'; else ok.textContent=fa?'باشه':'OK'; }catch(e){} };
-    root.querySelector('.mu-viewer-ok').addEventListener('click',function(){ if(root.__ed&&root.__ed.active){ root.__ed.exit(); try{ root.__updOk(); }catch(e){} } else close(); });
+    root.__updOk=function(){ try{ var ok=root.querySelector('.mu-viewer-ok'), fa=currentLang==='fa'; if(root.classList.contains('is-editing')) ok.textContent=fa?'ذخیره':'Save'; else if(root.classList.contains('mu-vs-retro')&&root.classList.contains('mu-typing-prog')) ok.textContent=fa?'نمایش کامل یادداشت':'Show full note'; else ok.textContent=fa?'باشه':'OK'; }catch(e){} };
+    root.querySelector('.mu-viewer-ok').addEventListener('click',function(){ if(root.classList.contains('mu-vs-retro')&&root.classList.contains('mu-typing-prog')&&root.__live&&!root.__live.done){ liveEnd(root.__live); try{ root.__updOk(); }catch(e){} return; } if(root.__ed&&root.__ed.active){ root.__ed.exit(); try{ root.__updOk(); }catch(e){} } else close(); });
     var vb=root.querySelector('.mu-viewer-body');
     function fsKey(){ return 'markhin_viewer_fs_v1'; }
     function getScale(){ try{ var n=parseFloat(localStorage.getItem(fsKey())); return (n>=0.8&&n<=1.8)?n:1; }catch(e){ return 1; } }
@@ -35553,12 +35707,17 @@ window.mu_setViewerStyle = function(v){
       root.querySelector('.mu-viewer-tools').addEventListener('click',function(e){
         var b=e.target.closest&&e.target.closest('[data-act="play"]'); if(!b) return;
         var S=root.__live;
-        if(S&&!S.done){ liveEnd(S); return; }
+        if(S&&!S.done){ liveAct(S,'pause'); return; }
         var body=root.querySelector('.mu-viewer-body');
         if(body.classList.contains('mu-viewer-empty')||(root.__ed&&root.__ed.active)) return;
         body.scrollTop=0;
         try{ liveInit(body,currentLang==='fa',{speed:root.__playSpeed||0.25,mode:'char',play:true}); }
         catch(err){ try{ if(root.__live) liveEnd(root.__live); }catch(e2){} }
+      });
+      // Show full text (Ocean + Windows 95): jumps to the whole note, brings every option back.
+      root.querySelector('.mu-viewer-tools').addEventListener('click',function(e){
+        var b=e.target.closest&&e.target.closest('[data-act="showall"]'); if(!b) return;
+        var S=root.__live; if(S&&!S.done) liveEnd(S);
       });
       // Editing (pencil / add image) needs the complete note in the DOM: finish the typing first.
       root.querySelector('.mu-viewer-tools').addEventListener('click',function(e){
@@ -35659,7 +35818,7 @@ window.mu_setViewerStyle = function(v){
     })(body,[]);
     return q;
   }
-  var PLAY_SVG='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5l12 7.5-12 7.5z"/></svg>', STOP_SVG='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>';
+  var PLAY_SVG='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5l12 7.5-12 7.5z"/></svg>', STOP_SVG='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>', PAUSE_SVG='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>';
   var EYE_SVG='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>', EYEOFF_SVG='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path d="M4 4l16 16"/></svg>';
   function setEyeBtn(clean){
     var eb=root&&root.querySelector('.mu-viewer-eye'); if(!eb) return;
@@ -35678,13 +35837,15 @@ window.mu_setViewerStyle = function(v){
     pb.querySelector('.mu-live-spd').textContent='×'+Math.round(v*4*100)/100;
     pb.title=fa?'سرعت تایپ':'Typing speed'; pb.setAttribute('aria-label',pb.title);
   }
-  function setPlayBtn(run){
+  function setPlayBtn(run,paused){
     var pb=root&&root.querySelector('[data-act="play"]'); if(!pb) return;
-    var fa=currentLang==='fa';
-    pb.setAttribute('data-state',run?'stop':'play');
-    pb.innerHTML=run?STOP_SVG:PLAY_SVG;
-    var l=run?(fa?'توقف و نمایش کامل یادداشت':'Stop and show the full note'):(fa?'پخش (تایپ حرف‌به‌حرف از اول)':'Play (type letter by letter from the start)');
+    var fa=currentLang==='fa', l;
+    if(run&&!paused){ pb.setAttribute('data-state','pause'); pb.innerHTML=PAUSE_SVG; l=fa?'توقف (متن همین‌جا می‌ماند)':'Pause (the text stays where it is)'; }
+    else if(run&&paused){ pb.setAttribute('data-state','resume'); pb.innerHTML=PLAY_SVG; l=fa?'ادامه تایپ':'Resume typing'; }
+    else { pb.setAttribute('data-state','play'); pb.innerHTML=PLAY_SVG; l=fa?'پخش (تایپ حرف‌به‌حرف از اول)':'Play (type letter by letter from the start)'; }
     pb.title=l; pb.setAttribute('aria-label',l);
+    var sa=root.querySelector('[data-act="showall"]');
+    if(sa){ var t=fa?'نمایش کامل متن':'Show full text'; sa.querySelector('.mu-viewer-showall-label').textContent=t; sa.title=t; sa.setAttribute('aria-label',t); }
   }
   // How much of the note has been typed so far (0..1): letters count 1 each, images/audio count like ~12 letters.
   function liveFrac(S){
@@ -35697,8 +35858,8 @@ window.mu_setViewerStyle = function(v){
     return tot>0?Math.min(1,got/tot):1;
   }
   function liveUI(S){
-    setPlayBtn(!S.done);
-    root.classList.toggle('mu-typing-prog',!!S.play&&!S.done);
+    setPlayBtn(!S.done,!!S.paused);
+    root.classList.toggle('mu-typing-prog',!!S.play&&!S.done); try{ root.__updOk&&root.__updOk(); }catch(e){}
     var lb=root.querySelector('.mu-viewer-livebar'), bd=root.querySelector('.mu-live-badge'), fa=S.fa;
     var bp=lb.querySelector('[data-live="pause"]'), bs=lb.querySelector('[data-live="skip"]'), bsp=lb.querySelector('[data-live="speed"]'), br=lb.querySelector('[data-live="replay"]');
     bp.innerHTML=S.paused
@@ -35878,9 +36039,9 @@ window.mu_setViewerStyle = function(v){
     var ttl=root.querySelector('.mu-viewer-title');
     if(vStyle==='live'||vStyle==='ocean') ttl.style.setProperty('text-align','center','important'); else ttl.style.removeProperty('text-align');
     if(root.__live){ try{ clearTimeout(root.__live.t); }catch(e){} root.__live=null; }
-    setPlayBtn(false);
+    setPlayBtn(false,false);
     setPSpeed(0.25);
-    root.classList.remove('mu-typing-prog');
+    root.classList.remove('mu-typing-prog'); try{ root.__updOk&&root.__updOk(); }catch(e){}
     var body=root.querySelector('.mu-viewer-body');
     var empty=!String(html).replace(/<[^>]*>/g,'').trim() && !/<(img|canvas|video|audio|table)/i.test(html);
     body.classList.toggle('mu-viewer-empty',empty);
@@ -36080,7 +36241,7 @@ html.mu-zooming .header-nav{-webkit-backdrop-filter:blur(15px) !important;backdr
    OFF : one tap, no confirmation — removes the class and restores the old theme.
    The warning dialog is shown only when turning it ON. */
 (function () {
-  var KEY = 'app_lite_mode_v1', PREV = 'app_lite_prev_theme_v1';
+  var KEY = 'app_lite_mode_v1', PREV = 'app_lite_prev_theme_v1', PREV_MUSIC = 'app_lite_prev_music_v1';
   var root = document.documentElement;
   var origSelect = null, origCycle = null;
 
@@ -36415,6 +36576,14 @@ html.mu-zooming .header-nav{-webkit-backdrop-filter:blur(15px) !important;backdr
     root.classList.add('mu-lite');
     ls(false, KEY, '1');
     if (oc >= 0 && origSelect) origSelect.call(MU_Theme, oc);
+    /* Background music is switched off in Lite mode (the previous on/off state is remembered).
+       It is NOT locked: the user can turn it back on from Settings > Background music. */
+    try {
+      if (window.MU_BgMusic && typeof MU_BgMusic.isOn === 'function') {
+        if (ls(true, PREV_MUSIC) === null) ls(false, PREV_MUSIC, MU_BgMusic.isOn() ? '1' : '0');
+        if (MU_BgMusic.isOn()) MU_BgMusic.set(false);
+      }
+    } catch (e) {}
   }
   function disable() {
     hookTheme();
@@ -36423,6 +36592,12 @@ html.mu-zooming .header-nav{-webkit-backdrop-filter:blur(15px) !important;backdr
     var prev = parseInt(ls(true, PREV), 10);
     ls(false, PREV, null);
     if (isFinite(prev) && origSelect) origSelect.call(MU_Theme, prev);
+    /* Restore the music only if it was playing before Lite was turned on. */
+    try {
+      var pm = ls(true, PREV_MUSIC);
+      ls(false, PREV_MUSIC, null);
+      if (pm === '1' && window.MU_BgMusic && typeof MU_BgMusic.set === 'function' && !MU_BgMusic.isOn()) MU_BgMusic.set(true);
+    } catch (e) {}
   }
 
   function gearSvg() {
@@ -36446,8 +36621,8 @@ html.mu-zooming .header-nav{-webkit-backdrop-filter:blur(15px) !important;backdr
         '<div class="mu-set-text">' +
           '<div class="mu-set-title">' + (fa ? 'نسخه سبک (Lite)' : 'Lite version') + '<span class="mu-set-badge" id="muLiteBadge">' + (on ? (fa ? 'روشن' : 'ON') : (fa ? 'خاموش' : 'OFF')) + '</span></div>' +
           '<div class="mu-set-desc">' + (fa
-            ? 'برنامه را برای گوشی‌های ضعیف‌تر سبک‌تر و سریع‌تر می‌کند: تم اقیانوسی، بدون انیمیشن و افکت متحرک.'
-            : 'Makes the app lighter and faster on low-end phones: Oceanic theme, no animations or moving effects.') + '</div>' +
+            ? 'برنامه را برای گوشی‌های ضعیف‌تر سبک‌تر و سریع‌تر می‌کند: تم اقیانوسی، بدون انیمیشن و افکت متحرک و موسیقی پس‌زمینه خاموش (اگر خواستید، از همین تنظیمات دوباره روشنش کنید).'
+            : 'Makes the app lighter and faster on low-end phones: Oceanic theme, no animations or moving effects, and background music off (you can turn it back on from the settings below).') + '</div>' +
         '</div>' +
         '<button type="button" class="mu-switch" id="muLiteSwitch" role="switch" aria-checked="' + (on ? 'true' : 'false') + '" aria-label="' + (fa ? 'نسخه سبک' : 'Lite version') + '" onclick="MU_Lite.toggle()"></button>' +
       '</div>' +
@@ -36483,6 +36658,7 @@ html.mu-zooming .header-nav{-webkit-backdrop-filter:blur(15px) !important;backdr
           }).join('') +
         '</div>' +
       '</div>'
+      + (window.MU_BgMusic ? MU_BgMusic.html(fa) : '')
       + (window.MU_ScrollPause ? MU_ScrollPause.html(fa) : '')
       + (window.MU_Eco ? MU_Eco.html(fa) : '')
     );
@@ -36495,6 +36671,7 @@ html.mu-zooming .header-nav{-webkit-backdrop-filter:blur(15px) !important;backdr
     if (sw) sw.setAttribute('aria-checked', isOn() ? 'true' : 'false');
     if (b) b.textContent = isOn() ? (fa ? 'روشن' : 'ON') : (fa ? 'خاموش' : 'OFF');
     try { if (window.MU_ScrollPause && MU_ScrollPause.sync) MU_ScrollPause.sync(); } catch (e) {}
+    try { if (window.MU_BgMusic && MU_BgMusic.sync) MU_BgMusic.sync(); } catch (e) {}
   }
 
   function openWarning() {
@@ -36504,6 +36681,7 @@ html.mu-zooming .header-nav{-webkit-backdrop-filter:blur(15px) !important;backdr
       'همه‌ی انیمیشن‌های بی‌نهایت و عناصر متحرک (پس‌زمینه‌ی متحرک، ذرات، پرتوها، شخصیت‌ها و…) اجرا نمی‌شوند.',
       'انتقال‌ها و حرکت‌های نرم، افکت محوشدگی شیشه‌ای (blur) و سایه‌های سنگین غیرفعال می‌شوند؛ ظاهر ساده‌تر و کمی «خشک‌تر» می‌شود.',
       'تا وقتی نسخه سبک روشن است، تغییر تم قفل است.',
+      'موسیقی پس‌زمینه خاموش می‌شود. اگر خواستید، از «تنظیمات ← موسیقی پس‌زمینه» با کلیدش دوباره روشنش کنید (قفل نیست). با خاموش‌کردن نسخه سبک، اگر قبلاً روشن بوده، موسیقی هم به حالت قبل برمی‌گردد.',
       'یادداشت‌ها و داده‌هایتان هیچ تغییری نمی‌کند؛ فقط ظاهر و حرکت‌ها ساده می‌شوند.',
       'هر زمان خواستید، از همین بخش با یک کلیک خاموشش می‌کنید و همه‌چیز به حالت قبل برمی‌گردد.'
     ] : [
@@ -36511,6 +36689,7 @@ html.mu-zooming .header-nav{-webkit-backdrop-filter:blur(15px) !important;backdr
       'All infinite animations and moving elements (animated backgrounds, particles, beams, characters…) stop running.',
       'Transitions, smooth motion, glass blur effects and heavy shadows are disabled; the look becomes simpler and a bit flatter.',
       'Theme switching is locked while Lite is on.',
+      'Background music is turned off. If you want it, turn it back on with its switch in Settings > Background music (it is not locked). When you turn Lite off, the music returns to how it was if it was on before.',
       'Your notes and data are not touched; only visuals and motion are simplified.',
       'You can turn it off any time from here with one tap and everything goes back.'
     ];
@@ -37604,6 +37783,423 @@ html.mu-eco-deep .note-btn-wrap { content-visibility: auto; contain-intrinsic-si
   window.MU_ScrollPause={ get:get, set:set, html:html, sync:sync, min:MIN, max:MAX, def:DEFV };
   // settings markup is injected after this runs: fill in the note / Lite state once it exists
   setTimeout(sync, 0);
+})();
+</script>
+<script id="muBgMusic">
+/* Background music: a soft, nostalgic, piano-and-strings ambience (original, synthesised live with Web Audio - no audio files).
+   Settings > Background music: on/off switch + volume. Starts as soon as the loading screen ends (if the browser blocks autoplay, on the first tap), pauses when the
+   app is in the background, and fades out while a voice note / audio / video plays. */
+(function(){
+  'use strict';
+  var KEY_ON='app_bgmusic', KEY_VOL='app_bgmusic_vol';
+  var BPM=70, STEP=60/BPM/2;
+  function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+  function lsSet(k,v){ try{ localStorage.setItem(k,String(v)); }catch(e){} }
+  var enabled=lsGet(KEY_ON)!=='0';
+  var vol=(function(){ var v=parseInt(lsGet(KEY_VOL),10); return isFinite(v)?Math.max(0,Math.min(100,v)):45; })();
+  var ctx=null, master=null, dry=null, rev=null, dly=null, timer=0, gestured=false, ducked=false;
+  var nextTime=0, stepI=0, barI=0, bar=null, melM=79;
+  /* The high, bell-like layers (the top-octave lead melody and the random high 'sparkle' notes) are switched OFF.
+     Set either flag to true to bring that layer back. */
+  var MELODY=false, SPARKLE=false;
+  var ready=!!window.__mkSplashDone;   /* true once the loading screen has finished */
+
+  /* D major, I - V/3 - vi - IV - ii - V - iii - IV  (8 bars, one chord per bar) */
+  var CH=[ {r:2,t:[2,6,9,1]}, {r:1,t:[1,4,9]}, {r:11,t:[11,2,6,9]}, {r:7,t:[7,11,2,6]},
+           {r:4,t:[4,7,11,2]}, {r:9,t:[9,1,4,7]}, {r:6,t:[6,9,1,4]}, {r:7,t:[7,11,2,6]} ];
+  var SCALE=[2,4,6,7,9,11,1];
+  var PAT=[ [0,1,2,4,2,1,3,1], [0,2,1,3,2,4,3,2], [0,1,2,3,4,3,2,1], [0,2,4,2,1,3,2,1] ];
+  var RH=[ [0,3,6], [0,4], [2,5,7], [0,2,4,6], [0,3], [1,4,6], [0,6], [], [0,4,6] ];
+
+  function hz(m){ return 440*Math.pow(2,(m-69)/12); }
+  function pcOf(m){ return ((m%12)+12)%12; }
+  function upTo(pc,lo){ return lo+((((pc-lo)%12)+12)%12); }
+  function rnd(a,b){ return a+Math.random()*(b-a); }
+
+  function makeIR(c,sec){
+    var sr=c.sampleRate, len=Math.floor(sr*sec), b=c.createBuffer(2,len,sr);
+    for(var ch=0;ch<2;ch++){
+      var d=b.getChannelData(ch), y=0;
+      for(var i=0;i<len;i++){ y+=((Math.random()*2-1)-y)*0.42; d[i]=y*Math.pow(1-i/len,2.6); }
+    }
+    return b;
+  }
+  function build(){
+    var AC=window.AudioContext||window.webkitAudioContext; if(!AC) return false;
+    try{ ctx=new AC(); }catch(e){ ctx=null; return false; }
+    master=ctx.createGain(); master.gain.value=0;
+    var comp=ctx.createDynamicsCompressor();
+    comp.threshold.value=-22; comp.knee.value=24; comp.ratio.value=3; comp.attack.value=0.02; comp.release.value=0.3;
+    dry=ctx.createGain(); dry.gain.value=0.9; dry.connect(comp);
+    var conv=ctx.createConvolver(); conv.buffer=makeIR(ctx,3.4);
+    rev=ctx.createGain(); rev.gain.value=1;
+    var wet=ctx.createGain(); wet.gain.value=0.55;
+    rev.connect(conv); conv.connect(wet); wet.connect(comp);
+    dly=ctx.createGain(); dly.gain.value=1;
+    var d=ctx.createDelay(2); d.delayTime.value=STEP*3;
+    var fb=ctx.createGain(); fb.gain.value=0.34;
+    var lp=ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=2300;
+    dly.connect(d); d.connect(lp); lp.connect(fb); fb.connect(d); lp.connect(comp); lp.connect(rev);
+    comp.connect(master); master.connect(ctx.destination);
+    return true;
+  }
+  function send(node,rv,dl){
+    node.connect(dry);
+    if(rv>0){ var g=ctx.createGain(); g.gain.value=rv; node.connect(g); g.connect(rev); }
+    if(dl>0){ var h=ctx.createGain(); h.gain.value=dl; node.connect(h); h.connect(dly); }
+  }
+  function piano(t,m,vel,dur,rv,dl){
+    var f=hz(m), out=ctx.createGain(), flt=ctx.createBiquadFilter();
+    flt.type='lowpass'; flt.Q.value=0.3;
+    flt.frequency.setValueAtTime(Math.min(9000,f*7+1500),t);
+    flt.frequency.exponentialRampToValueAtTime(Math.max(700,f*1.6),t+dur*0.6);
+    out.gain.setValueAtTime(0.0001,t);
+    out.gain.linearRampToValueAtTime(vel,t+0.006);
+    out.gain.exponentialRampToValueAtTime(vel*0.35,t+0.28);
+    out.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    var parts=[[1,'triangle',0.6,0],[2,'sine',0.28,3],[3,'sine',0.1,-4],[4,'sine',0.04,0]], last=null;
+    parts.forEach(function(p){
+      var o=ctx.createOscillator(), g=ctx.createGain();
+      o.type=p[1]; o.frequency.value=f*p[0]; o.detune.value=p[3]; g.gain.value=p[2];
+      o.connect(g); g.connect(flt); o.start(t); o.stop(t+dur+0.05); last=o;
+    });
+    flt.connect(out); send(out,rv,dl);
+    last.onended=function(){ try{ out.disconnect(); }catch(e){} };
+  }
+  function pad(t,m,dur,g){
+    var f=hz(m), out=ctx.createGain(), flt=ctx.createBiquadFilter(), last=null;
+    flt.type='lowpass'; flt.frequency.value=950; flt.Q.value=0.5;
+    out.gain.setValueAtTime(0.0001,t);
+    out.gain.linearRampToValueAtTime(g,t+1.3);
+    out.gain.setValueAtTime(g,t+dur-0.3);
+    out.gain.linearRampToValueAtTime(0.0001,t+dur+1.7);
+    [-7,7].forEach(function(dt){
+      var o=ctx.createOscillator(); o.type='sawtooth'; o.frequency.value=f; o.detune.value=dt;
+      o.connect(flt); o.start(t); o.stop(t+dur+1.8); last=o;
+    });
+    flt.connect(out); send(out,0.6,0);
+    last.onended=function(){ try{ out.disconnect(); }catch(e){} };
+  }
+  function bass(t,m,dur){
+    var o=ctx.createOscillator(), g=ctx.createGain();
+    o.type='sine'; o.frequency.value=hz(m);
+    g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(0.15,t+0.08);
+    g.gain.exponentialRampToValueAtTime(0.06,t+dur*0.8); g.gain.exponentialRampToValueAtTime(0.0001,t+dur+0.4);
+    o.connect(g); send(g,0.15,0); o.start(t); o.stop(t+dur+0.5);
+    o.onended=function(){ try{ g.disconnect(); }catch(e){} };
+  }
+
+  function nearestChordTone(m,pcs){
+    for(var d=0;d<7;d++){
+      if(pcs.indexOf(pcOf(m-d))>=0) return m-d;
+      if(pcs.indexOf(pcOf(m+d))>=0) return m+d;
+    }
+    return m;
+  }
+  function scaleMove(m,dir){ var x=m, n=0; do{ x+=dir; n++; }while(SCALE.indexOf(pcOf(x))<0 && n<6); return x; }
+  function genMelody(c){
+    var tpl=RH[Math.floor(Math.random()*RH.length)], ev=[];
+    for(var k=0;k<tpl.length;k++){
+      var s=tpl[k], m=melM;
+      if(s===0||s===4||k===0){ m=nearestChordTone(m+Math.round(rnd(-2,2)),c.t); }
+      else {
+        var dir=Math.random()<0.5?-1:1;
+        if(m>84) dir=-1; else if(m<74) dir=1;
+        m=scaleMove(m,dir); if(Math.random()<0.3) m=scaleMove(m,dir);
+      }
+      if(m>88) m-=12; if(m<72) m+=12;
+      melM=m;
+      var nx=(k+1<tpl.length)?tpl[k+1]:8;
+      ev.push({s:s,m:m,dur:(nx-s)*STEP+2.4,vel:(s===0||s===4)?0.27:0.21});
+    }
+    return ev;
+  }
+  function startBar(t){
+    var c=CH[barI%8], i;
+    var pm=c.t.map(function(pc){ return upTo(pc,50); }).sort(function(a,b){ return a-b; }).slice(0,4);
+    for(i=0;i<pm.length;i++) pad(t,pm[i],STEP*8,0.03);
+    bass(t,48+c.r,STEP*8);
+    var arr=c.t.map(function(pc){ return upTo(pc,55); }).sort(function(a,b){ return a-b; });
+    arr.push(arr[0]+12); if(arr.length<5) arr.push(arr[1]+12);
+    bar={ arr:arr, pat:PAT[(barI+(Math.random()<0.4?1:0))%PAT.length], mel:MELODY?genMelody(c):[],
+          sparkAt:(SPARKLE&&Math.random()<0.4)?Math.floor(rnd(0,8)):-1, sparkM:upTo(c.t[Math.floor(Math.random()*c.t.length)],88) };
+  }
+  function playStep(s,t){
+    if(s===0||!bar) startBar(t);
+    var idx=bar.pat[s];
+    if(idx!=null && Math.random()>0.1){
+      var acc=(s===0||s===4)?1:0.78;
+      piano(t+rnd(-0.008,0.008),bar.arr[idx%bar.arr.length],0.2*acc*rnd(0.85,1.15),2.4,0.5,0.08);
+    }
+    if(MELODY) for(var i=0;i<bar.mel.length;i++){ var e=bar.mel[i]; if(e.s===s) piano(t,e.m,e.vel,e.dur,0.7,0.4); }
+    if(SPARKLE && bar.sparkAt===s) piano(t,bar.sparkM,0.05,4.5,0.9,0.5);
+  }
+  function tick(){
+    if(!ctx) return;
+    var now=ctx.currentTime;
+    if(nextTime<now-0.5) nextTime=now+0.1;
+    while(nextTime<now+0.7){
+      playStep(stepI,nextTime);
+      nextTime+=STEP; stepI=(stepI+1)%8;
+      if(stepI===0) barI=(barI+1)%8;
+    }
+  }
+
+  function target(){ return (enabled&&!ducked)?Math.pow(vol/100,1.6)*0.9:0; }
+  function applyGain(fast){
+    if(!ctx||!master) return;
+    var now=ctx.currentTime;
+    try{
+      master.gain.cancelScheduledValues(now);
+      master.gain.setValueAtTime(master.gain.value,now);
+      master.gain.setTargetAtTime(target(),now,fast?0.15:0.9);
+    }catch(e){}
+  }
+  function start(){
+    if(!enabled||!gestured||!ready) return;
+    if(!ctx && !build()) return;
+    try{ ctx.resume(); }catch(e){}
+    if(!timer){ nextTime=ctx.currentTime+0.2; stepI=0; barI=0; bar=null; timer=setInterval(tick,120); tick(); }
+    applyGain();
+  }
+  function stop(){
+    applyGain(true);
+    setTimeout(function(){
+      if(!enabled && timer){ clearInterval(timer); timer=0; try{ ctx.suspend(); }catch(e){} }
+    },900);
+  }
+
+  /* first user gesture (autoplay policy); kept alive so playback can recover after a system interruption */
+  function onGesture(){
+    gestured=true;
+    if(!enabled) return;
+    if(!ctx||!timer) start();
+    else if(ctx.state!=='running' && !document.hidden){ try{ ctx.resume(); }catch(e){} }
+  }
+  ['pointerup','touchend','click','keydown'].forEach(function(n){ document.addEventListener(n,onGesture,{capture:true,passive:true}); });
+
+  /* start as soon as the loading screen is gone; if the browser refuses audio without a tap, the first tap resumes it (onGesture) */
+  function autoStart(){ ready=true; if(!enabled) return; gestured=true; start(); }
+  window.addEventListener('mk-splash-done',autoStart);
+  if(ready) setTimeout(autoStart,0);
+  setTimeout(function(){ if(!ready) autoStart(); },6000);   /* safety net if the loading-screen script is missing */
+
+  /* silent in the background */
+  document.addEventListener('visibilitychange',function(){
+    if(!ctx||!timer) return;
+    try{ if(document.hidden) ctx.suspend(); else if(enabled) ctx.resume(); }catch(e){}
+  });
+
+  /* fade out while any audio / video element in the page is playing (voice notes etc.) */
+  function mediaCheck(){
+    var d=false, ms=document.querySelectorAll('audio,video');
+    for(var i=0;i<ms.length;i++){ var m=ms[i]; if(!m.paused&&!m.ended&&!m.muted&&m.volume>0&&m.readyState>2){ d=true; break; } }
+    if(d!==ducked){ ducked=d; applyGain(); }
+  }
+  ['play','playing','pause','ended','emptied','volumechange'].forEach(function(n){
+    document.addEventListener(n,function(e){ var t=e.target; if(t&&(t.tagName==='AUDIO'||t.tagName==='VIDEO')) setTimeout(mediaCheck,0); },true);
+  });
+
+  /* ---------- Settings UI ---------- */
+  function isFa(){ try{ return currentLang==='fa'; }catch(e){ return (document.documentElement.getAttribute('lang')||'fa')==='fa'; } }
+  function sync(){
+    var fa=isFa(), sw=document.getElementById('muBgmSwitch'), b=document.getElementById('muBgmBadge'),
+        r=document.getElementById('muBgmVol'), l=document.getElementById('muBgmVolVal');
+    if(sw) sw.setAttribute('aria-checked',enabled?'true':'false');
+    if(b) b.textContent=enabled?(fa?'روشن':'ON'):(fa?'خاموش':'OFF');
+    if(r){ if(document.activeElement!==r) r.value=vol; r.disabled=!enabled; r.style.opacity=enabled?'':'.45'; }
+    if(l) l.textContent=vol+'%';
+  }
+  function html(f){
+    var t=f?'موسیقی پس‌زمینه':'Background music';
+    return '<div class="mu-set-row" style="flex-direction:column;align-items:stretch">'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">'+
+        '<div class="mu-set-text"><div class="mu-set-title">🎵 '+t+'<span class="mu-set-badge" id="muBgmBadge">'+(enabled?(f?'روشن':'ON'):(f?'خاموش':'OFF'))+'</span></div>'+
+        '<div class="mu-set-desc">'+(f
+          ?'یک موسیقی آرام و ملایم با حال‌وهوای پیانو و زهی، شبیه فضای انیمیشن‌های عاشقانهٔ ژاپنی. بعد از پایان صفحهٔ لودینگ (یا اولین لمس، اگر مرورگر اجازه ندهد) شروع می‌شود، در پس‌زمینه ساکت می‌شود و هنگام پخش صدا (مثل ویس یادداشت) خودکار کم می‌شود.'
+          :'A soft, gentle piano-and-strings ambience with a nostalgic Japanese-anime feel. Starts right after the loading screen (or on your first tap if the browser blocks autoplay), goes silent when the app is in the background and fades out while a voice note or other audio plays.')+'</div></div>'+
+        '<button type="button" class="mu-switch" id="muBgmSwitch" role="switch" aria-checked="'+(enabled?'true':'false')+'" aria-label="'+t+'" onclick="MU_BgMusic.toggle()"></button>'+
+      '</div>'+
+      '<div style="display:flex;align-items:center;gap:10px;margin-top:10px" dir="ltr">'+
+        '<span aria-hidden="true">🔈</span>'+
+        '<input type="range" id="muBgmVol" min="0" max="100" step="1" value="'+vol+'"'+(enabled?'':' disabled')+' style="flex:1;accent-color:#ff3d57;'+(enabled?'':'opacity:.45')+'" oninput="MU_BgMusic.setVol(this.value)" aria-label="'+(f?'بلندی صدای موسیقی':'Music volume')+'">'+
+        '<span id="muBgmVolVal" style="min-width:38px;text-align:right;font-size:12px;opacity:.8">'+vol+'%</span>'+
+      '</div>'+
+    '</div>';
+  }
+  window.MU_BgMusic={
+    html:html, sync:sync,
+    isOn:function(){ return enabled; },
+    getVol:function(){ return vol; },
+    toggle:function(){
+      enabled=!enabled; lsSet(KEY_ON,enabled?'1':'0');
+      if(enabled){ gestured=true; start(); } else stop();
+      sync();
+    },
+    set:function(v){ v=!!v; if(v!==enabled) this.toggle(); return enabled; },
+    setVol:function(v){
+      v=parseInt(v,10); if(!isFinite(v)) return vol;
+      vol=Math.max(0,Math.min(100,v)); lsSet(KEY_VOL,vol); applyGain(true); sync(); return vol;
+    }
+  };
+})();
+</script>
+<style id="markhinCenterNoteTitle">
+/* Center note names in the list rows (icons + title as one centered group) */
+#buttonsContainer .note-btn-wrap .custom-btn{padding-left:52px!important;padding-right:52px!important;text-align:center!important}
+#buttonsContainer .note-btn-wrap .custom-btn .note-item-title,
+#buttonsContainer .note-btn-wrap .custom-btn .note-item-title[data-mu-d]{text-align:center!important;display:block;width:100%}
+</style>
+<script id="muPlateLtr">
+/* Plate-style tokens (digits + one Persian letter + digits, optional /NN or -NN) such as 98د654/28
+   are kept as ONE left-to-right block, in typed order, anywhere inside any line:
+   notes (editor + viewer), titles, previews, AI chat input and AI answers. */
+(function(){
+  'use strict';
+  var SRC = window.muPlateSrc; if(!SRC) return;
+  var LRI='\u2066', PDI='\u2069';
+  var RE_G = new RegExp(SRC,'g');
+  var RE_S = new RegExp(window.muLtrAllSrc||SRC,'g');
+  var QUICK = /[\u0621-\u064A\u067E\u0686\u0698\u06A9\u06AF\u06CC]/;
+  function tokens(str){ var out=[],m; RE_G.lastIndex=0; while((m=RE_G.exec(str))){ out.push([m.index,m.index+m[0].length]); if(m[0].length===0) RE_G.lastIndex++; } return out; }
+  // Rebuild a string with isolates around tokens; caret (index into the OLD string) is remapped.
+  function rewrap(s, caret){
+    var clean='', newCaret=null, i;
+    for(i=0;i<s.length;i++){
+      if(caret!==null && i===caret) newCaret=clean.length;
+      var c=s.charAt(i); if(c!==LRI && c!==PDI) clean+=c;
+    }
+    if(caret!==null && newCaret===null) newCaret=clean.length;
+    var tk=tokens(clean), out='', last=0, mapped=0;
+    for(i=0;i<tk.length;i++){ out+=clean.slice(last,tk[i][0])+LRI+clean.slice(tk[i][0],tk[i][1])+PDI; last=tk[i][1]; }
+    out+=clean.slice(last);
+    if(newCaret!==null){
+      mapped=newCaret;
+      for(i=0;i<tk.length;i++){ if(newCaret>tk[i][0]) mapped++; if(newCaret>=tk[i][1]) mapped++; }
+    }
+    return {text:out, caret:mapped};
+  }
+  function inEditable(n){ var e=n.nodeType===1?n:n.parentElement; return !!(e && e.closest && e.closest('[contenteditable="true"],textarea,input')); }
+
+  // ---- editors (contenteditable boxes) ----
+  function fixEditableNode(node, selOffset){
+    var s=node.nodeValue; if(!s || !QUICK.test(s)) { if(s && /[\u2066\u2069]/.test(s) && !tokens(s.replace(/[\u2066\u2069]/g,'')).length){ /* leftover isolates, clean */ } else return null; }
+    var r=rewrap(s, selOffset);
+    if(r.text===s) return null;
+    node.nodeValue=r.text; return r.caret;
+  }
+  function fixBox(box, onlyCaretNode){
+    var sel=window.getSelection&&window.getSelection(), an=sel&&sel.rangeCount&&sel.isCollapsed?sel.anchorNode:null, ao=sel?sel.anchorOffset:0;
+    if(onlyCaretNode){
+      if(!an||an.nodeType!==3||!box.contains(an)) return;
+      var nc=fixEditableNode(an,ao);
+      if(nc!==null){ try{ sel.collapse(an,Math.min(nc,an.nodeValue.length)); }catch(e){} }
+      return;
+    }
+    var w=document.createTreeWalker(box,NodeFilter.SHOW_TEXT,null), n, list=[];
+    while((n=w.nextNode())) list.push(n);
+    list.forEach(function(t){
+      var isCaret=(t===an), nc=fixEditableNode(t,isCaret?ao:null);
+      if(nc!==null && isCaret){ try{ sel.collapse(t,Math.min(nc,t.nodeValue.length)); }catch(e){} }
+    });
+  }
+  function boxOf(t){ return t && t.closest ? t.closest('.text-box[contenteditable="true"]') : null; }
+
+  // ---- AI chat input / plain textareas ----
+  function fixTextarea(el){
+    var v=el.value; if(!v||!QUICK.test(v)) return;
+    var st=el.selectionStart, en=el.selectionEnd;
+    var r=rewrap(v, st);
+    if(r.text===v) return;
+    var d=r.text.length-v.length;
+    el.value=r.text;
+    try{ el.setSelectionRange(r.caret, en===st?r.caret:Math.max(r.caret,en+d)); }catch(e){}
+  }
+
+  function onInput(e){
+    var t=e.target; if(!t) return;
+    if(e.type==='input' && e.isComposing) return;
+    if(t.nodeName==='TEXTAREA'){ fixTextarea(t); return; }
+    var box=boxOf(t); if(box) fixBox(box,true);
+  }
+  document.addEventListener('input',onInput,true);
+  document.addEventListener('compositionend',onInput,true);
+  document.addEventListener('focusin',function(e){ var b=boxOf(e.target); if(b) fixBox(b,false); },true);
+
+  // ---- read-only text (viewer, titles, previews, AI answers) ----
+  function skipNode(n){
+    var p=n.parentElement; if(!p) return true;
+    var tag=p.nodeName; if(tag==='SCRIPT'||tag==='STYLE'||tag==='TEXTAREA'||tag==='INPUT'||tag==='NOSCRIPT') return true;
+    if(inEditable(n)) return true;
+    if(p.closest('.mAi-ltr,[data-mu-code],[data-mu-d="code"]')) return true;
+    return false;
+  }
+  function fixStatic(n){
+    var s=n.nodeValue; if(!s||!QUICK.test(s)||skipNode(n)) return;
+    RE_S.lastIndex=0; if(!RE_S.test(s)) return;
+    var out=s.replace(RE_S,function(m,off,str){ return (str.charAt(off-1)===LRI && str.charAt(off+m.length)===PDI)?m:LRI+m+PDI; });
+    if(out!==s) n.nodeValue=out;
+  }
+  function scan(root){
+    if(root.nodeType===3){ fixStatic(root); return; }
+    if(root.nodeType!==1) return;
+    var w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null), n;
+    while((n=w.nextNode())) fixStatic(n);
+  }
+  var queue=new Set(), queued=false;
+  function flush(){ queued=false; var l=Array.from(queue); queue.clear(); l.forEach(function(n){ if(n.isConnected) scan(n); }); }
+  function enqueue(n){ queue.add(n); if(!queued){ queued=true; (window.requestAnimationFrame||setTimeout)(flush); } }
+  function start(){
+    if(!window.MutationObserver||!document.body) return;
+    new MutationObserver(function(recs){
+      for(var i=0;i<recs.length;i++){
+        var r=recs[i];
+        if(r.type==='characterData'){ enqueue(r.target); continue; }
+        for(var j=0;j<r.addedNodes.length;j++) enqueue(r.addedNodes[j]);
+      }
+    }).observe(document.body,{childList:true,subtree:true,characterData:true});
+    enqueue(document.body);
+  }
+  if(document.body) start(); else document.addEventListener('DOMContentLoaded',start);
+})();
+</script>
+<style id="muLinkPreviewSelected">
+.mc-linkprev-btn{transition:background .18s,box-shadow .18s,border-color .18s,transform .12s}
+.mc-linkprev-btn.mc-selected,.content-container .mc-linkprev-btn.mc-selected{
+  background:linear-gradient(135deg,rgba(80,160,255,.55),rgba(60,220,200,.45)) !important;
+  border-color:rgba(130,200,255,.95) !important;
+  box-shadow:0 0 0 2px rgba(130,200,255,.45),0 0 14px rgba(80,170,255,.55),inset 0 0 8px rgba(255,255,255,.18) !important;
+  color:#fff !important;font-weight:800 !important}
+.mc-linkprev-btn:active{transform:scale(.96)}
+</style>
+<script id="muPwEyeDefault">
+/* Password fields in every dialog start with the eye ON (password visible); the eye still toggles it. */
+(function(){
+  'use strict';
+  function arm(btn){
+    if(!btn || btn.dataset.muEyeDefault) return;
+    btn.dataset.muEyeDefault = '1';
+    setTimeout(function(){
+      try{
+        var row = btn.closest('.markhin-filename-row');
+        var inp = row && row.querySelector('input');
+        if(inp && inp.type === 'password') btn.click();
+      }catch(e){}
+    }, 0);
+  }
+  function scan(n){
+    if(!n || n.nodeType !== 1) return;
+    if(n.classList && n.classList.contains('markhin-eye-toggle')) arm(n);
+    if(n.querySelectorAll) n.querySelectorAll('.markhin-eye-toggle').forEach(arm);
+  }
+  function start(){
+    if(!window.MutationObserver || !document.body) return;
+    new MutationObserver(function(recs){
+      for(var i=0;i<recs.length;i++) for(var j=0;j<recs[i].addedNodes.length;j++) scan(recs[i].addedNodes[j]);
+    }).observe(document.body,{childList:true,subtree:true});
+    scan(document.body);
+  }
+  if(document.body) start(); else document.addEventListener('DOMContentLoaded',start);
 })();
 </script>
 </body>
