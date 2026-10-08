@@ -135,7 +135,7 @@
     var now = Date.now();
     if (armed[msg] && now - armed[msg] < 6000) { delete armed[msg]; if (toastEl) toastEl.classList.remove('on'); return true; }
     armed[msg] = now;
-    toast((fa() ? '⚠️ ' + msg + '\n\nبرای تأیید، همین دکمه را یک بار دیگر بزنید (۶ ثانیه).' : '⚠️ ' + msg + '\n\nTap the same button once more to confirm (6 s).'), true, 6000);
+    toast((fa() ? '⚠️ ' + msg + '\n\nبرای تأیید، همین دکمه را یک بار دیگر بزنید (6 ثانیه).' : '⚠️ ' + msg + '\n\nTap the same button once more to confirm (6 s).'), true, 6000);
     return false;
   };
 
@@ -18227,7 +18227,7 @@ ${body}
             } else {
                 const bits = cleaned.replace(/\s+/g,'');
                 if(!/^[01]+$/.test(bits)){ out.innerText = fa?'⚠️ ورودی باینری نامعتبر است (فقط 0 و 1 مجاز است).':'⚠️ Invalid binary input (only 0 and 1 allowed).'; return; }
-                if(bits.length % 8 !== 0){ out.innerText = fa?'⚠️ تعداد بیت‌ها باید مضربی از ۸ باشد، یا هر بایت را با فاصله جدا کن.':'⚠️ Bit count must be a multiple of 8, or separate each byte with a space.'; return; }
+                if(bits.length % 8 !== 0){ out.innerText = fa?'⚠️ تعداد بیت‌ها باید مضربی از 8 باشد، یا هر بایت را با فاصله جدا کن.':'⚠️ Bit count must be a multiple of 8, or separate each byte with a space.'; return; }
                 bytes=[]; for(let i=0;i<bits.length;i+=8) bytes.push(parseInt(bits.slice(i,i+8),2));
             }
             try{ out.innerText = new TextDecoder().decode(new Uint8Array(bytes)); }
@@ -19444,7 +19444,7 @@ function addFeatureTools(item,box){
  // keep the editor focused (and the selection alive) when a toolbar button is pressed
  row.addEventListener('mousedown',e=>{ if(e.target.closest&&e.target.closest('button')) e.preventDefault(); });
  const cmd=(c,v=null)=>{restoreSel();document.execCommand(c,false,v);autosaveCategory(item.id)};
- btns[0].onclick=()=>cmd('bold');btns[1].onclick=()=>cmd('italic');btns[2].onclick=()=>cmd('underline');btns[3].onclick=()=>{restoreSel();const s0=window.getSelection();const a0=s0&&s0.anchorNode&&(s0.anchorNode.nodeType===1?s0.anchorNode:s0.anchorNode.parentElement);const inQ=a0&&a0.closest&&a0.closest('blockquote')&&text.contains(a0.closest('blockquote'));cmd('formatBlock',inQ?'div':'blockquote')};btns[4].onclick=()=>cmd('insertUnorderedList');btns[5].onclick=()=>{const fa0=currentLang==='fa';const table='<table><tbody><tr><td>'+(fa0?'سلول ۱':'Cell 1')+'</td><td>'+(fa0?'سلول ۲':'Cell 2')+'</td></tr><tr><td>'+(fa0?'سلول ۳':'Cell 3')+'</td><td>'+(fa0?'سلول ۴':'Cell 4')+'</td></tr></tbody></table>';restoreSel();
+ btns[0].onclick=()=>cmd('bold');btns[1].onclick=()=>cmd('italic');btns[2].onclick=()=>cmd('underline');btns[3].onclick=()=>{restoreSel();const s0=window.getSelection();const a0=s0&&s0.anchorNode&&(s0.anchorNode.nodeType===1?s0.anchorNode:s0.anchorNode.parentElement);const inQ=a0&&a0.closest&&a0.closest('blockquote')&&text.contains(a0.closest('blockquote'));cmd('formatBlock',inQ?'div':'blockquote')};btns[4].onclick=()=>cmd('insertUnorderedList');btns[5].onclick=()=>{const fa0=currentLang==='fa';const table='<table><tbody><tr><td>'+(fa0?'سلول 1':'Cell 1')+'</td><td>'+(fa0?'سلول 2':'Cell 2')+'</td></tr><tr><td>'+(fa0?'سلول 3':'Cell 3')+'</td><td>'+(fa0?'سلول 4':'Cell 4')+'</td></tr></tbody></table>';restoreSel();
   // Inserting via execCommand('insertHTML') while the caret sits inside a
   // checklist item or quote nests the whole <table> INSIDE that <li>/
   // <blockquote> instead of placing it as its own block. The nested table
@@ -20265,7 +20265,7 @@ function mu_fmtCloudDate(ts){
     // time shown still follows the device's own clock/timezone either way —
     // toLocaleString always renders in the runtime's local timezone unless a
     // timeZone option is given, and none is given here.
-    try { return new Date(ts).toLocaleString(fa?'fa-IR':'en-US'); } catch(e){ return String(ts); }
+    try { return fa ? new Date(ts).toLocaleString('fa-IR-u-nu-latn') : new Date(ts).toLocaleString('en-US',{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}); } catch(e){ return String(ts); }
 }
 
 // Approximate size label (1 KB = 1000 characters of stored text, the same
@@ -20284,7 +20284,7 @@ function mu_cloudReasonMsg(reason, fa){
         case 'unavailable':
             return fa ? '⚠️ Cloud تلگرام در دسترس نیست. دوباره ربات را باز کن.' : '⚠️ Telegram Cloud is unavailable right now. Try reopening the bot.';
         case 'manual-disabled':
-            return fa ? '⚠️ بکاپ دستی غیرفعال است (تعداد روی ۰ است). از «⚙️ تنظیمات بکاپ» تعدادش را بیشتر کن.' : '⚠️ Manual backups are turned off (set to 0). Increase the number in "⚙️ Backup settings".';
+            return fa ? '⚠️ بکاپ دستی غیرفعال است (تعداد روی 0 است). از «⚙️ تنظیمات بکاپ» تعدادش را بیشتر کن.' : '⚠️ Manual backups are turned off (set to 0). Increase the number in "⚙️ Backup settings".';
         case 'no-space':
             return fa ? '⚠️ فضای Cloud برای یک بکاپ دستی جدید کافی نیست. یکی از بکاپ‌های دستیِ قدیمی را حذف کن و دوباره امتحان کن.' : '⚠️ Not enough Cloud space for a new manual backup. Delete one of the older manual backups and try again.';
         case 'too-large':
@@ -20312,9 +20312,9 @@ function mu_cloudLimitPreviewHtml(n, manualCount){
     if (n>0) {
         rows.push(fa ? `📤 هر بکاپ دستی (${n} عدد): تا <b>${one}</b>` : `📤 Each manual backup (${n}): up to <b>${one}</b>`);
     } else {
-        rows.push(fa ? `📤 بکاپ دستی: غیرفعال — تقریباً تمام فضا (حدود ${totalKeys} از ۱۰۲۴ کلید) فقط به بکاپ خودکار اختصاص می‌یابد.` : `📤 Manual backups: off — almost all the space (about ${totalKeys} of 1024 keys) goes to the auto backup alone.`);
+        rows.push(fa ? `📤 بکاپ دستی: غیرفعال — تقریباً تمام فضا (حدود ${totalKeys} از 1024 کلید) فقط به بکاپ خودکار اختصاص می‌یابد.` : `📤 Manual backups: off — almost all the space (about ${totalKeys} of 1024 keys) goes to the auto backup alone.`);
     }
-    rows.push(fa ? `📦 مجموع در بدترین حالت: ${total} (${totalKeys} کلید از ۱۰۲۴)` : `📦 Worst-case total: ${total} (${totalKeys} of 1024 keys)`);
+    rows.push(fa ? `📦 مجموع در بدترین حالت: ${total} (${totalKeys} کلید از 1024)` : `📦 Worst-case total: ${total} (${totalKeys} of 1024 keys)`);
     if (n<manualCount) {
         rows.push(fa ? `⚠️ الان ${manualCount} بکاپ دستی داری؛ با ذخیره‌ی این تنظیم، قدیمی‌ترین ${manualCount-n} تای آن‌ها حذف می‌شود.` : `⚠️ You currently have ${manualCount} manual backups; saving this setting deletes the oldest ${manualCount-n} of them.`);
     }
@@ -20325,6 +20325,32 @@ function mu_cloudLimitPreviewHtml(n, manualCount){
     }
     rows.push(`<span style="opacity:.65">${fa ? 'حجم‌ها حداکثرِ متنِ فشرده‌ی ذخیره‌شده‌اند؛ چون قبل از ذخیره فشرده می‌شود، معمولاً چند برابرِ آن یادداشت در آن جا می‌شود.' : 'Sizes are the maximum of compressed text stored; since notes are compressed before saving, several times that much note text usually fits.'}</span>`);
     return rows.map(r=>`<div style="margin:3px 0">${r}</div>`).join('');
+}
+
+// Real key usage, read from Telegram itself (CloudStorage.getKeys), shown at the
+// bottom of the Auto and the Manual panes. `keys` is the actual list of keys
+// stored for this bot, or null if it could not be read.
+function mu_cloudKeyUsageHtml(kind, keys, manualCount){
+    const fa=currentLang==='fa';
+    const ico='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;margin-top:4px"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>';
+    const wrap=inner=>`<div class="mk-key-usage" style="display:flex;align-items:flex-start;gap:8px;margin:10px 0 0;padding:8px 10px;border-radius:10px;border:1px dashed rgba(255,255,255,.18);font-size:12px;line-height:1.8;opacity:.9">${ico}<div dir="auto" style="min-width:0">${inner}</div></div>`;
+    if (!Array.isArray(keys)) return wrap(fa?'شمارش کلیدهای استفاده‌شده از تلگرام ممکن نشد؛ پنل را ببند و دوباره باز کن.':'Could not read the used-key count from Telegram; close and reopen the panel.');
+    const isAuto=k=>k.indexOf(CLOUD_BACKUP_PREFIX+'auto_')===0||k.indexOf(CLOUD_BACKUP_PREFIX+'auto2_')===0||k===CLOUD_META_KEY||k.indexOf(CLOUD_CHUNK_PREFIX)===0&&k!==CLOUD_CONFIG_KEY&&k.indexOf(CLOUD_BACKUP_PREFIX)!==0;
+    let a=0,m=0;
+    keys.forEach(k=>{ if (isAuto(k)) a++; else if (k.indexOf(CLOUD_BACKUP_PREFIX)===0) m++; });
+    const total=keys.length, cap=MAX_CHUNKS_PER_BACKUP;
+    const lines=fa?[
+        `کلیدهای بکاپ خودکار: <b>${a}</b> (سقف ${cap})`,
+        `کلیدهای بکاپ‌های دستی: <b>${m}</b> برای ${manualCount} بکاپ (سقف هر بکاپ ${cap})`,
+        `کل کلیدهای استفاده‌شده‌ی ربات: <b>${total}</b> از 1024`,
+        `سقف تعیین‌شده‌ی برنامه: <b>${CLOUD_KEY_BUDGET}</b> کلید`
+    ]:[
+        `Auto backup keys: <b>${a}</b> (cap ${cap})`,
+        `Manual backup keys: <b>${m}</b> for ${manualCount} backup(s) (cap ${cap} each)`,
+        `Total keys used by this bot: <b>${total}</b> of 1024`,
+        `App-defined limit: <b>${CLOUD_KEY_BUDGET}</b> keys`
+    ];
+    return wrap(lines.join('<br>'));
 }
 
 // The collapsible "⚙️ Backup settings" block at the top of the Cloud Backup panel.
@@ -20338,7 +20364,7 @@ function mu_cloudSettingsHtml(manualCount){
     return `<details class="markhin-smart-item" style="margin:0 0 10px"${window.__mkCloudSettingsOpen?' open':''} ontoggle="window.__mkCloudSettingsOpen=this.open">
         <summary style="cursor:pointer;font-weight:bold">⚙️ ${fa?`تنظیمات بکاپ (بکاپ دستی: ${MAX_MANUAL_BACKUPS} عدد)`:`Backup settings (manual backups: ${MAX_MANUAL_BACKUPS})`}</summary>
         <div id="cloudLimitBox" data-pending="${MAX_MANUAL_BACKUPS}" data-manual-count="${manualCount}" style="margin-top:8px">
-            <div style="margin-bottom:6px">${fa?'تعداد بکاپ‌های دستی (۰ تا ۷):':'Number of manual backups (0 – 7):'}</div>
+            <div style="margin-bottom:6px">${fa?'تعداد بکاپ‌های دستی (0 تا 7):':'Number of manual backups (0 – 7):'}</div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">${chips}</div>
             <div id="cloudLimitPreview" style="font-size:12px;line-height:1.8">${mu_cloudLimitPreviewHtml(MAX_MANUAL_BACKUPS, manualCount)}</div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
@@ -20444,6 +20470,92 @@ async function mu_cloudGetBackupData(id){
     return result;
 }
 
+// ---- Cloud Backup panel: draw every emoji as an inline SVG icon ----------
+// The panel's texts are built in many places (rows, previews, progress bars),
+// so instead of touching each string this swaps emoji characters for SVG
+// icons right after they are rendered, and keeps doing so for later updates.
+const MK_CLOUD_ICONS = (function(){
+    const C = '<circle cx="12" cy="12" r="10"/>';
+    return {
+        '☁': '<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>',
+        '❓': C + '<path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+        '⚠': '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+        '🛡': '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+        '🔗': '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+        '⚪': '<circle cx="12" cy="12" r="8"/>',
+        '🔄': '<path d="M21 12a9 9 0 1 1-3-6.7"/><polyline points="21 3 21 9 15 9"/>',
+        '⚙': '<line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>',
+        '💾': '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>',
+        '📖': '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
+        '📤': '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>',
+        '📥': '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
+        '👁': '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
+        '🗑': '<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>',
+        '🔒': '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+        '🔓': '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>',
+        '📌': '<line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24z"/>',
+        'ℹ': C + '<line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>',
+        '✅': '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
+        '❌': C + '<line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>',
+        '📦': '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>',
+        '⏳': '<path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.17a2 2 0 0 0-.59-1.42L12 12l-4.41 4.41A2 2 0 0 0 7 17.83V22"/><path d="M7 2v4.17a2 2 0 0 0 .59 1.42L12 12l4.41-4.41A2 2 0 0 0 17 6.17V2"/>'
+    };
+})();
+const MK_CLOUD_ICO_RE = /(?:☁|❓|⚠|🛡|🔗|⚪|🔄|⚙|💾|📖|📤|📥|👁|🗑|🔒|🔓|📌|ℹ|✅|❌|📦|⏳)️?/g;
+function mkCloudIconSvg(ch){
+    const key = ch.replace(/️/g, '');
+    const inner = MK_CLOUD_ICONS[key];
+    if (!inner) return null;
+    const stroke = key === '⚠' ? '#ffc107' : 'currentColor';
+    return `<svg class="mk-ico" width="1.15em" height="1.15em" viewBox="0 0 24 24" fill="none" stroke="${stroke}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;vertical-align:-0.2em">${inner}</svg>`;
+}
+function mkCloudIconify(root){
+    if (!root) return;
+    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    const nodes = [];
+    for (let n = w.nextNode(); n; n = w.nextNode()) {
+        MK_CLOUD_ICO_RE.lastIndex = 0;
+        if (MK_CLOUD_ICO_RE.test(n.nodeValue)) nodes.push(n);
+    }
+    nodes.forEach(n => {
+        const p = n.parentNode;
+        if (!p || /^(SCRIPT|STYLE|TEXTAREA|INPUT)$/.test(p.nodeName)) return;
+        // A saved backup's title is "<icon> <label the person typed>": only its
+        // leading icon is ours; emoji inside the typed label stay as typed.
+        const leadOnly = !!(p.closest && p.closest('[data-backup-id]') && p.nodeName === 'B');
+        const txt = n.nodeValue;
+        const frag = document.createDocumentFragment();
+        let last = 0, changed = false, m;
+        MK_CLOUD_ICO_RE.lastIndex = 0;
+        while ((m = MK_CLOUD_ICO_RE.exec(txt))) {
+            if (leadOnly && m.index !== 0) continue;
+            const svg = mkCloudIconSvg(m[0]);
+            if (!svg) continue;
+            if (m.index > last) frag.appendChild(document.createTextNode(txt.slice(last, m.index)));
+            const t = document.createElement('template'); t.innerHTML = svg;
+            frag.appendChild(t.content.firstChild);
+            last = m.index + m[0].length; changed = true;
+        }
+        if (!changed) return;
+        if (last < txt.length) frag.appendChild(document.createTextNode(txt.slice(last)));
+        p.replaceChild(frag, n);
+    });
+}
+function mkCloudIconifyStart(){
+    try { if (window.__mkCloudIcoObs) window.__mkCloudIcoObs.disconnect(); } catch(_){}
+    const bodyEl = document.getElementById('cloudPanelBody');
+    const root = bodyEl && bodyEl.parentElement;
+    if (!root) return;
+    const run = () => {
+        obs.disconnect();
+        try { mkCloudIconify(root); } catch(e) { console.warn('icon swap failed', e); }
+        obs.observe(root, { childList: true, subtree: true, characterData: true });
+    };
+    const obs = new MutationObserver(run);
+    window.__mkCloudIcoObs = obs;
+    run();
+}
+
 async function markhinDash_showCloudPanel(){
     const fa=currentLang==='fa';
     // This panel is opened from the standalone ☁️ toolbar button (not from
@@ -20452,9 +20564,11 @@ async function markhinDash_showCloudPanel(){
     // (closeAdvancedModal), not jump into markhinDashboardMain() the way a
     // real Dashboard sub-screen's ✕ would.
     window.__mkCloudSettingsOpen = false;
+    window.__mkCloudTab = 'auto';
     __mkCloudPassCache.clear();
     showAdvanced(markhinDash_headHtml(`☁️ ${fa?'بکاپ Cloud تلگرام':'Telegram Cloud Backup'}`,false)+
         `<div id="cloudPanelBody" style="font-size:12.5px;line-height:1.9">${fa?'در حال بررسی...':'Checking...'}</div>`);
+    mkCloudIconifyStart();
     // While an auto backup is being written, don't wait on Cloud at all: the body is
     // drawn at once from the last-known list, with a live progress bar (see
     // mkAutoBkPaint), and refreshes itself when the write ends.
@@ -20512,9 +20626,18 @@ async function markhinDash_renderCloudPanelBody(keepInput){
     // ever reads once nothing else is mid-write, just like every other read
     // in this panel.
     const autoBlocked = __busy ? false : await cloudSerial(() => cloudAutoWouldBeBlocked(autoEntry));
+    let __realKeys = null;
+    if (!__busy) { try { __realKeys = await cloudSerial(() => cloudGetKeys()); } catch (_) { __realKeys = null; } }
+    const __tab = window.__mkCloudTab === 'manual' ? 'manual' : 'auto';
+    const __warnHtml = txt => `<div class="mk-warn-box" role="note" style="display:flex;align-items:flex-start;gap:10px;margin:0 0 10px;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,193,7,.35);background:rgba(255,193,7,.10);font-size:12px;line-height:1.8"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffc107" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;margin-top:3px"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><div dir="auto" style="min-width:0">${txt}</div></div>`;
+    const __tabIco = p => `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none">${p}</svg>`;
+    const __tabBtn = (id, label) => `<button type="button" id="cloudTab_${id}" class="btn-main" onclick="markhinDash_cloudSwitchTab('${id}')" style="flex:1;min-width:0;display:inline-flex;align-items:center;justify-content:center;gap:6px;${__tab===id?'outline:2px solid currentColor;font-weight:bold;':'opacity:.7;'}">${label}</button>`;
+    const __tabsHtml = `<div id="cloudTabs" style="display:flex;gap:6px;margin:0 0 12px">${__tabBtn('auto', __tabIco('<path d="M21 12a9 9 0 1 1-3-6.7"/><polyline points="21 3 21 9 15 9"/>') + (fa?'بکاپ خودکار':'Auto backup'))}${__tabBtn('manual', __tabIco('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>') + (fa?'بکاپ دستی':'Manual backup'))}</div>`;
     body.innerHTML =
         `<div style="margin:0 0 10px"><button type="button" class="btn-main" style="width:100%" onclick="markhinDash_showCloudHelp()">❓ ${fa?'راهنما و طرز استفاده':'Help & how to use'}</button></div>` +
-        `<p style="opacity:.7">${fa?'⚠️ فقط متن و اطلاعات یادداشت‌ها بکاپ می‌شود؛ تصاویر فقط روی همین دستگاه می‌مانند و در بکاپ نیستند. این بکاپ بین همه‌ی دستگاه‌هایی که همین ربات را در تلگرام باز کنی مشترک است.':'⚠️ Only note text/metadata is backed up here — images stay on this device and are not included. This backup is shared across every device where you open this bot in Telegram.'}</p>` +
+        __warnHtml(fa?'فقط متن و اطلاعات یادداشت‌ها بکاپ می‌شود؛ تصاویر فقط روی همین دستگاه می‌مانند و در بکاپ نیستند. این بکاپ بین همه‌ی دستگاه‌هایی که همین ربات را در تلگرام باز کنی مشترک است.':'Only note text/metadata is backed up here — images stay on this device and are not included. This backup is shared across every device where you open this bot in Telegram.') +
+        __tabsHtml +
+        `<div id="cloudPaneAuto" style="display:${__tab==='auto'?'block':'none'}">` +
         (autoBlocked
             ? `<p style="margin:0 0 10px;padding:8px;border-radius:8px;background:rgba(255,193,7,.12)">${fa?`🛡 در Cloud بکاپی با ${autoEntry.notes} یادداشت هست ولی روی این دستگاه ${categories.length} یادداشت است؛ برای حفظ بکاپ، بکاپ خودکار رویش نوشته نمی‌شود. یکی از بکاپ‌ها را بازیابی کن (یا «ذخیره‌ی یک بکاپ جدید» را بزن).`:`🛡 The Cloud holds a backup of ${autoEntry.notes} notes but this device has ${categories.length}; auto-backup won't overwrite it. Restore one of the backups (or press "Save a new backup").`}</p>`
             : '') +
@@ -20522,6 +20645,9 @@ async function markhinDash_renderCloudPanelBody(keepInput){
         `<p style="opacity:.7;margin:0 0 6px">${cloudIsLinked() ? (fa?'🔗 سینک خودکار بین دستگاه‌ها روی این دستگاه فعال است.':'🔗 Auto sync between devices is active on this device.') : (fa?'⚪️ سینک خودکار هنوز روی این دستگاه فعال نشده — این دستگاه منتظر بکاپ/بازیابی دستی می‌ماند.':'⚪️ Auto sync has not been enabled on this device yet — it will wait for a manual backup/restore.')}</p>` +
         autoSectionHtml + '<div id="cloudAutoProg"></div>' +
         `<div style="margin:0 0 10px"><button id="cloudFixAutoSyncBtn" type="button" class="btn-main" style="width:100%" onclick="markhinDash_cloudFixAutoSync()">🔄 ${fa?'فعال‌سازی / تعمیر سینک خودکار':'Enable / fix auto sync'}</button></div>` +
+        `<div class="mk-warn-box" role="note" style="display:flex;align-items:flex-start;gap:10px;margin:0 0 10px;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,193,7,.35);background:rgba(255,193,7,.10);font-size:12px;line-height:1.8"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffc107" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;margin-top:3px"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><div dir="auto" style="min-width:0">${fa?'این دکمه از یادداشت‌های همین دستگاه همین الان بکاپ می‌گیرد و سینک خودکار را روشن می‌کند. اگر یادداشت‌های این دستگاه کامل یا به‌روز نیست، اول بکاپ ابری را بازیابی کن.':'This button backs up this device\u2019s notes right now and turns auto sync on. If this device\u2019s notes are incomplete or out of date, restore the cloud backup first.'}</div></div>` +
+        mu_cloudKeyUsageHtml('auto', __realKeys, manualEntries.length) +
+        `</div><div id="cloudPaneManual" style="display:${__tab==='manual'?'block':'none'}">` +
         mu_cloudSettingsHtml(manualEntries.length) +
         (manualEnabled
             ? (`<input id="cloudBackupLabelInput" type="text" maxlength="${CLOUD_LABEL_MAX_LEN}" placeholder="${fa?'برچسب اختیاری (مثلاً «قبل از پاکسازی پوشه‌ی کار»)…':'Optional label (e.g. "before clearing the work folder")…'}" style="width:100%;box-sizing:border-box;margin:4px 0 8px;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:inherit;font-size:12.5px">` +
@@ -20529,10 +20655,12 @@ async function markhinDash_renderCloudPanelBody(keepInput){
                     ? `<p style="opacity:.7;margin:0 0 8px">${fa?`ℹ️ به سقف ${MAX_MANUAL_BACKUPS} بکاپ دستی رسیده‌ای؛ ذخیره‌ی یک بکاپ جدید، قدیمی‌ترینشان را خودکار حذف می‌کند.`:`ℹ️ You're at the ${MAX_MANUAL_BACKUPS}-backup limit; saving a new one will automatically remove the oldest.`}</p>`
                     : '') +
                 `<div style="margin:2px 0 10px"><button id="cloudBackupBtn" type="button" class="btn-main btn-save-prominent" style="width:100%" onclick="markhinDash_cloudBackupClick()">📤 ${fa?'ذخیره‌ی یک بکاپ جدید':'Save a new backup'}</button></div><div id="cloudManualWhy" dir="auto" style="font-size:12px;line-height:1.7;opacity:.85;margin:-4px 0 10px"></div><div id="cloudManualProg"></div>`)
-            : `<p style="opacity:.7;margin:0 0 8px">${fa?'ℹ️ بکاپ دستی الان غیرفعال است (تعداد روی ۰ است)؛ تقریباً تمام فضای Cloud فقط به بکاپ خودکار اختصاص دارد. برای فعال‌کردنش، تعداد را در «⚙️ تنظیمات بکاپ» بالا زیاد کن.':'ℹ️ Manual backups are off (set to 0); almost all the Cloud space goes to the auto backup alone. To turn them on, raise the number in "⚙️ Backup settings" above.'}</p>`) +
+            : `<p style="opacity:.7;margin:0 0 8px">${fa?'ℹ️ بکاپ دستی الان غیرفعال است (تعداد روی 0 است)؛ تقریباً تمام فضای Cloud فقط به بکاپ خودکار اختصاص دارد. برای فعال‌کردنش، تعداد را در «⚙️ تنظیمات بکاپ» بالا زیاد کن.':'ℹ️ Manual backups are off (set to 0); almost all the Cloud space goes to the auto backup alone. To turn them on, raise the number in "⚙️ Backup settings" above.'}</p>`) +
         ((manualEnabled || manualEntries.length)
             ? `<h4 style="margin:16px 0 6px;font-size:12.5px;opacity:.85">${fa?`بکاپ‌های ذخیره‌شده (${manualEntries.length} از ${MAX_MANUAL_BACKUPS})`:`Saved backups (${manualEntries.length} of ${MAX_MANUAL_BACKUPS})`}</h4>` + manualSectionHtml
-            : '');
+            : '') +
+        mu_cloudKeyUsageHtml('manual', __realKeys, manualEntries.length) +
+        '</div>';
 
     if (__labelKeep) { const li = document.getElementById('cloudBackupLabelInput'); if (li) li.value = __labelKeep; }
     if (__pendingLimit !== null && !isNaN(__pendingLimit) && __pendingLimit !== MAX_MANUAL_BACKUPS) markhinDash_cloudPickLimit(__pendingLimit);
@@ -20550,6 +20678,27 @@ async function markhinDash_renderCloudPanelBody(keepInput){
         });
     });
 }
+
+// Switches between the "Auto backup" and "Manual backup" panes inside the
+// Cloud Backup panel (same box, no separate dialog). Remembered across
+// re-renders via window.__mkCloudTab; resets to 'auto' when the panel opens.
+function markhinDash_cloudSwitchTab(tab){
+    tab = (tab === 'manual') ? 'manual' : 'auto';
+    window.__mkCloudTab = tab;
+    const pa = document.getElementById('cloudPaneAuto');
+    const pm = document.getElementById('cloudPaneManual');
+    if (pa) pa.style.display = tab === 'auto' ? 'block' : 'none';
+    if (pm) pm.style.display = tab === 'manual' ? 'block' : 'none';
+    ['auto','manual'].forEach(id => {
+        const b = document.getElementById('cloudTab_' + id);
+        if (!b) return;
+        const on = id === tab;
+        b.style.outline = on ? '2px solid currentColor' : '';
+        b.style.fontWeight = on ? 'bold' : '';
+        b.style.opacity = on ? '' : '.7';
+    });
+}
+window.markhinDash_cloudSwitchTab = markhinDash_cloudSwitchTab;
 
 // "🔄 Enable / fix auto sync" — one tap that does BOTH halves of auto sync:
 //   1) turns auto sync on for this device (the "linked" flag, which also
@@ -20635,7 +20784,7 @@ function markhinDash_showCloudHelp(){
             <p>این ذخیره‌سازیِ خودکار (Push) یک چیز است؛ اما یک بخش دیگر هم هست: <b>دریافتِ</b> خودکارِ تغییرات دستگاه‌های دیگر (یادداشت‌های جدید، ویرایش‌ها، و حذف‌ها) بدون این‌که خودت دستی Restore بزنی. این بخش فقط روی دستگاهی فعال است که قبلاً حداقل یک‌بار یکی از دکمه‌های «ذخیره‌ی یک بکاپ جدید» یا «بازیابی» را زده باشد. اگر یک دستگاه از اول یادداشت داشته و هیچ‌وقت این دکمه‌ها را نزده، ممکن است این بخش هنوز روشن نشده باشد.</p>
             <p>برای همین دکمه‌ی «🔄 فعال‌سازی / تعمیر سینک خودکار» هم اضافه شده: با یک بار زدنش، همین حالا این بخش را روی آن دستگاه روشن می‌کند و بلافاصله هم یک‌بار با بکاپ خودکار Cloud چک و merge می‌کند (دقیقاً با همان منطق بازیابی: جدیدتر برنده است، حذف‌های عمدی برنمی‌گردند) — تا اگر یادداشت یا حذفی از دستگاه دیگر منتظر بود، همان لحظه اعمال شود. زدن این دکمه هیچ‌وقت ضرری ندارد، حتی اگر سینک از قبل روشن بوده باشد.</p>
             <h4 style="margin:14px 0 6px">📤 ذخیره‌ی یک بکاپ جدید</h4>
-            <p>با زدن این دکمه، یک نسخه‌ی مجزا و ثابت از وضعیت فعلی یادداشت‌هایت ساخته می‌شود که تا وقتی خودت حذفش نکنی دست‌نخورده باقی می‌ماند. می‌توانی برایش یک برچسب کوتاه هم بنویسی (مثلاً «قبل از پاکسازی پوشه‌ی کار») تا در لیست راحت‌تر شناخته شود؛ اگر چیزی ننویسی، فقط تاریخ نشان داده می‌شود. تا ${MAX_MANUAL_BACKUPS} بکاپ دستی می‌توانی هم‌زمان نگه داری؛ وقتی یکی بیشتر بسازی، قدیمی‌ترینشان خودکار حذف می‌شود. این تعداد را در بخش «⚙️ تنظیمات بکاپ» می‌توانی از ۰ تا ۷ تغییر دهی.</p>
+            <p>با زدن این دکمه، یک نسخه‌ی مجزا و ثابت از وضعیت فعلی یادداشت‌هایت ساخته می‌شود که تا وقتی خودت حذفش نکنی دست‌نخورده باقی می‌ماند. می‌توانی برایش یک برچسب کوتاه هم بنویسی (مثلاً «قبل از پاکسازی پوشه‌ی کار») تا در لیست راحت‌تر شناخته شود؛ اگر چیزی ننویسی، فقط تاریخ نشان داده می‌شود. تا ${MAX_MANUAL_BACKUPS} بکاپ دستی می‌توانی هم‌زمان نگه داری؛ وقتی یکی بیشتر بسازی، قدیمی‌ترینشان خودکار حذف می‌شود. این تعداد را در بخش «⚙️ تنظیمات بکاپ» می‌توانی از 0 تا 7 تغییر دهی.</p>
             <p>🔒 می‌توانی اختیاری روی همین بکاپ رمز هم بگذاری (و برایش یک راهنمای رمز هم بنویسی)؛ رمز کاملاً اختیاری است و یک دکمه‌ی جدا برای «بکاپ بدون رمز» هم همیشه هست. بکاپ‌های رمزدار در لیست با 🔒 مشخص می‌شوند و برای مشاهده یا بازیابیشان — روی همین دستگاه یا یک دستگاه جدید — همان رمز از تو خواسته می‌شود. رمز هیچ‌وقت خودش جایی ذخیره نمی‌شود؛ اگر فراموشش کنی، آن بکاپ دیگر قابل بازیابی نیست.</p>
             <h4 style="margin:14px 0 6px">👁 مشاهده</h4>
             <p>قبل از بازیابی، می‌توانی فهرست عنوان یادداشت‌های داخل هر بکاپ را ببینی تا مطمئن شوی همان نسخه‌ای است که می‌خواهی — بدون این‌که چیزی تغییر کند.</p>
@@ -20647,7 +20796,7 @@ function markhinDash_showCloudHelp(){
             <p>روی مرورگرهایی که پشتیبانی می‌کنند، محتوای هر بکاپ قبل از ذخیره فشرده می‌شود تا چندین برابر یادداشت بیشتری در همان فضای محدود Cloud تلگرام جا شود. این کار کاملاً خودکار و پشت‌صحنه است؛ اگر مرورگری از آن پشتیبانی نکند، بدون هیچ مشکلی به همان روش قدیمی (بدون فشرده‌سازی) ذخیره می‌شود.</p>
             <h4 style="margin:14px 0 6px">⚠️ محدودیت‌ها</h4>
             <p>فقط متن و اطلاعات یادداشت‌ها بکاپ می‌شود — تصاویر همیشه فقط روی همان دستگاهی می‌مانند که در آن ذخیره شده‌اند. چون این بکاپ‌ها در فضای ابری خود تلگرام (نه روی این دستگاه) نگه‌داری می‌شوند، بین هر دستگاهی که همین ربات تلگرام را با همین حساب باز کنی مشترک‌اند.</p>
-            <p>این قابلیت به هیچ سرور جداگانه‌ای وابسته نیست؛ کاملاً روی زیرساخت خودِ تلگرام (Telegram Cloud Storage) کار می‌کند. به همین دلیل چند محدودیت فنی هم از طرف خودِ تلگرام روی آن اعمال می‌شود: هر مقدار ذخیره‌شده حداکثر ۴۰۹۶ کاراکتر می‌تواند باشد، برای همین هر بکاپ به قطعه‌های ۳۵۰۰ کاراکتری تقسیم می‌شود و حداکثر ${MAX_CHUNKS_PER_BACKUP} قطعه (حدود ${cloudBackupSizeKB} کیلوبایت متن) می‌تواند داشته باشد. کل تعداد کلیدهای مصرفی (۲ کلید فهرست و تنظیمات + یک اسلات خودکار + حداکثر ${MAX_MANUAL_BACKUPS} بکاپ دستی، هرکدام تا ${MAX_CHUNKS_PER_BACKUP} کلید) در بدترین حالت به ${cloudTotalKeysUsed} کلید می‌رسد — یعنی حدود ${cloudKeyMargin} کلید به‌عنوان حاشیه امن، پیش از رسیدن به سقف ۱۰۲۴ کلیدیِ تلگرام، خالی باقی می‌ماند.</p>
+            <p>این قابلیت به هیچ سرور جداگانه‌ای وابسته نیست؛ کاملاً روی زیرساخت خودِ تلگرام (Telegram Cloud Storage) کار می‌کند. به همین دلیل چند محدودیت فنی هم از طرف خودِ تلگرام روی آن اعمال می‌شود: هر مقدار ذخیره‌شده حداکثر 4096 کاراکتر می‌تواند باشد، برای همین هر بکاپ به قطعه‌های 3500 کاراکتری تقسیم می‌شود و حداکثر ${MAX_CHUNKS_PER_BACKUP} قطعه (حدود ${cloudBackupSizeKB} کیلوبایت متن) می‌تواند داشته باشد. کل تعداد کلیدهای مصرفی (2 کلید فهرست و تنظیمات + یک اسلات خودکار + حداکثر ${MAX_MANUAL_BACKUPS} بکاپ دستی، هرکدام تا ${MAX_CHUNKS_PER_BACKUP} کلید) در بدترین حالت به ${cloudTotalKeysUsed} کلید می‌رسد — یعنی حدود ${cloudKeyMargin} کلید به‌عنوان حاشیه امن، پیش از رسیدن به سقف 1024 کلیدیِ تلگرام، خالی باقی می‌ماند.</p>
         </div>`
     : `
         <div style="font-size:12.5px;line-height:2">
@@ -20764,7 +20913,7 @@ function markhinDash_showCloudSettingsHelp(){
         const size=mu_fmtCloudSize(cloudChunksPerSlot(n)*CLOUD_CHUNK_SIZE);
         const cur=(n===MAX_MANUAL_BACKUPS);
         tableRows += `<p style="margin:2px 0${cur?';font-weight:bold':''}">• ${
-            fa ? (n===0 ? `۰ بکاپ دستی: بکاپ خودکار تا ${size} (تمام فضا)` : `${n} بکاپ دستی: خودکار تا ${size} و هر دستی تا ${size}`)
+            fa ? (n===0 ? `0 بکاپ دستی: بکاپ خودکار تا ${size} (تمام فضا)` : `${n} بکاپ دستی: خودکار تا ${size} و هر دستی تا ${size}`)
                : (n===0 ? `0 manual: auto backup up to ${size} (all the space)` : `${n} manual: auto up to ${size}, each manual up to ${size}`)
         }${cur?(fa?' ← الان':' ← current'):''}</p>`;
     }
@@ -20774,18 +20923,18 @@ function markhinDash_showCloudSettingsHelp(){
             <h4 style="margin:0 0 6px">🎯 این تنظیم چیست؟</h4>
             <p>مشخص می‌کند چند «بکاپ دستی» (همان‌هایی که با دکمه‌ی «ذخیره‌ی یک بکاپ جدید» می‌سازی) هم‌زمان در Cloud تلگرام نگه داشته شود. همیشه یک «بکاپ خودکار» هم وجود دارد که خودش به‌روز می‌شود و جزو این عدد نیست.</p>
             <h4 style="margin:14px 0 6px">🔢 محدوده و پیش‌فرض</h4>
-            <p>از ۰ تا ۷ قابل تنظیم است و پیش‌فرض ۲ است. یک عدد را انتخاب کن؛ پایین آن بلافاصله حجم تقریبی بکاپ خودکار و هر بکاپ دستی نوشته می‌شود. تا وقتی «ذخیره‌ی تنظیمات» را نزنی هیچ چیزی تغییر نمی‌کند و هیچ بکاپی حذف نمی‌شود.</p>
+            <p>از 0 تا 7 قابل تنظیم است و پیش‌فرض 2 است. یک عدد را انتخاب کن؛ پایین آن بلافاصله حجم تقریبی بکاپ خودکار و هر بکاپ دستی نوشته می‌شود. تا وقتی «ذخیره‌ی تنظیمات» را نزنی هیچ چیزی تغییر نمی‌کند و هیچ بکاپی حذف نمی‌شود.</p>
             <h4 style="margin:14px 0 6px">📐 فضا چطور تقسیم می‌شود؟</h4>
-            <p>تلگرام برای هر ربات فقط ۱۰۲۴ کلید ذخیره‌سازی می‌دهد. برنامه عمداً فقط حدود ${totalKeys} کلید را مصرف می‌کند (حدود ۶۴ کلید حاشیه‌ی امن) و این تعداد ثابت است؛ ۲ کلید برای فهرست و تنظیمات کنار گذاشته می‌شود و بقیه بین بکاپ خودکار و بکاپ‌های دستی <b>مساوی</b> تقسیم می‌شود. پس هرچه بکاپ دستی بیشتری بخواهی، سقف حجم هر بکاپ کمتر می‌شود و برعکس:</p>
+            <p>تلگرام برای هر ربات فقط 1024 کلید ذخیره‌سازی می‌دهد. برنامه عمداً فقط حدود ${totalKeys} کلید را مصرف می‌کند (حدود 64 کلید حاشیه‌ی امن) و این تعداد ثابت است؛ 2 کلید برای فهرست و تنظیمات کنار گذاشته می‌شود و بقیه بین بکاپ خودکار و بکاپ‌های دستی <b>مساوی</b> تقسیم می‌شود. پس هرچه بکاپ دستی بیشتری بخواهی، سقف حجم هر بکاپ کمتر می‌شود و برعکس:</p>
             ${tableRows}
-            <h4 style="margin:14px 0 6px">0️⃣ اگر روی ۰ بگذارم؟</h4>
+            <h4 style="margin:14px 0 6px">0️⃣ اگر روی 0 بگذارم؟</h4>
             <p>بکاپ دستی غیرفعال می‌شود (دکمه‌ی ذخیره‌ی بکاپ جدید دیگر نشان داده نمی‌شود) و تقریباً تمام فضا (حدود ${totalKeys} کلید) فقط به بکاپ خودکار می‌رسد؛ یعنی بکاپ خودکار بزرگ‌ترین حالت ممکن را دارد و یادداشت‌های بیشتری در آن جا می‌شود.</p>
             <h4 style="margin:14px 0 6px">➖ کم‌کردن تعداد</h4>
             <p>اگر عدد را از تعداد بکاپ‌های دستیِ فعلی کمتر کنی، قبل از ذخیره یک تأییدیه می‌گیرد و بعد <b>قدیمی‌ترین</b> بکاپ‌های اضافه برای همیشه حذف می‌شوند. سقف حجم هر بکاپ بیشتر می‌شود و بکاپ خودکار بلافاصله دوباره ذخیره می‌شود تا از فضای بیشتر استفاده کند.</p>
             <h4 style="margin:14px 0 6px">➕ زیادکردن تعداد</h4>
             <p>هیچ بکاپی حذف نمی‌شود، اما سقف حجم هر بکاپ کمتر می‌شود. بکاپ خودکار در ذخیره‌ی بعدی به سقف جدید می‌رسد؛ اگر یادداشت‌هایت از آن سقف بزرگ‌تر باشند، در بکاپ خودکار یادداشت‌هایی که مدت‌هاست ویرایش نشده‌اند جا نمی‌گیرند (در لیست با ⚠️ نشان داده می‌شود). بکاپ‌های دستیِ قبلی همان‌طور که هستند می‌مانند. اگر بکاپ خودکار فعلی از سقف جدید بزرگ‌تر باشد و با ذخیره‌ی تنظیم یادداشتی از بکاپ ابری بیرون بماند، قبل از ذخیره یک تأییدیه‌ی هشدار می‌گیری؛ بهتر است در آن حالت اول یک بکاپ دستی بگیری.</p>
             <h4 style="margin:14px 0 6px">📏 «حجم تقریبی» یعنی چه؟</h4>
-            <p>حداکثر مقدار متنِ ذخیره‌شده در Cloud تلگرام است (هر ۱ کیلوبایت ≈ ۱۰۰۰ کاراکتر). چون محتوا قبل از ذخیره فشرده می‌شود، معمولاً چند برابر این مقدار یادداشت در آن جا می‌شود. عددی که کنار هر بکاپ در لیست می‌بینی، حجمِ واقعیِ همان بکاپ است، نه سقف.</p>
+            <p>حداکثر مقدار متنِ ذخیره‌شده در Cloud تلگرام است (هر 1 کیلوبایت ≈ 1000 کاراکتر). چون محتوا قبل از ذخیره فشرده می‌شود، معمولاً چند برابر این مقدار یادداشت در آن جا می‌شود. عددی که کنار هر بکاپ در لیست می‌بینی، حجمِ واقعیِ همان بکاپ است، نه سقف.</p>
             <h4 style="margin:14px 0 6px">🔁 همگام‌سازی بین دستگاه‌ها</h4>
             <p>این تنظیم هم مثل خودِ بکاپ‌ها در Cloud تلگرام ذخیره می‌شود؛ پس روی همه‌ی دستگاه‌هایی که همین ربات را با همین حساب باز می‌کنی یکسان است.</p>
             <h4 style="margin:14px 0 6px">🛠 پیام «فضای Cloud کافی نیست»</h4>
@@ -25650,7 +25799,7 @@ function mu_vaultHelpHtml(fa, open){
         <p style="margin:6px 0"><b>خروجی HTML و بکاپ</b><br>اگر رمزنگاری روشن باشد، در خروجی «everything» فقط نسخه‌ی رمزشده‌ی کلیدها می‌رود، نه خود کلید. فایل خروجی هم برای استفاده از AI همین رمز را می‌خواهد. هر کسی که فایل را داشته باشد می‌تواند آفلاین رمز را حدس بزند، پس رمز قوی انتخاب کن.</p>
         <p style="margin:6px 0"><b>رمز خوب چه شکلی است؟</b></p>
         <ul style="margin:0;padding-inline-start:18px">
-            ${li('حداقل ۱۲ کاراکتر یا یک جمله‌ی طولانی که فقط خودت می‌دانی')}
+            ${li('حداقل 12 کاراکتر یا یک جمله‌ی طولانی که فقط خودت می‌دانی')}
             ${li('تکراری یا شبیه رمز حساب‌های دیگر نباشد')}
             ${li('تاریخ تولد، اسم، شماره‌تلفن و رمزهایی مثل 123456 را نزن')}
             ${li('رمز را در یک مدیر رمز (password manager) یا جای امن بنویس')}
@@ -25717,7 +25866,7 @@ function mu_vaultDialog(mode){
             <p style="opacity:.7;font-size:12px;line-height:1.9">${escapeHtml(desc)}</p>
             ${mu_vaultHelpHtml(fa, setup)}
             <div class="markhin-filename-row">
-                <input type="password" id="${uid}_p1" class="markhin-filename-input" placeholder="${escapeHtml(setup ? (fa ? 'رمز جدید (حداقل ۶ کاراکتر)' : 'New password (min 6 chars)') : (fa ? 'رمز کلیدها' : 'Key password'))}" maxlength="512" autocomplete="${setup ? 'new-password' : 'current-password'}" spellcheck="false">
+                <input type="password" id="${uid}_p1" class="markhin-filename-input" placeholder="${escapeHtml(setup ? (fa ? 'رمز جدید (حداقل 6 کاراکتر)' : 'New password (min 6 chars)') : (fa ? 'رمز کلیدها' : 'Key password'))}" maxlength="512" autocomplete="${setup ? 'new-password' : 'current-password'}" spellcheck="false">
             </div>
             ${setup ? `<div class="markhin-filename-row"><input type="password" id="${uid}_p2" class="markhin-filename-input" placeholder="${escapeHtml(fa ? 'تکرار رمز' : 'Repeat password')}" maxlength="512" autocomplete="new-password" spellcheck="false"></div>` : ''}
             <p id="${uid}_err" style="color:#e5534b;font-size:12px;line-height:1.8;min-height:18px;margin:6px 0"></p>
@@ -25739,7 +25888,7 @@ function mu_vaultDialog(mode){
             try {
                 ok.disabled = true;
                 if (setup) {
-                    if (pw.length < 6) { err.textContent = fa ? 'رمز باید حداقل ۶ کاراکتر باشد.' : 'Password must be at least 6 characters.'; return; }
+                    if (pw.length < 6) { err.textContent = fa ? 'رمز باید حداقل 6 کاراکتر باشد.' : 'Password must be at least 6 characters.'; return; }
                     if (!p2 || pw !== p2.value) { err.textContent = fa ? 'دو رمز یکسان نیستند.' : 'The two passwords do not match.'; return; }
                     // Read the current (plaintext) settings BEFORE the vault flag flips on.
                     await window.MarkhinVault.enable(pw, MarkhinAI.getSettings());
@@ -25884,7 +26033,7 @@ function mu_openAiSettingsModal(){
             <div class="mu-more-title" role="button" tabindex="0" aria-expanded="false" onclick="mu_toggleAiMore(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();mu_toggleAiMore(this);}"><span>⚙️ ${fa?'تنظیمات بیشتر':'More settings'}</span></div>
             <div class="mu-more-body">
                 <div class="markhin-ai-settings-row">
-            <label>💲 ${fa?'قیمت این ارائه‌دهنده/مدل (اختیاری — دلار به ازای هر ۱ میلیون توکن)':'Price for this provider/model (optional — $ per 1M tokens)'}</label>
+            <label>💲 ${fa?'قیمت این ارائه‌دهنده/مدل (اختیاری — دلار به ازای هر 1 میلیون توکن)':'Price for this provider/model (optional — $ per 1M tokens)'}</label>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
                 <input type="number" id="muAiPriceIn" min="0" step="0.01" value="${fields.priceIn?escapeHtml(String(fields.priceIn)):''}" placeholder="${fa?'ورودی (Input)':'Input'}" style="flex:1;min-width:110px">
                 <input type="number" id="muAiPriceOut" min="0" step="0.01" value="${fields.priceOut?escapeHtml(String(fields.priceOut)):''}" placeholder="${fa?'خروجی (Output)':'Output'}" style="flex:1;min-width:110px">
@@ -25926,7 +26075,7 @@ function mu_renderAiBudgetSection(fa){
         <div class="markhin-ai-settings-row" style="margin-top:10px">
             <label>🎯 ${fa?'بودجه هوش مصنوعی (اختیاری — سقف روزانه/ماهانه)':'AI budget (optional — daily/monthly cap)'}</label>
             <p style="opacity:.6;font-size:10.5px;line-height:1.8;margin:0">${fa
-                ? 'هر کدام از این چهار سقف را که پر کنی فعال می‌شود؛ خالی یعنی بدون محدودیت. وقتی مصرف نزدیک سقف (پیش‌فرض ۸۰٪) یا از آن عبور کند، Markhin داخل همان چت یک پیام هشدار نشان می‌دهد. این مجموع مصرفِ همه‌ی قابلیت‌های AI برنامه است (چت، ترجمه، خلاصه‌سازی، برچسب‌ها...)، نه فقط این یک ارائه‌دهنده.'
+                ? 'هر کدام از این چهار سقف را که پر کنی فعال می‌شود؛ خالی یعنی بدون محدودیت. وقتی مصرف نزدیک سقف (پیش‌فرض 80٪) یا از آن عبور کند، Markhin داخل همان چت یک پیام هشدار نشان می‌دهد. این مجموع مصرفِ همه‌ی قابلیت‌های AI برنامه است (چت، ترجمه، خلاصه‌سازی، برچسب‌ها...)، نه فقط این یک ارائه‌دهنده.'
                 : "Fill in any of these four caps to activate it — leave blank for no limit. When usage gets close to a cap (80% by default) or passes it, Markhin shows a warning inside the chat. This totals usage across every AI feature in the app (chat, translate, summarize, tags...), not just this one provider."}</p>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
                 <input type="number" id="muAiBudgetDayUsd" min="0" step="0.5" value="${b.dailyCapUSD||''}" placeholder="${fa?'سقف روزانه ($)':'Daily cap ($)'}" style="flex:1;min-width:120px">
@@ -28198,23 +28347,23 @@ const MU_AI = (function(){
     const MAI_QUICK_ACTIONS = [
         { id:'image', icon:'🖼️', send:false,
           fa:'ساخت تصویر', en:'Generate image',
-          tipFa:'یک تصویر با هوش مصنوعی از روی توضیح متنی بساز — اگر OpenAI، Google Gemini، xAI (Grok)، OpenRouter، Together AI یا Fireworks AI را در ⚙️ تنظیمات هوش مصنوعی وصل کرده باشی، از همان مدل استفاده می‌شود، وگرنه رایگان و بدون کلید API. توی همون جمله می‌تونی همه‌چیز رو بگی: ابعاد و کیفیت («عریض و باکیفیت» یا «۱۰۲۴×۱۵۳۶»)، سبک هنری («سبک انیمه»، «نقاشی آبرنگ»، «کارتونی»، «پیکسل آرت»، «سه‌بعدی»، …)، تعداد («۳ تا عکس بساز»، تا سقف ۴ تا)، و حتی چیزی که نمی‌خوای توش باشه («بدون کلاه» یا «منفی: متن، واترمارک»). مثال کامل: «۲ تا عکس از یک گربه فضانورد، سبک انیمه، بدون کلاه‌خود بساز». نکته: لازم نیست حتماً این دکمه را بزنی — کافی است در چت معمولی هم بنویسی مثلاً «یک عکس از … بساز».', tipEn:'Generate an AI image from a text description — uses your connected OpenAI, Google Gemini, xAI (Grok), OpenRouter, Together AI, or Fireworks AI model if configured in ⚙️ AI Settings, otherwise free and no API key needed. You can say everything right in the sentence: size/quality ("widescreen, high quality" or "1024x1536"), an art style ("anime style", "watercolor painting", "cartoon", "pixel art", "3D render", …), a count ("make 3 images", capped at 4), and even what to leave out ("without a hat" or "negative: text, watermark"). Full example: "2 images of an astronaut cat, anime style, without a helmet". Tip: you don\'t have to tap this — just typing something like "draw me a …" in normal chat works too.',
+          tipFa:'یک تصویر با هوش مصنوعی از روی توضیح متنی بساز — اگر OpenAI، Google Gemini، xAI (Grok)، OpenRouter، Together AI یا Fireworks AI را در ⚙️ تنظیمات هوش مصنوعی وصل کرده باشی، از همان مدل استفاده می‌شود، وگرنه رایگان و بدون کلید API. توی همون جمله می‌تونی همه‌چیز رو بگی: ابعاد و کیفیت («عریض و باکیفیت» یا «1024×1536»)، سبک هنری («سبک انیمه»، «نقاشی آبرنگ»، «کارتونی»، «پیکسل آرت»، «سه‌بعدی»، …)، تعداد («3 تا عکس بساز»، تا سقف 4 تا)، و حتی چیزی که نمی‌خوای توش باشه («بدون کلاه» یا «منفی: متن، واترمارک»). مثال کامل: «2 تا عکس از یک گربه فضانورد، سبک انیمه، بدون کلاه‌خود بساز». نکته: لازم نیست حتماً این دکمه را بزنی — کافی است در چت معمولی هم بنویسی مثلاً «یک عکس از … بساز».', tipEn:'Generate an AI image from a text description — uses your connected OpenAI, Google Gemini, xAI (Grok), OpenRouter, Together AI, or Fireworks AI model if configured in ⚙️ AI Settings, otherwise free and no API key needed. You can say everything right in the sentence: size/quality ("widescreen, high quality" or "1024x1536"), an art style ("anime style", "watercolor painting", "cartoon", "pixel art", "3D render", …), a count ("make 3 images", capped at 4), and even what to leave out ("without a hat" or "negative: text, watermark"). Full example: "2 images of an astronaut cat, anime style, without a helmet". Tip: you don\'t have to tap this — just typing something like "draw me a …" in normal chat works too.',
           prefillFa:'/عکس ',
           prefillEn:'/image ' },
         { id:'editimg', icon:'✏️', send:false,
           fa:'ویرایش تصویر', en:'Edit image',
-          tipFa:'یک عکس را با 📎 پیوست کن، بعد بگو چه تغییری می‌خواهی — تغییرات معمولی مثل «ابعادش را عریض کن»، «کیفیتش را ببر بالا»، «متن روی عکس را پاک کن»، «یک کلاه به سرش اضافه کن»، و هم تبدیل سبک مثل «این عکس رو تبدیل به نقاشی کن»، «انیمه‌ای‌اش کن»، «بکشش به سبک کارتونی»، «آبرنگ کن» — هر سبکی که بخواهی. می‌توانی تعداد نسخه هم بگویی («۲ نسخه‌ی مختلف بساز»، تا سقف ۴ تا). نیاز به اتصال OpenAI (مدل gpt-image-1)، Google Gemini (مدل gemini-2.5-flash-image)، xAI/Grok (مدل grok-imagine-image) یا OpenRouter در ⚙️ تنظیمات هوش مصنوعی دارد.', tipEn:'Attach a photo with 📎, then describe the change — everyday edits like "make it widescreen", "improve the quality", "remove the text from the photo", "add a hat", as well as full style conversions like "turn this into a painting", "make it anime style", "sketch this", "watercolor version" — any style you want. You can also ask for a few versions at once ("make 2 different versions", capped at 4). Requires OpenAI (gpt-image-1), Google Gemini (gemini-2.5-flash-image), xAI/Grok (grok-imagine-image), or OpenRouter connected in ⚙️ AI Settings.',
+          tipFa:'یک عکس را با 📎 پیوست کن، بعد بگو چه تغییری می‌خواهی — تغییرات معمولی مثل «ابعادش را عریض کن»، «کیفیتش را ببر بالا»، «متن روی عکس را پاک کن»، «یک کلاه به سرش اضافه کن»، و هم تبدیل سبک مثل «این عکس رو تبدیل به نقاشی کن»، «انیمه‌ای‌اش کن»، «بکشش به سبک کارتونی»، «آبرنگ کن» — هر سبکی که بخواهی. می‌توانی تعداد نسخه هم بگویی («2 نسخه‌ی مختلف بساز»، تا سقف 4 تا). نیاز به اتصال OpenAI (مدل gpt-image-1)، Google Gemini (مدل gemini-2.5-flash-image)، xAI/Grok (مدل grok-imagine-image) یا OpenRouter در ⚙️ تنظیمات هوش مصنوعی دارد.', tipEn:'Attach a photo with 📎, then describe the change — everyday edits like "make it widescreen", "improve the quality", "remove the text from the photo", "add a hat", as well as full style conversions like "turn this into a painting", "make it anime style", "sketch this", "watercolor version" — any style you want. You can also ask for a few versions at once ("make 2 different versions", capped at 4). Requires OpenAI (gpt-image-1), Google Gemini (gemini-2.5-flash-image), xAI/Grok (grok-imagine-image), or OpenRouter connected in ⚙️ AI Settings.',
           prefillFa:'/ویرایش ',
           prefillEn:'/edit ' },
         { id:'week', icon:'📅', send:true,
           fa:'خلاصه هفتگی', en:'Weekly summary',
-          tipFa:'خلاصه، تم‌های تکراری و آمار یادداشت‌های ۷ روز اخیر', tipEn:'Summary, recurring themes and stats for the last 7 days of notes',
-          promptFa:'یک خلاصه هفتگی از یادداشت‌های ۷ روز اخیرم بساز: موضوع‌های اصلی، تم‌های تکراری و آمار (یادداشت‌های جدید و ویرایش‌شده، تعداد کلمه، فعال‌ترین روز).',
+          tipFa:'خلاصه، تم‌های تکراری و آمار یادداشت‌های 7 روز اخیر', tipEn:'Summary, recurring themes and stats for the last 7 days of notes',
+          promptFa:'یک خلاصه هفتگی از یادداشت‌های 7 روز اخیرم بساز: موضوع‌های اصلی، تم‌های تکراری و آمار (یادداشت‌های جدید و ویرایش‌شده، تعداد کلمه، فعال‌ترین روز).',
           promptEn:'Make a weekly summary of my notes from the last 7 days: main topics, recurring themes, and stats (new and edited notes, word count, busiest day).' },
         { id:'month', icon:'🗓️', send:true,
           fa:'خلاصه ماهانه', en:'Monthly summary',
-          tipFa:'خلاصه، تم‌های تکراری و آمار یادداشت‌های ۳۰ روز اخیر', tipEn:'Summary, recurring themes and stats for the last 30 days of notes',
-          promptFa:'یک خلاصه ماهانه از یادداشت‌های ۳۰ روز اخیرم بساز: موضوع‌های اصلی، تم‌های تکراری و آمار (یادداشت‌های جدید و ویرایش‌شده، تعداد کلمه، فعال‌ترین روز).',
+          tipFa:'خلاصه، تم‌های تکراری و آمار یادداشت‌های 30 روز اخیر', tipEn:'Summary, recurring themes and stats for the last 30 days of notes',
+          promptFa:'یک خلاصه ماهانه از یادداشت‌های 30 روز اخیرم بساز: موضوع‌های اصلی، تم‌های تکراری و آمار (یادداشت‌های جدید و ویرایش‌شده، تعداد کلمه، فعال‌ترین روز).',
           promptEn:'Make a monthly summary of my notes from the last 30 days: main topics, recurring themes, and stats (new and edited notes, word count, busiest day).' },
         { id:'conflicts', icon:'⚖️', send:true,
           fa:'تناقض‌یاب', en:'Find contradictions',
@@ -30384,7 +30533,7 @@ const MU_AI = (function(){
                     let linesN = null;
                     if(hasLines){
                         linesN = parseInt(input.lines, 10);
-                        if(!(linesN >= 1 && linesN <= 5)) return { ok:false, error: fa ? 'تعداد خط‌ها باید بین ۱ تا ۵ باشد.' : 'lines must be a whole number from 1 to 5.' };
+                        if(!(linesN >= 1 && linesN <= 5)) return { ok:false, error: fa ? 'تعداد خط‌ها باید بین 1 تا 5 باشد.' : 'lines must be a whole number from 1 to 5.' };
                     }
                     let enabled = hasEnabled ? !!input.enabled : window.mu_getNotePreviewEnabled();
                     if(hasLines && !hasEnabled) enabled = true;
@@ -30437,7 +30586,7 @@ const MU_AI = (function(){
                 case 'set_scroll_pause_delay': {
                     if(!window.MU_ScrollPause) return { ok:false, error: fa ? 'تنظیم در دسترس نیست.' : 'This setting is unavailable right now.' };
                     const spRaw = Number(input.ms);
-                    if(!isFinite(spRaw)) return { ok:false, error: fa ? 'مقدار باید یک عدد بین ۰ تا ۱۰۰۰ میلی‌ثانیه باشد.' : 'ms must be a number between 0 and 1000.' };
+                    if(!isFinite(spRaw)) return { ok:false, error: fa ? 'مقدار باید یک عدد بین 0 تا 1000 میلی‌ثانیه باشد.' : 'ms must be a number between 0 and 1000.' };
                     const spOld = MU_ScrollPause.get();
                     const spNew = MU_ScrollPause.set(spRaw);
                     if(spNew === spOld) return { ok:true, data:{ delay_ms: spNew, changed:false, range_ms:[0,1000], note: fa ? 'از قبل همین مقدار بود.' : 'It was already this value.' } };
@@ -30470,7 +30619,7 @@ const MU_AI = (function(){
                     const bmHas = function(v){ return v !== undefined && v !== null && v !== ''; };
                     if(bmHas(input.volume)){
                         const n = Number(input.volume);
-                        if(!isFinite(n)) return { ok:false, error: fa ? 'بلندی صدا باید عددی بین ۰ تا ۱۰۰ باشد.' : 'volume must be a number between 0 and 100.' };
+                        if(!isFinite(n)) return { ok:false, error: fa ? 'بلندی صدا باید عددی بین 0 تا 100 باشد.' : 'volume must be a number between 0 and 100.' };
                         bmVol = Math.max(0, Math.min(100, Math.round(n)));
                     } else if(bmHas(input.change)){
                         const c = Number(input.change);
@@ -30499,18 +30648,18 @@ const MU_AI = (function(){
                 }
                 case 'set_viewer_style': {
                     const st = String(input.style || '').trim().toLowerCase();
-                    if(st !== 'retro' && st !== 'ocean' && st !== 'live' && st !== 'ask') return { ok:false, error: fa ? 'سبک باید retro (ویندوز ۹۵)، ocean (اقیانوسی)، live (لایو) یا ask (انتخاب هر بار) باشد.' : 'style must be "retro", "ocean", "live" or "ask".' };
+                    if(st !== 'retro' && st !== 'ocean' && st !== 'live' && st !== 'ask') return { ok:false, error: fa ? 'سبک باید retro (ویندوز 95)، ocean (اقیانوسی)، live (لایو) یا ask (انتخاب هر بار) باشد.' : 'style must be "retro", "ocean", "live" or "ask".' };
                     if(typeof window.mu_setViewerStyle !== 'function') return { ok:false, error: fa ? 'تنظیم سبک نمایش در دسترس نیست.' : 'Viewer style setting is unavailable right now.' };
                     const prevSt = window.mu_getViewerStyle();
                     if(window.MU_Lite && MU_Lite.setViewerStyle) MU_Lite.setViewerStyle(st); else window.mu_setViewerStyle(st);
-                    showToast(fa ? ('🪟 سبک کادر نمایش یادداشت: ' + (st === 'retro' ? 'ویندوز ۹۵' : (st === 'live' ? 'زنده' : (st === 'ask' ? 'انتخاب هر بار' : 'اقیانوسی')))) : ('🪟 Note viewer style: ' + (st === 'retro' ? 'Windows 95' : (st === 'live' ? 'Live' : (st === 'ask' ? 'Ask each time' : 'Ocean')))));
+                    showToast(fa ? ('🪟 سبک کادر نمایش یادداشت: ' + (st === 'retro' ? 'ویندوز 95' : (st === 'live' ? 'زنده' : (st === 'ask' ? 'انتخاب هر بار' : 'اقیانوسی')))) : ('🪟 Note viewer style: ' + (st === 'retro' ? 'Windows 95' : (st === 'live' ? 'Live' : (st === 'ask' ? 'Ask each time' : 'Ocean')))));
                     return { ok:true, data:{ style: window.mu_getViewerStyle(), previous: prevSt, changed: prevSt !== st } };
                 }
                 case 'open_note_viewer': {
                     const item = mAiResolveNote(input.note);
                     if(!item) return notFound;
                     const vs = String(input.style || '').trim().toLowerCase();
-                    if(vs && vs !== 'ocean' && vs !== 'retro' && vs !== 'live') return { ok:false, error: fa ? 'سبک باید ocean (اقیانوسی)، retro (ویندوز ۹۵) یا live (لایو) باشد.' : 'style must be "ocean", "retro" or "live".' };
+                    if(vs && vs !== 'ocean' && vs !== 'retro' && vs !== 'live') return { ok:false, error: fa ? 'سبک باید ocean (اقیانوسی)، retro (ویندوز 95) یا live (لایو) باشد.' : 'style must be "ocean", "retro" or "live".' };
                     if(item.unlockAt && Date.now() < Number(item.unlockAt)) return { ok:false, error: fa ? 'این یادداشت کپسول زمانی فعال دارد و تا رسیدن زمان باز شدنش قابل نمایش نیست.' : 'This note has an active Time Capsule and cannot be opened until its unlock time.' };
                     if(typeof window.mu_openNoteViewer !== 'function') return { ok:false, error: fa ? 'کادر نمایش یادداشت در دسترس نیست.' : 'The note viewer is unavailable right now.' };
                     const needsPass = mAiIsLockedForAi(item);
@@ -30841,7 +30990,7 @@ const MU_AI = (function(){
                     if(input.note) refs.push(input.note);
                     refs = refs.map(r => String(r || '').trim()).filter(Boolean);
                     if(!refs.length) return { ok:false, error: fa ? 'حداقل یک یادداشت (note یا notes) لازم است.' : 'At least one note is required (the note or notes parameter).' };
-                    if(refs.length > 20) return { ok:false, error: fa ? 'حداکثر ۲۰ یادداشت در هر درخواست.' : 'At most 20 notes per request.' };
+                    if(refs.length > 20) return { ok:false, error: fa ? 'حداکثر 20 یادداشت در هر درخواست.' : 'At most 20 notes per request.' };
                     const dnaOut = [];
                     for(const ref of refs){
                         const it = mAiResolveNote(ref);
@@ -31527,7 +31676,7 @@ const MU_AI = (function(){
                     } catch(convCodeErr){
                         const msg = convCodeErr && convCodeErr.message;
                         if(msg === 'invalid_binary') return { ok:false, error: fa ? 'ورودی باینری نامعتبر است (فقط 0 و 1 مجاز است).' : 'Invalid binary input (only 0 and 1 are allowed).' };
-                        if(msg === 'bad_length') return { ok:false, error: fa ? 'تعداد بیت‌ها باید مضربی از ۸ باشد، یا هر بایت با فاصله جدا شود.' : 'Bit count must be a multiple of 8, or each byte separated by a space.' };
+                        if(msg === 'bad_length') return { ok:false, error: fa ? 'تعداد بیت‌ها باید مضربی از 8 باشد، یا هر بایت با فاصله جدا شود.' : 'Bit count must be a multiple of 8, or each byte separated by a space.' };
                         return { ok:false, error: fa ? 'تبدیل ممکن نشد.' : 'Conversion failed.' };
                     }
                 }
@@ -31750,7 +31899,7 @@ const MU_AI = (function(){
                 break;
             }
             if(file.size > MAI_MAX_FILE_BYTES){
-                if(typeof showToast === 'function') showToast(fa ? '«' + file.name + '» خیلی بزرگ است (حداکثر ۲۰ مگابایت).' : '"' + file.name + '" is too large (20MB max).');
+                if(typeof showToast === 'function') showToast(fa ? '«' + file.name + '» خیلی بزرگ است (حداکثر 20 مگابایت).' : '"' + file.name + '" is too large (20MB max).');
                 continue;
             }
             const kind = mAi_attKind(file);
@@ -33736,7 +33885,7 @@ const MU_AI = (function(){
             ? 'تو MARKHIN AI هستی: دستیار هوش مصنوعی حرفه‌ای، دقیق و قدرتمند، ساخته‌شده داخل اپلیکیشن یادداشت‌برداری Markhin. (تلفظ صحیح فارسیِ نام MARKHIN «مارخین» است — هر جا لازم شد نام برنامه یا خودت را با حروف فارسی بنویسی یا تلفظش کنی، همیشه «مارخین» بگو/بنویس، نه شکل‌های دیگر مثل «مارکین».) سه نقش داری و هر سه را همزمان انجام می‌دهی:\n'
                 + '۱) دستیار عمومی: به هر سوالی — چه ربطی به برنامه داشته باشد چه نه — با دانش عمومی‌ات، دقیق و روان پاسخ می‌دهی؛ پیش‌فرض این است که به همان زبانی جواب بدهی که کاربر با آن پیام نوشته، مگر آنکه کاربر صریحاً زبان دیگری برای پاسخ خواسته باشد (به بندِ زبانِ پاسخ در پایین همین بخش نگاه کن).\n'
                 + '۲) عامل مدیریت یادداشت: مستقیماً به یادداشت‌ها و پوشه‌های کاربر دسترسی داری و می‌توانی این کارها را واقعاً انجام دهی، نه فقط توضیح دهی: ' + toolsSummaryFa + '.\n'
-                + '۳) کارشناس خودِ برنامه: کل امکانات Markhin را می‌شناسی و درباره‌شان دقیق و کاربردی راهنمایی می‌کنی، حتی آن‌هایی که ابزار مستقیم برایشان نداری: پوشه‌بندی و برچسب‌گذاری یادداشت‌ها، پین و فیوریت‌کردن، آرشیو و بازگردانی، شبکه دانش (نمای گرافی ارتباط یادداشت‌ها)، پورتال رندوم، درون‌ریزی از JSON/CSV/TXT/MD/DOCX/HTML (این یکی چون به انتخاب فایل واقعی از گوشی کاربر نیاز دارد، فقط می‌توانی راهنمایی کنی). خروجیِ HTML کامل برنامه (بکاپ کل برنامه) را هم می‌توانی مستقیم با ابزار export_notes و فرمت app_html بسازی (حالت data: برنامه + همه یادداشت‌ها و پوشه‌ها بدون کلید API، حالت clean: برنامهٔ خالی)؛ نسخه‌ای که کلید API را هم داخلش دارد فقط خودِ کاربر از گزینهٔ «کامل، حتی کلید API» در منوی خروجی HTML می‌تواند بسازد و ابزار مستقیمی برایش نداری. همچنین بکاپ Cloud تلگرام (پنل ☁️): یک «بکاپ خودکار» هست که چند ثانیه بعد از هر ویرایش، بی‌صدا و بدون کاری از طرف کاربر، متنِ یادداشت‌ها را در فضای ابری خودِ تلگرام ذخیره می‌کند (تصاویر در آن نیستند، فقط روی همان دستگاه می‌مانند) — این همیشه فعال است. جدا از آن، «دریافتِ خودکار» تغییرات دستگاه‌های دیگر (یادداشت جدید، ویرایش، یا حذف) بدون فشردن دستی Restore، فقط روی دستگاهی کار می‌کند که قبلاً حداقل یک‌بار «ذخیره‌ی یک بکاپ جدید» یا «بازیابی» زده باشد؛ اگر کاربر گفت یادداشت‌ها/حذف‌ها بین دو دستگاهش خودکار سینک نمی‌شوند، دقیقاً همین را توضیح بده و بگو یک‌بار در پنل ☁️ دکمه‌ی «🔄 فعال‌سازی / تعمیر سینک خودکار» را بزند — همان لحظه هم وضعیت را روشن می‌کند هم یک‌بار با بکاپ ابری چک/merge می‌کند؛ زدنش هیچ‌وقت ضرر ندارد. علاوه بر بکاپِ خودکار، «ذخیره‌ی یک بکاپ جدید» (تا ۷ بکاپ دستی، با برچسب و رمزِ اختیاری)، «👁 مشاهده» محتوای هر بکاپ قبل از بازیابی، «📥 بازیابی» (یادداشتِ جدیدتر از بکاپ اضافه/به‌روزرسانی می‌شود، حذف‌های عمدی برنمی‌گردند)، و «🔓 بازیابی و لغو حذف‌ها» (وقتی کاربر صریحاً می‌خواهد یادداشت‌های حذف‌شده هم دقیقاً از همان یک بکاپِ مشخص برگردند، برخلاف رفتار عادیِ بازیابی که حذف‌های عمدی را برنمی‌گرداند) هم هست — همه‌ی این‌ها فقط از پنل ☁️ در دسترس‌اند، ابزار مستقیم برایشان نداری. همچنین بخش «⚙️ تنظیمات بکاپ» بالای همان پنل به کاربر اجازه می‌دهد تعداد بکاپ‌های دستیِ هم‌زمان را از ۰ تا ۷ (پیش‌فرض ۳) تغییر دهد؛ چون تلگرام به هر بات فقط ۱۰۲۴ کلید ذخیره‌سازی می‌دهد، این عدد مستقیماً حجمِ مجازِ هر بکاپ (خودکار و دستی) را تعیین می‌کند — هرچه تعداد بکاپ دستی بیشتر باشد سهمِ هرکدام از فضا کمتر می‌شود، و گذاشتنش روی ۰ بکاپ دستی را کلاً خاموش می‌کند و تقریباً تمام فضا را به بکاپ خودکار می‌دهد. کم‌کردن این عدد به کمتر از تعداد بکاپ‌های دستیِ فعلی، قدیمی‌ترین‌هایشان را برای همیشه حذف می‌کند (فقط بعد از تأیید کاربر). این تنظیم هم فقط از همان پنل ☁️ قابل‌تغییر است، ابزار مستقیمی برایش نداری. تنظیمات برنامه را هم مستقیماً با ابزار تغییر می‌دهی، نه فقط توضیح: روشن/خاموش‌کردن نسخه سبک (set_lite_mode — تا وقتی روشن است تغییر تم قفل است؛ پس اگر کاربر تغییر تم خواست، اول بگو و پیشنهاد بده نسخه سبک را خاموش کنی)، زوم صفحه (set_page_zoom — پیش‌فرض خاموش است؛ شبکه دانش همیشه زوم مخصوص خودش را دارد و به این تنظیم وابسته نیست)، موسیقی پس‌زمینهٔ برنامه — روشن/خاموش و کم/زیاد کردن بلندی صدا (set_background_music)، سبک کادر نمایش یادداشت (set_viewer_style)، پیش‌نمایش یادداشت‌ها و تعداد خط‌هایش (set_note_preview)، ترتیب نمایش لیست (set_list_sort_mode)، و خواندن وضعیت فعلی همه‌ی این‌ها (get_app_settings — همیشه به‌جای حدس‌زدن وضعیت یک تنظیم، آن را صدا بزن). تغییر تم ظاهری، تغییر زبان، خروجی‌گرفتن واقعی از یادداشت‌ها (JSON/CSV/MD/TXT/HTML/PDF/DOCX/PNG/JPG، بسته کامل ZIP، ZIPهای تک\u200cفایلی، بکاپ کامل HTML برنامه)، باز کردن شبکه دانش/پورتال رندوم، و قفل‌کردن واقعیِ یک یادداشت با رمز (با ابزار lock_note — همان دیالوگ امنِ رمزگذاریِ خودِ برنامه باز می‌شود و کاربر رمز و راهنمای رمز را مستقیماً همان‌جا وارد می‌کند، هرگز از طریق این چت) را هم می‌توانی مستقیماً با ابزار انجام دهی، نه فقط توضیح بدهی. وقتی کاربر پرسید فلان کار در برنامه چطور انجام می‌شود، دقیقاً بگو کدام دکمه/بخش را لمس کند. همچنین این بخش‌های برنامه را می‌شناسی و دقیق راهنمایی می‌کنی: «جستجو» (جستجوی سراسری؛ با Ctrl+K هم باز می‌شود؛ فارسی، انگلیسی و فینگلیش را می‌فهمد، عملگرهای tag:، folder:، is:pinned، is:favorite، «عبارت دقیق» و علامت - برای حذف یک کلمه را دارد و جستجوهای اخیر را نگه می‌دارد)؛ «داشبورد» (آمار کل: تعداد یادداشت، کلمه، حرف، پوشه، تگ، میانگین کلمات، و فهرست پین‌شده، علاقه‌مندی، قفل‌شده، فریب‌دهنده، بایگانی، Ghost و کپسول زمانیِ فعال)؛ «🧬 DNA یادداشت» (تحلیل یک یادداشت: کلمه‌ها، نمادها، کلمات یکتا، کلمات کلیدیِ پرتکرار، زمان تقریبی مطالعه، تعداد تصویر و لینک)؛ «اشتراک‌گذاری یادداشت» (TXT، Markdown، HTML، PDF یا تصویر؛ یادداشت قفل‌شده فقط به‌صورت فایل رمزنگاری‌شده به اشتراک گذاشته می‌شود)؛ «انتخاب چندتایی» (نگه‌داشتن طولانی روی یادداشت یا پوشه؛ برای یادداشت‌ها پین، فیوریت، کپی، جابجایی بالا/پایین و حذف، و برای پوشه‌ها حذف گروهی)؛ و ابزارهای داخل خودِ یادداشت: نقاشی (قلم، پاک‌کن، مستطیل، دایره، رنگ، اندازه، برگشت، پاک‌کردن، دانلود و درج در متن)، ضبط صدا، درج و جابجایی تصویر، برگشت/تکرار متن (undo/redo)، دکمه‌ی «نمایش لینک» برای پیش‌نمایش لینک‌ها، و دکمه‌ی کپی یادداشت. داشبورد، جستجو، DNA و اشتراک‌گذاری را با open_app_view برای کاربر باز می‌کنی؛ برای بقیه‌ی این‌ها ابزار مستقیم نداری و فقط راهنمایی می‌کنی.\n\n'
+                + '۳) کارشناس خودِ برنامه: کل امکانات Markhin را می‌شناسی و درباره‌شان دقیق و کاربردی راهنمایی می‌کنی، حتی آن‌هایی که ابزار مستقیم برایشان نداری: پوشه‌بندی و برچسب‌گذاری یادداشت‌ها، پین و فیوریت‌کردن، آرشیو و بازگردانی، شبکه دانش (نمای گرافی ارتباط یادداشت‌ها)، پورتال رندوم، درون‌ریزی از JSON/CSV/TXT/MD/DOCX/HTML (این یکی چون به انتخاب فایل واقعی از گوشی کاربر نیاز دارد، فقط می‌توانی راهنمایی کنی). خروجیِ HTML کامل برنامه (بکاپ کل برنامه) را هم می‌توانی مستقیم با ابزار export_notes و فرمت app_html بسازی (حالت data: برنامه + همه یادداشت‌ها و پوشه‌ها بدون کلید API، حالت clean: برنامهٔ خالی)؛ نسخه‌ای که کلید API را هم داخلش دارد فقط خودِ کاربر از گزینهٔ «کامل، حتی کلید API» در منوی خروجی HTML می‌تواند بسازد و ابزار مستقیمی برایش نداری. همچنین بکاپ Cloud تلگرام (پنل ☁️): یک «بکاپ خودکار» هست که چند ثانیه بعد از هر ویرایش، بی‌صدا و بدون کاری از طرف کاربر، متنِ یادداشت‌ها را در فضای ابری خودِ تلگرام ذخیره می‌کند (تصاویر در آن نیستند، فقط روی همان دستگاه می‌مانند) — این همیشه فعال است. جدا از آن، «دریافتِ خودکار» تغییرات دستگاه‌های دیگر (یادداشت جدید، ویرایش، یا حذف) بدون فشردن دستی Restore، فقط روی دستگاهی کار می‌کند که قبلاً حداقل یک‌بار «ذخیره‌ی یک بکاپ جدید» یا «بازیابی» زده باشد؛ اگر کاربر گفت یادداشت‌ها/حذف‌ها بین دو دستگاهش خودکار سینک نمی‌شوند، دقیقاً همین را توضیح بده و بگو یک‌بار در پنل ☁️، تب «بکاپ خودکار»، دکمه‌ی «فعال‌سازی / تعمیر سینک خودکار» را بزند — همان لحظه هم وضعیت را روشن می‌کند هم یک‌بار با بکاپ ابری چک/merge می‌کند؛ زدنش هیچ‌وقت ضرر ندارد. پنل دو تب کنار هم دارد: «بکاپ خودکار» (پیش‌فرض؛ وضعیت سینک، آخرین نسخه‌ی خودکار و دکمه‌ی فعال‌سازی/تعمیر سینک) و «بکاپ دستی» (تنظیم تعداد بکاپ‌ها، برچسب، ذخیره و فهرست بکاپ‌های ذخیره‌شده). پایین هر دو تب، تعداد کلیدهای واقعیِ مصرف‌شده در Cloud تلگرام نوشته شده: کلیدهای بکاپ خودکار، کلیدهای بکاپ‌های دستی، کل کلیدهای ربات از 1024 و سقف تعیین‌شده‌ی برنامه (960 کلید)؛ اگر کاربر پرسید چقدر جا مانده، همین را بگو. در تب دستی علاوه بر بکاپِ خودکار، «ذخیره‌ی یک بکاپ جدید» (تا ۷ بکاپ دستی، با برچسب و رمزِ اختیاری)، «مشاهده» محتوای هر بکاپ قبل از بازیابی، «بازیابی» (یادداشتِ جدیدتر از بکاپ اضافه/به‌روزرسانی می‌شود، حذف‌های عمدی برنمی‌گردند)، و «🔓 بازیابی و لغو حذف‌ها» (وقتی کاربر صریحاً می‌خواهد یادداشت‌های حذف‌شده هم دقیقاً از همان یک بکاپِ مشخص برگردند، برخلاف رفتار عادیِ بازیابی که حذف‌های عمدی را برنمی‌گرداند) هم هست — همه‌ی این‌ها فقط از پنل ☁️ در دسترس‌اند، ابزار مستقیم برایشان نداری. همچنین بخش «⚙️ تنظیمات بکاپ» بالای همان پنل به کاربر اجازه می‌دهد تعداد بکاپ‌های دستیِ هم‌زمان را از ۰ تا ۷ (پیش‌فرض ۳) تغییر دهد؛ چون تلگرام به هر بات فقط ۱۰۲۴ کلید ذخیره‌سازی می‌دهد، این عدد مستقیماً حجمِ مجازِ هر بکاپ (خودکار و دستی) را تعیین می‌کند — هرچه تعداد بکاپ دستی بیشتر باشد سهمِ هرکدام از فضا کمتر می‌شود، و گذاشتنش روی ۰ بکاپ دستی را کلاً خاموش می‌کند و تقریباً تمام فضا را به بکاپ خودکار می‌دهد. کم‌کردن این عدد به کمتر از تعداد بکاپ‌های دستیِ فعلی، قدیمی‌ترین‌هایشان را برای همیشه حذف می‌کند (فقط بعد از تأیید کاربر). این تنظیم هم فقط از همان پنل ☁️ قابل‌تغییر است، ابزار مستقیمی برایش نداری. تنظیمات برنامه را هم مستقیماً با ابزار تغییر می‌دهی، نه فقط توضیح: روشن/خاموش‌کردن نسخه سبک (set_lite_mode — تا وقتی روشن است تغییر تم قفل است؛ پس اگر کاربر تغییر تم خواست، اول بگو و پیشنهاد بده نسخه سبک را خاموش کنی)، زوم صفحه (set_page_zoom — پیش‌فرض خاموش است؛ شبکه دانش همیشه زوم مخصوص خودش را دارد و به این تنظیم وابسته نیست)، موسیقی پس‌زمینهٔ برنامه — روشن/خاموش و کم/زیاد کردن بلندی صدا (set_background_music)، سبک کادر نمایش یادداشت (set_viewer_style)، پیش‌نمایش یادداشت‌ها و تعداد خط‌هایش (set_note_preview)، ترتیب نمایش لیست (set_list_sort_mode)، و خواندن وضعیت فعلی همه‌ی این‌ها (get_app_settings — همیشه به‌جای حدس‌زدن وضعیت یک تنظیم، آن را صدا بزن). تغییر تم ظاهری، تغییر زبان، خروجی‌گرفتن واقعی از یادداشت‌ها (JSON/CSV/MD/TXT/HTML/PDF/DOCX/PNG/JPG، بسته کامل ZIP، ZIPهای تک\u200cفایلی، بکاپ کامل HTML برنامه)، باز کردن شبکه دانش/پورتال رندوم، و قفل‌کردن واقعیِ یک یادداشت با رمز (با ابزار lock_note — همان دیالوگ امنِ رمزگذاریِ خودِ برنامه باز می‌شود و کاربر رمز و راهنمای رمز را مستقیماً همان‌جا وارد می‌کند، هرگز از طریق این چت) را هم می‌توانی مستقیماً با ابزار انجام دهی، نه فقط توضیح بدهی. وقتی کاربر پرسید فلان کار در برنامه چطور انجام می‌شود، دقیقاً بگو کدام دکمه/بخش را لمس کند. همچنین این بخش‌های برنامه را می‌شناسی و دقیق راهنمایی می‌کنی: «جستجو» (جستجوی سراسری؛ با Ctrl+K هم باز می‌شود؛ فارسی، انگلیسی و فینگلیش را می‌فهمد، عملگرهای tag:، folder:، is:pinned، is:favorite، «عبارت دقیق» و علامت - برای حذف یک کلمه را دارد و جستجوهای اخیر را نگه می‌دارد)؛ «داشبورد» (آمار کل: تعداد یادداشت، کلمه، حرف، پوشه، تگ، میانگین کلمات، و فهرست پین‌شده، علاقه‌مندی، قفل‌شده، فریب‌دهنده، بایگانی، Ghost و کپسول زمانیِ فعال)؛ «🧬 DNA یادداشت» (تحلیل یک یادداشت: کلمه‌ها، نمادها، کلمات یکتا، کلمات کلیدیِ پرتکرار، زمان تقریبی مطالعه، تعداد تصویر و لینک)؛ «اشتراک‌گذاری یادداشت» (TXT، Markdown، HTML، PDF یا تصویر؛ یادداشت قفل‌شده فقط به‌صورت فایل رمزنگاری‌شده به اشتراک گذاشته می‌شود)؛ «انتخاب چندتایی» (نگه‌داشتن طولانی روی یادداشت یا پوشه؛ برای یادداشت‌ها پین، فیوریت، کپی، جابجایی بالا/پایین و حذف، و برای پوشه‌ها حذف گروهی)؛ و ابزارهای داخل خودِ یادداشت: نقاشی (قلم، پاک‌کن، مستطیل، دایره، رنگ، اندازه، برگشت، پاک‌کردن، دانلود و درج در متن)، ضبط صدا، درج و جابجایی تصویر، برگشت/تکرار متن (undo/redo)، دکمه‌ی «نمایش لینک» برای پیش‌نمایش لینک‌ها، و دکمه‌ی کپی یادداشت. داشبورد، جستجو، DNA و اشتراک‌گذاری را با open_app_view برای کاربر باز می‌کنی؛ برای بقیه‌ی این‌ها ابزار مستقیم نداری و فقط راهنمایی می‌کنی.\n\n'
                 + webSearchRoleFa
                 + mAiDateTimeFa
                 + 'استانداردِ کیفیت پاسخ (خیلی مهم):\n'
@@ -33797,7 +33946,7 @@ const MU_AI = (function(){
             : 'You are MARKHIN AI: a professional, precise, highly capable AI assistant embedded inside the Markhin note-taking app. You fill three roles at once:\n'
                 + '1) General assistant: you answer any question — whether or not it relates to the app — clearly and accurately using your general knowledge; by default you answer in whichever language the user wrote that message in, unless they\'ve explicitly asked for a different reply language (see the response-language rule below).\n'
                 + '2) Notes-management agent: you have direct access to the user\'s notes and folders and can actually perform (not just explain) the following: ' + toolsSummaryEn + '.\n'
-                + '3) App expert: you know the whole Markhin feature set and give precise, actionable guidance about any of it, even features you have no direct tool for: folders and tags, pinning and favoriting, archiving/restoring, the Knowledge Graph (a graph view of how notes connect), the Random Portal, importing from JSON/CSV/TXT/MD/DOCX/HTML (this one needs the user to actually pick a file on their device, so you can only guide them to it). The full-app HTML export (a complete backup of the app itself) you can create directly with export_notes format app_html (app_mode data = app plus all notes and folders without the API key, clean = blank app); the variant that also contains the API key can only be made by the user from the "Full, including API key" option of the HTML export menu, you have no tool for it. Also Telegram Cloud backup (the ☁️ panel): an "auto backup" saves the notes\' text to Telegram\'s own cloud a few seconds after every edit, silently, with nothing for the user to do (images aren\'t included, they stay on-device) — this always runs. Separately, automatically *pulling in* another device\'s changes (new notes, edits, or deletions) without the user manually tapping Restore only works on a device that has, at some point, tapped "Save a new backup" or "Restore" at least once; if the user says notes/deletions aren\'t syncing automatically between two of their devices, explain exactly this and tell them to open the ☁️ panel once and tap "🔄 Enable / fix auto sync" — it turns that on immediately and also does one check-and-merge against the cloud backup right then; tapping it is never harmful. Beyond the auto backup there\'s also "Save a new backup" (up to 7 manual snapshots, with an optional label and password), "👁 View" a backup\'s contents before restoring, "📥 Restore" (newer notes from the backup are added/updated, deliberate deletions are never brought back), and "🔓 Restore and undo deletions" (for when the user explicitly wants a deleted note back from one specific backup, overriding the normal behavior) — all of these live only in the ☁️ panel; you have no tool to open, view the inside of, or restore a backup. HOWEVER you DO have telegram_backup_list, and it is the ONLY trustworthy source for backups: for ANY question about which backups exist, a backup name, label or date, or how many notes a backup holds, you MUST call telegram_backup_list FIRST and answer strictly from its result (label, dateLabel, notes, skipped, approxSizeKB, passwordProtected). NEVER guess or invent a backup name, date or note count, and NEVER convert or write a date yourself: quote label and dateLabel exactly as returned, or call convert_date. If the tool returns ok:false (for example the app is not running inside Telegram), tell the user that plainly instead of answering from imagination. Never output long meaningless strings of letters or digits; if you have no real data, say so in one short sentence. There\'s also an "⚙️ Backup settings" block at the top of that same panel, where the user can change how many manual backups are kept at once, from 0 to 7 (default 2); since Telegram gives each bot only 1024 storage keys, this number directly sets the size cap for every backup (auto and manual) — more manual backups means a smaller cap for each, and setting it to 0 turns manual backups off entirely so nearly all the space goes to the auto backup alone. Lowering the number below the current manual-backup count permanently deletes the oldest ones (after the user confirms). This setting, too, can only be changed from the ☁️ panel itself; you have no direct tool for it. Changing any app setting directly with a tool, not just explaining it: Lite version on/off (set_lite_mode - while it is on, theme changes are locked, so if the user asks for a theme change first tell them and offer to turn Lite off), Eco power-saving options (set_eco_option - all on by default: pause animations while typing / in note viewer / idle / background), the scroll-pause delay (set_scroll_pause_delay - how many milliseconds the heavy theme effects stay paused after scrolling stops, 0 to 1000, default 300; 0 = off), page zoom on/off (set_page_zoom - off by default; the Knowledge Graph always has its own zoom and does not depend on this setting), the background music (the app theme song) on/off and its volume (set_background_music), note viewer frame style (set_viewer_style), note previews and their line count (set_note_preview), the list display order (set_list_sort_mode), and reading the current state of all of them (get_app_settings - always call it instead of guessing a setting\'s state). Switching the visual theme, switching the language, actually exporting notes to a real file (JSON/CSV/MD/TXT/HTML/PDF/DOCX/PNG/JPG, the complete ZIP bundle, per-format individual-file ZIPs, the full-app HTML snapshot), opening the Knowledge Graph / Random Portal, and actually password-locking a note (with the lock_note tool — this opens the app\'s own real, secure encryption dialog, where the user types the password and an optional hint directly, never through this chat) are things you can do directly with a tool, not just explain. When asked how to do something in the app, say exactly which button or section to tap. You also know these other parts of the app and guide users through them precisely: Search (the app-wide search; it also opens with Ctrl+K; it understands Persian, English and Finglish, supports the operators tag:, folder:, is:pinned, is:favorite, \"exact phrase\" and a leading - to exclude a word, and remembers recent searches); the Dashboard (overall stats: note, word, character, folder and tag counts, average words, plus the pinned, favorite, locked, decoy, archived, active Ghost and active Time Capsule lists); Note DNA (an analysis of one note: words, symbols, unique words, top keywords, estimated reading time, image and link counts); Share note (TXT, Markdown, HTML, PDF or image; a locked note is only ever shared as an encrypted file); multi-select (long-press a note or folder; for notes: pin, favorite, duplicate, move up/down and delete, for folders: bulk delete); and the tools inside a note itself: drawing (pen, eraser, rectangle, circle, color, size, undo, clear, download and insert into the text), voice recording, inserting and moving images, text undo/redo, the \"Show link\" button for link previews, and the duplicate-note button. You can open the dashboard, search, Note DNA and the share picker for the user with open_app_view; for the rest you have no direct tool and only guide.\n\n'
+                + '3) App expert: you know the whole Markhin feature set and give precise, actionable guidance about any of it, even features you have no direct tool for: folders and tags, pinning and favoriting, archiving/restoring, the Knowledge Graph (a graph view of how notes connect), the Random Portal, importing from JSON/CSV/TXT/MD/DOCX/HTML (this one needs the user to actually pick a file on their device, so you can only guide them to it). The full-app HTML export (a complete backup of the app itself) you can create directly with export_notes format app_html (app_mode data = app plus all notes and folders without the API key, clean = blank app); the variant that also contains the API key can only be made by the user from the "Full, including API key" option of the HTML export menu, you have no tool for it. Also Telegram Cloud backup (the ☁️ panel): an "auto backup" saves the notes\' text to Telegram\'s own cloud a few seconds after every edit, silently, with nothing for the user to do (images aren\'t included, they stay on-device) — this always runs. Separately, automatically *pulling in* another device\'s changes (new notes, edits, or deletions) without the user manually tapping Restore only works on a device that has, at some point, tapped "Save a new backup" or "Restore" at least once; if the user says notes/deletions aren\'t syncing automatically between two of their devices, explain exactly this and tell them to open the ☁️ panel once, go to the "Auto backup" tab and tap "Enable / fix auto sync" — it turns that on immediately and also does one check-and-merge against the cloud backup right then; tapping it is never harmful. The panel has two tabs side by side: "Auto backup" (the default; sync status, the latest auto version and the enable/fix auto sync button) and "Manual backup" (the manual-backup count setting, label, save button and the list of saved backups). At the bottom of both tabs it shows the real number of Telegram Cloud keys in use: auto-backup keys, manual-backup keys, all keys of the bot out of 1024, and the app-defined limit (960 keys); if the user asks how much space is left, use these. In the Manual tab, beyond the auto backup there\'s also "Save a new backup" (up to 7 manual snapshots, with an optional label and password), "View" a backup\'s contents before restoring, "Restore" (newer notes from the backup are added/updated, deliberate deletions are never brought back), and "🔓 Restore and undo deletions" (for when the user explicitly wants a deleted note back from one specific backup, overriding the normal behavior) — all of these live only in the ☁️ panel; you have no tool to open, view the inside of, or restore a backup. HOWEVER you DO have telegram_backup_list, and it is the ONLY trustworthy source for backups: for ANY question about which backups exist, a backup name, label or date, or how many notes a backup holds, you MUST call telegram_backup_list FIRST and answer strictly from its result (label, dateLabel, notes, skipped, approxSizeKB, passwordProtected). NEVER guess or invent a backup name, date or note count, and NEVER convert or write a date yourself: quote label and dateLabel exactly as returned, or call convert_date. If the tool returns ok:false (for example the app is not running inside Telegram), tell the user that plainly instead of answering from imagination. Never output long meaningless strings of letters or digits; if you have no real data, say so in one short sentence. There\'s also an "⚙️ Backup settings" block at the top of that same panel, where the user can change how many manual backups are kept at once, from 0 to 7 (default 2); since Telegram gives each bot only 1024 storage keys, this number directly sets the size cap for every backup (auto and manual) — more manual backups means a smaller cap for each, and setting it to 0 turns manual backups off entirely so nearly all the space goes to the auto backup alone. Lowering the number below the current manual-backup count permanently deletes the oldest ones (after the user confirms). This setting, too, can only be changed from the ☁️ panel itself; you have no direct tool for it. Changing any app setting directly with a tool, not just explaining it: Lite version on/off (set_lite_mode - while it is on, theme changes are locked, so if the user asks for a theme change first tell them and offer to turn Lite off), Eco power-saving options (set_eco_option - all on by default: pause animations while typing / in note viewer / idle / background), the scroll-pause delay (set_scroll_pause_delay - how many milliseconds the heavy theme effects stay paused after scrolling stops, 0 to 1000, default 300; 0 = off), page zoom on/off (set_page_zoom - off by default; the Knowledge Graph always has its own zoom and does not depend on this setting), the background music (the app theme song) on/off and its volume (set_background_music), note viewer frame style (set_viewer_style), note previews and their line count (set_note_preview), the list display order (set_list_sort_mode), and reading the current state of all of them (get_app_settings - always call it instead of guessing a setting\'s state). Switching the visual theme, switching the language, actually exporting notes to a real file (JSON/CSV/MD/TXT/HTML/PDF/DOCX/PNG/JPG, the complete ZIP bundle, per-format individual-file ZIPs, the full-app HTML snapshot), opening the Knowledge Graph / Random Portal, and actually password-locking a note (with the lock_note tool — this opens the app\'s own real, secure encryption dialog, where the user types the password and an optional hint directly, never through this chat) are things you can do directly with a tool, not just explain. When asked how to do something in the app, say exactly which button or section to tap. You also know these other parts of the app and guide users through them precisely: Search (the app-wide search; it also opens with Ctrl+K; it understands Persian, English and Finglish, supports the operators tag:, folder:, is:pinned, is:favorite, \"exact phrase\" and a leading - to exclude a word, and remembers recent searches); the Dashboard (overall stats: note, word, character, folder and tag counts, average words, plus the pinned, favorite, locked, decoy, archived, active Ghost and active Time Capsule lists); Note DNA (an analysis of one note: words, symbols, unique words, top keywords, estimated reading time, image and link counts); Share note (TXT, Markdown, HTML, PDF or image; a locked note is only ever shared as an encrypted file); multi-select (long-press a note or folder; for notes: pin, favorite, duplicate, move up/down and delete, for folders: bulk delete); and the tools inside a note itself: drawing (pen, eraser, rectangle, circle, color, size, undo, clear, download and insert into the text), voice recording, inserting and moving images, text undo/redo, the \"Show link\" button for link previews, and the duplicate-note button. You can open the dashboard, search, Note DNA and the share picker for the user with open_app_view; for the rest you have no direct tool and only guide.\n\n'
                 + webSearchRoleEn
                 + mAiDateTimeEn
                 + 'Answer quality standard (important):\n'
@@ -36008,7 +36157,7 @@ window.mu_setViewerStyle = function(v){
                     '<span class="image-export-choice-name">'+(fa?'اقیانوسی':'Ocean')+'</span>'+
         '</button>'+
         '<button type="button" class="image-export-choice" style="min-height:0;align-items:center;text-align:center" onclick="mu_viewerChoicePick(\'retro\')">'+
-                    '<span class="image-export-choice-name">'+(fa?'ویندوز ۹۵':'Windows 95')+'</span>'+
+                    '<span class="image-export-choice-name">'+(fa?'ویندوز 95':'Windows 95')+'</span>'+
         '</button>'+
         '<button type="button" class="image-export-choice" style="min-height:0;align-items:center;text-align:center" onclick="mu_viewerChoicePick(\'live\')">'+
                     '<span class="image-export-choice-name">'+(fa?'زنده':'Live')+'</span>'+
@@ -36859,9 +37008,9 @@ html.mu-zooming .header-nav{-webkit-backdrop-filter:blur(15px) !important;backdr
         '<div class="mu-set-text">' +
           '<div class="mu-set-title">' + (fa ? 'زوم صفحه' : 'Page zoom') + '<span class="mu-set-badge" id="muZoomBadge">' + (zoomOn() ? (fa ? 'روشن' : 'ON') : (fa ? 'خاموش' : 'OFF')) + '</span></div>' +
           '<div class="mu-set-desc">' + (fa
-            ? 'وقتی روشن باشد می‌توانید با دو انگشت روی صفحه زوم کنید (از ۱۰۰٪ تا ۵ برابر). پیش‌فرض خاموش است. «شبکه دانش» همیشه زوم مخصوص خودش را دارد و به این گزینه وابسته نیست. داخل تلگرام هم کار می‌کند.'
+            ? 'وقتی روشن باشد می‌توانید با دو انگشت روی صفحه زوم کنید (از 100٪ تا 5 برابر). پیش‌فرض خاموش است. «شبکه دانش» همیشه زوم مخصوص خودش را دارد و به این گزینه وابسته نیست. داخل تلگرام هم کار می‌کند.'
             : 'When on, you can pinch-zoom the page (100% up to 5x). Off by default. The Knowledge Graph always has its own zoom and does not depend on this option. Works inside Telegram too.') + '</div>' +
-          '<button type="button" class="btn-main" id="muZoomReset" style="margin-top:8px;font-size:11px;padding:6px 12px;' + (zoomOn() ? '' : 'display:none') + '" onclick="MU_Lite.resetZoom()">↺ ' + (fa ? 'بازنشانی زوم (۱۰۰٪)' : 'Reset zoom (100%)') + '</button>' +
+          '<button type="button" class="btn-main" id="muZoomReset" style="margin-top:8px;font-size:11px;padding:6px 12px;' + (zoomOn() ? '' : 'display:none') + '" onclick="MU_Lite.resetZoom()">↺ ' + (fa ? 'بازنشانی زوم (100٪)' : 'Reset zoom (100%)') + '</button>' +
         '</div>' +
         '<button type="button" class="mu-switch" id="muZoomSwitch" role="switch" aria-checked="' + (zoomOn() ? 'true' : 'false') + '" aria-label="' + (fa ? 'زوم صفحه' : 'Page zoom') + '" onclick="MU_Lite.toggleZoom()"></button>' +
       '</div>' +
@@ -36871,7 +37020,7 @@ html.mu-zooming .header-nav{-webkit-backdrop-filter:blur(15px) !important;backdr
           '<div class="mu-set-desc">' + (fa ? 'با «نمایش یادداشت» هر بار بپرسد، یا همیشه با یک سبک ثابت باز شود.' : 'Ask each time you press “View note”, or always open with one fixed style.') + '</div>' +
         '</div>' +
         '<div class="mu-vs-seg" id="muViewerStyleSeg" role="group">' +
-          [['ask', fa ? 'انتخاب هر بار (پیش‌فرض)' : 'Ask each time (default)'], ['ocean', fa ? 'اقیانوسی' : 'Ocean'], ['retro', fa ? 'ویندوز ۹۵' : 'Windows 95'], ['live', fa ? 'زنده' : 'Live']].map(function (o) {
+          [['ask', fa ? 'انتخاب هر بار (پیش‌فرض)' : 'Ask each time (default)'], ['ocean', fa ? 'اقیانوسی' : 'Ocean'], ['retro', fa ? 'ویندوز 95' : 'Windows 95'], ['live', fa ? 'زنده' : 'Live']].map(function (o) {
             return '<button type="button" class="mu-vs-opt" data-vs="' + o[0] + '" aria-pressed="' + ((window.mu_getViewerStyle && window.mu_getViewerStyle() === o[0]) ? 'true' : 'false') + '" onclick="MU_Lite.setViewerStyle(\'' + o[0] + '\')">' + o[1] + '</button>';
           }).join('') +
         '</div>' +
@@ -37192,10 +37341,10 @@ window.mu_flagIcons=function(item){return (item&&item.pinned?window.mu_flagIc('p
     underline:{fa:['زیرخط (Underline)','زیر متن انتخاب‌شده خط می‌کشد.'],en:['Underline','Underlines the selected text.']},
     quote:{fa:['نقل‌قول','خط یا بخش انتخاب‌شده را به شکل نقل‌قول درمی‌آورد.'],en:['Quote','Turns the selected line or block into a quote.']},
     list:{fa:['لیست','خط جاری را به لیست نقطه‌ای تبدیل می‌کند.'],en:['List','Turns the current line into a bulleted list.']},
-    table:{fa:['جدول','یک جدول ۲×۲ در محل مکان‌نما اضافه می‌کند.'],en:['Table','Inserts a 2×2 table at the cursor.']},
+    table:{fa:['جدول','یک جدول 2×2 در محل مکان‌نما اضافه می‌کند.'],en:['Table','Inserts a 2×2 table at the cursor.']},
     createlink:{fa:['افزودن لینک','متن انتخاب‌شده را به آدرسی که وارد می‌کنی لینک می‌کند.'],en:['Add link','Turns the selected text into a link to the address you enter.']},
     strike:{fa:['خط‌خورده','روی متن انتخاب‌شده خط می‌کشد (برای کارهای انجام‌شده یا حذف‌شده).'],en:['Strikethrough','Draws a line through the selected text.']},
-    numlist:{fa:['فهرست شماره‌دار','خط‌های انتخاب‌شده را به فهرست ۱، ۲، ۳… تبدیل می‌کند.'],en:['Numbered list','Turns the selected lines into a 1, 2, 3… list.']},
+    numlist:{fa:['فهرست شماره‌دار','خط‌های انتخاب‌شده را به فهرست 1، 2، 3… تبدیل می‌کند.'],en:['Numbered list','Turns the selected lines into a 1, 2, 3… list.']},
     clearfmt:{fa:['پاک‌کردن قالب','قالب‌بندی متن انتخاب‌شده (پررنگ، کج، خط و…) را برمی‌دارد.'],en:['Clear formatting','Removes bold, italic, underline etc. from the selected text.']},
     size:{fa:['اندازهٔ متن','اندازهٔ حروف این یادداشت را عوض می‌کند.'],en:['Text size','Changes the font size of this note.']},
     del:{fa:['حذف متن یادداشت','تمام متن یادداشت را پاک می‌کند. اگر اشتباه شد با دکمهٔ واگرد برمی‌گردد.'],en:['Delete note text','Clears all the text in this note. Use Undo if you change your mind.']},
@@ -37936,7 +38085,7 @@ html.mu-eco-deep .note-btn-wrap { content-visibility: auto; contain-intrinsic-si
   var ITEMS=[
     ['typing','توقف انیمیشن‌ها هنگام تایپ','Pause animations while typing','وقتی داخل یک کادر متن یا یادداشت تایپ می‌کنید، انیمیشن‌های پس‌زمینه می‌ایستند.','Background animations freeze while you type in a text field or note.'],
     ['viewer','توقف انیمیشن‌ها و بلور در نمایش یادداشت','Pause animations & blur in note viewer','هنگام خواندن/ویرایش یادداشت در کادر تمام‌صفحه، انیمیشن‌ها، بلور شیشه‌ای و سایه متن موقتاً خاموش می‌شوند.','While a note is open in the full-screen viewer, animations, glass blur and text shadows are turned off.'],
-    ['idle','توقف انیمیشن‌ها هنگام بی‌حرکتی','Pause animations when idle','اگر ۲۰ ثانیه به صفحه دست نزنید، انیمیشن‌ها می‌ایستند و با اولین لمس ادامه می‌یابند.','After 20 s without touching the screen animations stop and resume on the next touch.'],
+    ['idle','توقف انیمیشن‌ها هنگام بی‌حرکتی','Pause animations when idle','اگر 20 ثانیه به صفحه دست نزنید، انیمیشن‌ها می‌ایستند و با اولین لمس ادامه می‌یابند.','After 20 s without touching the screen animations stop and resume on the next touch.'],
     ['hidden','توقف انیمیشن‌ها در پس‌زمینه','Pause animations in background','وقتی برنامه یا تب در پس‌زمینه است، انیمیشن‌ها متوقف می‌شوند.','Animations stop while the app or tab is in the background.']
   ];
   function fa(){ try{ return currentLang==='fa'; }catch(e){ return true; } }
@@ -37985,17 +38134,17 @@ html.mu-eco-deep .note-btn-wrap { content-visibility: auto; contain-intrinsic-si
     if(s){ s.value=v; s.disabled=lite; s.style.opacity=lite?'.45':''; }
     if(l) l.textContent=(v===0?(f?'خاموش':'Off'):v+' ms');
     if(n) n.textContent=lite?(f?'نسخه سبک روشن است و انیمیشنی وجود ندارد، پس این تنظیم فعلاً اثری ندارد.':'Lite version is on and has no animations, so this setting has no effect right now.')
-                              :(v===0?(f?'۰ = خاموش: انیمیشن‌ها هنگام اسکرول متوقف نمی‌شوند.':'0 = off: animations are not paused while scrolling.'):'');
+                              :(v===0?(f?'0 = خاموش: انیمیشن‌ها هنگام اسکرول متوقف نمی‌شوند.':'0 = off: animations are not paused while scrolling.'):'');
   }
   function html(f){
     var v=get();
     return '<div class="mu-set-row" style="flex-direction:column;align-items:stretch">'+
       '<div class="mu-set-text"><div class="mu-set-title">'+(f?'توقف انیمیشن‌ها هنگام اسکرول':'Pause animations while scrolling')+
       '<span class="mu-set-badge" id="muSpVal" dir="ltr">'+(v===0?(f?'خاموش':'Off'):v+' ms')+'</span></div>'+
-      '<div class="mu-set-desc">'+(f?'افکت‌های سنگین تم هنگام اسکرول متوقف می‌شوند و بعد از ایستادن اسکرول، به اندازه‌ی این زمان صبر می‌کنند و ادامه می‌یابند. از ۰ تا ۱۰۰۰ میلی‌ثانیه؛ پیش‌فرض ۳۰۰. اگر ۰ باشد، انیمیشن‌ها هنگام اسکرول متوقف نمی‌شوند (در نسخه سبک که انیمیشنی نیست، این تنظیم اثری ندارد).'
+      '<div class="mu-set-desc">'+(f?'افکت‌های سنگین تم هنگام اسکرول متوقف می‌شوند و بعد از ایستادن اسکرول، به اندازه‌ی این زمان صبر می‌کنند و ادامه می‌یابند. از 0 تا 1000 میلی‌ثانیه؛ پیش‌فرض 300. اگر 0 باشد، انیمیشن‌ها هنگام اسکرول متوقف نمی‌شوند (در نسخه سبک که انیمیشنی نیست، این تنظیم اثری ندارد).'
         :'Heavy theme effects freeze while you scroll and resume after this delay once scrolling stops. 0 to 1000 ms; default 300. At 0 animations are never paused while scrolling (Lite version has no animations, so it has no effect there).')+'</div><div class="mu-set-desc" id="muSpNote" style="margin-top:4px;opacity:.85"></div></div>'+
       '<input type="range" id="muSpRange" min="'+MIN+'" max="'+MAX+'" step="10" value="'+v+'" dir="ltr" style="width:100%;margin-top:10px;accent-color:#ff3d57" oninput="MU_ScrollPause.set(this.value)" aria-label="'+(f?'تأخیر توقف اسکرول':'Scroll pause delay')+'">'+
-      '<button type="button" class="btn-main" style="margin-top:8px;font-size:11px;padding:6px 12px;align-self:flex-start" onclick="MU_ScrollPause.set('+DEFV+')">↺ '+(f?'بازنشانی (۳۰۰)':'Reset (300)')+'</button>'+
+      '<button type="button" class="btn-main" style="margin-top:8px;font-size:11px;padding:6px 12px;align-self:flex-start" onclick="MU_ScrollPause.set('+DEFV+')">↺ '+(f?'بازنشانی (300)':'Reset (300)')+'</button>'+
     '</div>';
   }
   window.MU_ScrollPause={ get:get, set:set, html:html, sync:sync, min:MIN, max:MAX, def:DEFV };
