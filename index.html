@@ -7593,7 +7593,7 @@ window.mu_syncHtmlBg = function(){
         const CLOUD_CONFIG_KEY = 'mk_cfg';
         /* ---- Manual-backup count setting --------------------------------
            The person can choose how many manual snapshots to keep (0-7,
-           default 3) from Cloud Backup -> Settings. The key budget is FIXED
+           default 2) from Cloud Backup -> Settings. The key budget is FIXED
            at ~960 of Telegram's 1024 keys (~64 spare) and is split equally
            between the single auto slot and the manual slots:
                keys per backup = floor((960 - 2 reserved) / (1 + manualCount))
@@ -7603,7 +7603,7 @@ window.mu_syncHtmlBg = function(){
            shared by every device, with a localStorage copy as a fallback. */
         const CLOUD_MANUAL_MIN = 0;
         const CLOUD_MANUAL_MAX = 7;
-        const CLOUD_MANUAL_DEFAULT = 3;
+        const CLOUD_MANUAL_DEFAULT = 2;
         const CLOUD_LOCAL_LIMIT_KEY = 'mk_manual_limit_v1';
         const CLOUD_KEY_BUDGET = 960;
         const CLOUD_RESERVED_KEYS = 2;
@@ -8237,23 +8237,33 @@ window.mu_syncHtmlBg = function(){
             });
         }
 
-        // ---- Live state of the silent auto backup ------------------------------
-        // The ☁️ panel used to sit on "Checking..." for as long as an auto backup was
-        // being written, because every panel read waits its turn in cloudSerial. Now the
-        // auto backup publishes its progress here; while it runs the panel opens at once
-        // from the last-known index (window.__cloudIdxCache) and shows a progress bar
-        // under the auto-backup row, then refreshes itself when the write finishes.
+        // ---- Live state of the auto and manual backups -------------------------
+        // The ☁️ panel used to sit on "Checking..." for as long as a backup was being
+        // written, because every panel read waits its turn in cloudSerial. Now both kinds of
+        // backup publish their progress here; while one runs the panel opens at once from the
+        // last-known index (window.__cloudIdxCache) and shows a progress bar right under the
+        // auto-backup row (auto) / right under the "Save a new backup" button (manual), then
+        // refreshes itself when the write finishes.
         window.__mkAutoBk = { active: false, phase: 'idle', done: 0, total: 0, run: 0 };
-        function mkAutoBkPaint() {
-            const s = window.__mkAutoBk, fa = currentLang === 'fa';
-            // The auto copy is being replaced right now, so its own View/Restore buttons stay
-            // disabled until the write ends (also applies if the panel was already open).
-            const off = !!(s && s.active);
-            document.querySelectorAll('#cloudPanelBody [data-backup-id="auto"] [data-cloud-action]').forEach(b => {
-                if (b.disabled !== off) { b.disabled = off; b.style.opacity = off ? '.5' : ''; }
-            });
-            const el = document.getElementById('cloudAutoProg');
+        window.__mkManualBk = { active: false, phase: 'idle', done: 0, total: 0, run: 0, msg: '' };
+        // True while something is holding the Cloud queue, so the panel must not wait on it:
+        // an auto backup, a manual backup, or the silent ~45 s pull-merge (that last one only
+        // READS, so it never disables a button or shows a reason — it only keeps the panel
+        // from sitting on "Checking..." while it runs).
+        function mkBkBusy() {
+            return !!((window.__mkAutoBk && window.__mkAutoBk.active) || (window.__mkManualBk && window.__mkManualBk.active) || window.__mkSyncBusy);
+        }
+        window.__mkSyncBusy = false;
+        window.__mkPanelStale = false;   // panel body was drawn from the cache while something held the queue
+        function mkSyncEnd() {
+            window.__mkSyncBusy = false;
+            // Drawn from the cache during the pull (e.g. without the 🛡 notice)? Refresh it now.
+            if (window.__mkPanelStale) mkBkRefreshPanel();
+        }
+        function mkBkPaintOne(elId, s, isManual) {
+            const el = document.getElementById(elId);
             if (!el) return;
+            const fa = currentLang === 'fa';
             if (!s || s.phase === 'idle') { el.innerHTML = ''; return; }
             let wrap = el.firstElementChild;
             if (!wrap) {
@@ -8261,30 +8271,79 @@ window.mu_syncHtmlBg = function(){
                 wrap = el.firstElementChild;
             }
             const textEl = wrap.firstElementChild, fill = wrap.querySelector('.mk-auto-prog-fill');
+            const nm = isManual ? (fa ? 'بکاپ دستی' : 'manual backup') : (fa ? 'بکاپ خودکار' : 'auto backup');
             let text, pct = null, err = false;
             if (s.phase === 'prepare') {
-                text = fa ? '⏳ بکاپ خودکار در حال آماده‌سازی و ادغام با نسخه‌ی ابری…' : '⏳ Auto backup: preparing & merging with the cloud copy…';
+                text = isManual
+                    ? (fa ? '⏳ بکاپ دستی در حال آماده‌سازی…' : '⏳ Manual backup: preparing…')
+                    : (fa ? '⏳ بکاپ خودکار در حال آماده‌سازی و ادغام با نسخه‌ی ابری…' : '⏳ Auto backup: preparing & merging with the cloud copy…');
             } else if (s.phase === 'writing') {
                 pct = s.total ? Math.min(99, Math.round(s.done / s.total * 100)) : 0;
-                text = fa ? `💾 در حال ذخیره‌ی بکاپ خودکار… ${s.done} از ${s.total} (${pct}٪)` : `💾 Saving auto backup… ${s.done} of ${s.total} (${pct}%)`;
+                text = fa
+                    ? `💾 در حال ذخیره‌ی ${nm}${s.notes ? ` (${s.notes} یادداشت)` : ''}… قطعه‌ی ${s.done} از ${s.total} (${pct}٪)`
+                    : `💾 Saving ${nm}${s.notes ? ` (${s.notes} notes)` : ''}… chunk ${s.done} of ${s.total} (${pct}%)`;
             } else if (s.phase === 'finalizing') {
                 pct = 100;
-                text = fa ? '⏳ نهایی‌سازی بکاپ خودکار…' : '⏳ Finalizing auto backup…';
+                text = fa ? `⏳ نهایی‌سازی ${nm}…` : `⏳ Finalizing ${nm}…`;
             } else if (s.phase === 'done') {
                 pct = 100;
-                text = fa ? '✅ بکاپ خودکار ذخیره شد' : '✅ Auto backup saved';
+                text = s.msg || (fa ? `✅ ${nm} ذخیره شد` : `✅ ${nm.charAt(0).toUpperCase() + nm.slice(1)} saved`);
             } else {
                 pct = 100; err = true;
-                text = fa ? '⚠️ ذخیره‌ی بکاپ خودکار ناموفق بود.' : '⚠️ Auto backup failed.';
+                text = s.msg || (fa ? `⚠️ ذخیره‌ی ${nm} ناموفق بود.` : `⚠️ ${nm.charAt(0).toUpperCase() + nm.slice(1)} failed.`);
             }
             textEl.textContent = text;
             wrap.classList.toggle('indeterminate', pct === null);
             wrap.classList.toggle('error', err);
             fill.style.width = pct === null ? '' : pct + '%';
         }
-        function mkAutoBkSet(patch) {
-            Object.assign(window.__mkAutoBk, patch);
-            mkAutoBkPaint();
+        function mkAutoBkPaint() {
+            const a = window.__mkAutoBk, m = window.__mkManualBk;
+            const manOff = !!(m && m.active);
+            const autoOff = !!(a && a.active) || manOff;
+            // A copy that is being replaced right now keeps its View/Restore/Delete buttons
+            // disabled until the write ends (also when the panel was already open): the
+            // auto row while either backup runs, the manual rows while a manual save runs;
+            // the "Save a new backup" button waits while a manual save runs.
+            document.querySelectorAll('#cloudPanelBody [data-backup-id]').forEach(row => {
+                const off = row.dataset.backupId === 'auto' ? autoOff : manOff;
+                row.querySelectorAll('[data-cloud-action]').forEach(b => {
+                    if (b.disabled !== off) { b.disabled = off; b.style.opacity = off ? '.5' : ''; }
+                });
+            });
+            // "Save a new backup" is unavailable while a manual save is running, while the auto
+            // backup is filling, and for the whole of "Enable / fix auto sync" (success or
+            // failure — it re-enables when that finishes). The reason is written under the
+            // button ONLY while it is blocked by one of the latter two.
+            const fixBusy = !!window.__mkFixAutoSyncBusy;
+            const autoOn = !!(a && a.active);
+            const saveOff = manOff || autoOn || fixBusy;
+            const sb = document.getElementById('cloudBackupBtn');
+            if (sb && sb.disabled !== saveOff) { sb.disabled = saveOff; sb.style.opacity = saveOff ? '.5' : ''; }
+            const why = document.getElementById('cloudManualWhy');
+            if (why) {
+                const fa = currentLang === 'fa';
+                const t = fixBusy
+                    ? (fa ? '⏳ تا پایان فعال‌سازی / تعمیر سینک خودکار نمی‌شود بکاپ دستی گرفت.' : '⏳ Manual backup is unavailable until the auto sync enable / fix finishes.')
+                    : (autoOn ? (fa ? '⏳ تا پایان ذخیره‌ی بکاپ خودکار (نوار بالا) نمی‌شود بکاپ دستی گرفت.' : '⏳ Manual backup is unavailable until the auto backup above finishes saving.') : '');
+                if (why.textContent !== t) why.textContent = t;
+            }
+            // The fix button itself stays disabled for the whole fix operation, even though
+            // the panel is re-rendered (which recreates it) when the auto backup inside it ends.
+            const fb = document.getElementById('cloudFixAutoSyncBtn');
+            if (fb && fb.disabled !== fixBusy) { fb.disabled = fixBusy; fb.style.opacity = fixBusy ? '.5' : ''; }
+            mkBkPaintOne('cloudAutoProg', a, false);
+            mkBkPaintOne('cloudManualProg', m, true);
+        }
+        function mkAutoBkSet(patch) { Object.assign(window.__mkAutoBk, patch); mkAutoBkPaint(); }
+        function mkManualBkSet(patch) { Object.assign(window.__mkManualBk, patch); mkAutoBkPaint(); }
+        function mkBkSetFor(kind, patch) { if (kind === 'manual') mkManualBkSet(patch); else mkAutoBkSet(patch); }
+        function mkBkRefreshPanel() {
+            // The write is finished, so the serial queue is free: refresh the open panel
+            // with the real, fresh list (keeping a half-typed label / unsaved count choice).
+            if (document.getElementById('cloudPanelBody') && typeof markhinDash_renderCloudPanelBody === 'function') {
+                try { markhinDash_renderCloudPanelBody(true).catch(() => {}); } catch (_) {}
+            }
         }
         function mkAutoBkEnd(res) {
             const s = window.__mkAutoBk;
@@ -8294,14 +8353,32 @@ window.mu_syncHtmlBg = function(){
             else if (res && res.reason === 'protected') s.phase = 'idle';
             else s.phase = 'fail';
             mkAutoBkPaint();
-            // The write is finished, so the serial queue is free: refresh the open panel
-            // with the real, fresh list.
-            if (document.getElementById('cloudPanelBody') && typeof markhinDash_renderCloudPanelBody === 'function') {
-                try { markhinDash_renderCloudPanelBody(true).catch(() => {}); } catch (_) {}
-            }
+            mkBkRefreshPanel();
             setTimeout(() => {
                 if (s.run === run && !s.active && (s.phase === 'done' || s.phase === 'fail')) { s.phase = 'idle'; mkAutoBkPaint(); }
             }, s.phase === 'fail' ? 5000 : 2500);
+        }
+        function mkManualBkEnd(res) {
+            const s = window.__mkManualBk, fa = currentLang === 'fa';
+            const run = ++s.run;
+            s.active = false;
+            if (res && res.ok) {
+                const m = res.meta || {};
+                s.phase = 'done';
+                s.msg = fa
+                    ? `✅ بکاپ ${m.notes} یادداشت ${m.enc ? 'با رمز ' : ''}ذخیره شد.${m.skipped ? ` (${m.skipped} مورد رد شد)` : ''}`
+                    : `✅ Saved a${m.enc ? ' password-protected' : ''} backup of ${m.notes} notes.${m.skipped ? ` (${m.skipped} skipped)` : ''}`;
+            } else {
+                s.phase = 'fail';
+                s.msg = (typeof mu_cloudReasonMsg === 'function')
+                    ? mu_cloudReasonMsg(res && res.reason, fa)
+                    : (fa ? '⚠️ ذخیره‌ی بکاپ دستی ناموفق بود.' : '⚠️ Manual backup failed.');
+            }
+            mkAutoBkPaint();
+            mkBkRefreshPanel();
+            setTimeout(() => {
+                if (s.run === run && !s.active && (s.phase === 'done' || s.phase === 'fail')) { s.phase = 'idle'; s.msg = ''; mkAutoBkPaint(); }
+            }, s.phase === 'fail' ? 7000 : 4500);
         }
 
         let __cloudBackupTimer = null;
@@ -8427,16 +8504,17 @@ window.mu_syncHtmlBg = function(){
         // Result: { ok:true, meta } or { ok:false, reason } where reason is one of
         // 'unavailable' | 'manual-disabled' | 'no-space' | 'too-large' | 'write-failed' | 'protected'.
         function cloudBackupNow(kind, label, password, hint) {
-            const isAuto = (kind !== 'manual');
+            const isManual = (kind === 'manual');
+            if (isManual) mkManualBkSet({ active: true, phase: 'prepare', done: 0, total: 0, msg: '', run: window.__mkManualBk.run + 1 });
             return cloudSerial(async () => {
-                if (isAuto) mkAutoBkSet({ active: true, phase: 'prepare', done: 0, total: 0, run: window.__mkAutoBk.run + 1 });
+                if (!isManual) mkAutoBkSet({ active: true, phase: 'prepare', done: 0, total: 0, run: window.__mkAutoBk.run + 1 });
                 let res;
                 try { res = await cloudBackupNowImpl(kind, label, password, hint); }
                 catch (e) {
                     console.warn('Cloud backup error', e);
                     res = { ok: false, reason: (e && e.message === 'cloud-read-failed') ? 'unavailable' : 'write-failed' };
                 }
-                if (isAuto) mkAutoBkEnd(res);
+                if (isManual) mkManualBkEnd(res); else mkAutoBkEnd(res);
                 return res;
             });
         }
@@ -8576,15 +8654,15 @@ window.mu_syncHtmlBg = function(){
             // Keys of a version that has no index entry yet are removed on failure so they
             // don't become orphans eating the key budget forever.
             const rollback = async (n) => { if (!inPlace) await cloudRemoveItems(keys.slice(0, n)); };
-            if (kind === 'auto') mkAutoBkSet({ phase: 'writing', done: 0, total: chunks.length });
+            mkBkSetFor(kind, { phase: 'writing', done: 0, total: chunks.length, notes: totalNotes - skipped });
             for (let i = 0; i < chunks.length; i++) {
                 if (!(await cloudSetItem(keys[i], chunks[i]))) {
                     await rollback(i + 1);
                     return { ok: false, reason: 'write-failed' };
                 }
-                if (kind === 'auto') mkAutoBkSet({ done: i + 1 });
+                mkBkSetFor(kind, { done: i + 1 });
             }
-            if (kind === 'auto') mkAutoBkSet({ phase: 'finalizing' });
+            mkBkSetFor(kind, { phase: 'finalizing' });
 
             const cleanLabel = kind === 'manual' ? String(label || '').trim().slice(0, CLOUD_LABEL_MAX_LEN) : '';
             const entry = { id, kind, ts: Date.now(), notes: totalNotes - skipped, skipped, chunks: chunks.length, c: compressed ? 1 : 0, len: storedData.length, label: cleanLabel };
@@ -8899,7 +8977,11 @@ window.mu_syncHtmlBg = function(){
             try {
                 if (window.__muTgLoaded) await window.__muTgLoaded;
                 if (!IS_TELEGRAM || !hasCloudStorage) return;
-                const result = await cloudSerial(() => cloudRestoreBackup('auto'));
+                const result = await cloudSerial(async () => {
+                    window.__mkSyncBusy = true;          // lets the ☁️ panel open at once meanwhile
+                    try { return await cloudRestoreBackup('auto'); }
+                    finally { mkSyncEnd(); }
+                });
                 if (!result || !result.data) return;
                 // Bug fix: a device that had its own notes and had never tapped ☁️
                 // Restore/Backup once (never "linked") used to be skipped here
@@ -20376,7 +20458,7 @@ async function markhinDash_showCloudPanel(){
     // While an auto backup is being written, don't wait on Cloud at all: the body is
     // drawn at once from the last-known list, with a live progress bar (see
     // mkAutoBkPaint), and refreshes itself when the write ends.
-    if (!(window.__mkAutoBk && window.__mkAutoBk.active)) await cloudLoadSettings(true);
+    if (!mkBkBusy()) await cloudLoadSettings(true);
     await markhinDash_renderCloudPanelBody();
 }
 window.markhinDash_showCloudPanel = markhinDash_showCloudPanel;
@@ -20388,8 +20470,9 @@ async function markhinDash_renderCloudPanelBody(keepInput){
     const fa=currentLang==='fa';
     const body = document.getElementById('cloudPanelBody');
     if (!body) return;
-    const __busy = !!(window.__mkAutoBk && window.__mkAutoBk.active);
-    // While an auto backup is writing, don't touch Cloud here (it would queue / race the write).
+    const __busy = mkBkBusy();
+    window.__mkPanelStale = __busy;
+    // While a backup is writing, don't touch Cloud here (it would queue / race the write).
     if (!__busy) await cloudLoadSettings(false);
     let list;
     // keepInput is only passed by the auto-backup-finished refresh: it keeps a half-typed
@@ -20401,7 +20484,7 @@ async function markhinDash_renderCloudPanelBody(keepInput){
         // Auto backup is mid-write: show the last-known list instead of queueing behind it.
         list = window.__cloudIdxCache.slice().sort((a, b) => (b.ts || 0) - (a.ts || 0));
     } else if (__busy) {
-        body.innerHTML = `<div id="cloudAutoProg"></div><div class="markhin-smart-empty">${fa?'فهرست بکاپ‌ها بلافاصله بعد از پایان ذخیره‌ی خودکار نمایش داده می‌شود.':'The backup list will appear right after the auto backup finishes saving.'}</div>`;
+        body.innerHTML = `<div id="cloudAutoProg"></div><div id="cloudManualProg"></div><div class="markhin-smart-empty">${fa?'فهرست بکاپ‌ها بلافاصله بعد از پایان ذخیره نمایش داده می‌شود.':'The backup list will appear right after the backup finishes saving.'}</div>`;
         mkAutoBkPaint();
         return;
     } else
@@ -20435,18 +20518,18 @@ async function markhinDash_renderCloudPanelBody(keepInput){
         (autoBlocked
             ? `<p style="margin:0 0 10px;padding:8px;border-radius:8px;background:rgba(255,193,7,.12)">${fa?`🛡 در Cloud بکاپی با ${autoEntry.notes} یادداشت هست ولی روی این دستگاه ${categories.length} یادداشت است؛ برای حفظ بکاپ، بکاپ خودکار رویش نوشته نمی‌شود. یکی از بکاپ‌ها را بازیابی کن (یا «ذخیره‌ی یک بکاپ جدید» را بزن).`:`🛡 The Cloud holds a backup of ${autoEntry.notes} notes but this device has ${categories.length}; auto-backup won't overwrite it. Restore one of the backups (or press "Save a new backup").`}</p>`
             : '') +
+        `<h4 style="margin:16px 0 6px;font-size:12.5px;opacity:.85">${fa?'وضعیت خودکار':'Auto state'}</h4>` +
+        `<p style="opacity:.7;margin:0 0 6px">${cloudIsLinked() ? (fa?'🔗 سینک خودکار بین دستگاه‌ها روی این دستگاه فعال است.':'🔗 Auto sync between devices is active on this device.') : (fa?'⚪️ سینک خودکار هنوز روی این دستگاه فعال نشده — این دستگاه منتظر بکاپ/بازیابی دستی می‌ماند.':'⚪️ Auto sync has not been enabled on this device yet — it will wait for a manual backup/restore.')}</p>` +
+        autoSectionHtml + '<div id="cloudAutoProg"></div>' +
+        `<div style="margin:0 0 10px"><button id="cloudFixAutoSyncBtn" type="button" class="btn-main" style="width:100%" onclick="markhinDash_cloudFixAutoSync()">🔄 ${fa?'فعال‌سازی / تعمیر سینک خودکار':'Enable / fix auto sync'}</button></div>` +
         mu_cloudSettingsHtml(manualEntries.length) +
         (manualEnabled
             ? (`<input id="cloudBackupLabelInput" type="text" maxlength="${CLOUD_LABEL_MAX_LEN}" placeholder="${fa?'برچسب اختیاری (مثلاً «قبل از پاکسازی پوشه‌ی کار»)…':'Optional label (e.g. "before clearing the work folder")…'}" style="width:100%;box-sizing:border-box;margin:4px 0 8px;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:inherit;font-size:12.5px">` +
                 (manualEntries.length >= MAX_MANUAL_BACKUPS
                     ? `<p style="opacity:.7;margin:0 0 8px">${fa?`ℹ️ به سقف ${MAX_MANUAL_BACKUPS} بکاپ دستی رسیده‌ای؛ ذخیره‌ی یک بکاپ جدید، قدیمی‌ترینشان را خودکار حذف می‌کند.`:`ℹ️ You're at the ${MAX_MANUAL_BACKUPS}-backup limit; saving a new one will automatically remove the oldest.`}</p>`
                     : '') +
-                `<div style="margin:2px 0 10px"><button id="cloudBackupBtn" type="button" class="btn-main btn-save-prominent" style="width:100%" onclick="markhinDash_cloudBackupClick()">📤 ${fa?'ذخیره‌ی یک بکاپ جدید':'Save a new backup'}</button></div>`)
+                `<div style="margin:2px 0 10px"><button id="cloudBackupBtn" type="button" class="btn-main btn-save-prominent" style="width:100%" onclick="markhinDash_cloudBackupClick()">📤 ${fa?'ذخیره‌ی یک بکاپ جدید':'Save a new backup'}</button></div><div id="cloudManualWhy" dir="auto" style="font-size:12px;line-height:1.7;opacity:.85;margin:-4px 0 10px"></div><div id="cloudManualProg"></div>`)
             : `<p style="opacity:.7;margin:0 0 8px">${fa?'ℹ️ بکاپ دستی الان غیرفعال است (تعداد روی ۰ است)؛ تقریباً تمام فضای Cloud فقط به بکاپ خودکار اختصاص دارد. برای فعال‌کردنش، تعداد را در «⚙️ تنظیمات بکاپ» بالا زیاد کن.':'ℹ️ Manual backups are off (set to 0); almost all the Cloud space goes to the auto backup alone. To turn them on, raise the number in "⚙️ Backup settings" above.'}</p>`) +
-        `<h4 style="margin:16px 0 6px;font-size:12.5px;opacity:.85">${fa?'وضعیت خودکار':'Auto state'}</h4>` +
-        `<p style="opacity:.7;margin:0 0 6px">${cloudIsLinked() ? (fa?'🔗 سینک خودکار بین دستگاه‌ها روی این دستگاه فعال است.':'🔗 Auto sync between devices is active on this device.') : (fa?'⚪️ سینک خودکار هنوز روی این دستگاه فعال نشده — این دستگاه منتظر بکاپ/بازیابی دستی می‌ماند.':'⚪️ Auto sync has not been enabled on this device yet — it will wait for a manual backup/restore.')}</p>` +
-        `<div style="margin:0 0 10px"><button id="cloudFixAutoSyncBtn" type="button" class="btn-main" style="width:100%" onclick="markhinDash_cloudFixAutoSync()">🔄 ${fa?'فعال‌سازی / تعمیر سینک خودکار':'Enable / fix auto sync'}</button></div>` +
-        autoSectionHtml + '<div id="cloudAutoProg"></div>' +
         ((manualEnabled || manualEntries.length)
             ? `<h4 style="margin:16px 0 6px;font-size:12.5px;opacity:.85">${fa?`بکاپ‌های ذخیره‌شده (${manualEntries.length} از ${MAX_MANUAL_BACKUPS})`:`Saved backups (${manualEntries.length} of ${MAX_MANUAL_BACKUPS})`}</h4>` + manualSectionHtml
             : '');
@@ -20485,6 +20568,7 @@ async function markhinDash_cloudFixAutoSync(){
     window.__mkFixAutoSyncBusy = true;
     const btn = document.getElementById('cloudFixAutoSyncBtn');
     if (btn) btn.disabled = true;
+    mkAutoBkPaint();                                   // blocks "Save a new backup" until this finishes
     let msg = '', ok = true, changed = false;
     try {
         if (window.__muTgLoaded) { try { await window.__muTgLoaded; } catch(_){} }
@@ -20527,6 +20611,7 @@ async function markhinDash_cloudFixAutoSync(){
         msg = fa ? '⚠️ فعال‌سازی ناموفق بود. دوباره امتحان کن.' : '⚠️ Could not enable auto sync. Please try again.';
     } finally {
         window.__mkFixAutoSyncBusy = false;
+        mkAutoBkPaint();                               // success or failure: manual backup is available again
     }
     mkBackupBarDone(msg, ok, ok ? 3200 : 5000);
     if (changed) { try { renderApp(); } catch(_){} }
@@ -20689,7 +20774,7 @@ function markhinDash_showCloudSettingsHelp(){
             <h4 style="margin:0 0 6px">🎯 این تنظیم چیست؟</h4>
             <p>مشخص می‌کند چند «بکاپ دستی» (همان‌هایی که با دکمه‌ی «ذخیره‌ی یک بکاپ جدید» می‌سازی) هم‌زمان در Cloud تلگرام نگه داشته شود. همیشه یک «بکاپ خودکار» هم وجود دارد که خودش به‌روز می‌شود و جزو این عدد نیست.</p>
             <h4 style="margin:14px 0 6px">🔢 محدوده و پیش‌فرض</h4>
-            <p>از ۰ تا ۷ قابل تنظیم است و پیش‌فرض ۳ است. یک عدد را انتخاب کن؛ پایین آن بلافاصله حجم تقریبی بکاپ خودکار و هر بکاپ دستی نوشته می‌شود. تا وقتی «ذخیره‌ی تنظیمات» را نزنی هیچ چیزی تغییر نمی‌کند و هیچ بکاپی حذف نمی‌شود.</p>
+            <p>از ۰ تا ۷ قابل تنظیم است و پیش‌فرض ۲ است. یک عدد را انتخاب کن؛ پایین آن بلافاصله حجم تقریبی بکاپ خودکار و هر بکاپ دستی نوشته می‌شود. تا وقتی «ذخیره‌ی تنظیمات» را نزنی هیچ چیزی تغییر نمی‌کند و هیچ بکاپی حذف نمی‌شود.</p>
             <h4 style="margin:14px 0 6px">📐 فضا چطور تقسیم می‌شود؟</h4>
             <p>تلگرام برای هر ربات فقط ۱۰۲۴ کلید ذخیره‌سازی می‌دهد. برنامه عمداً فقط حدود ${totalKeys} کلید را مصرف می‌کند (حدود ۶۴ کلید حاشیه‌ی امن) و این تعداد ثابت است؛ ۲ کلید برای فهرست و تنظیمات کنار گذاشته می‌شود و بقیه بین بکاپ خودکار و بکاپ‌های دستی <b>مساوی</b> تقسیم می‌شود. پس هرچه بکاپ دستی بیشتری بخواهی، سقف حجم هر بکاپ کمتر می‌شود و برعکس:</p>
             ${tableRows}
@@ -20713,7 +20798,7 @@ function markhinDash_showCloudSettingsHelp(){
             <h4 style="margin:0 0 6px">🎯 What is this setting?</h4>
             <p>It sets how many manual backups (the ones you create with "Save a new backup") are kept in Telegram Cloud at the same time. There is always one automatic backup as well, which updates itself and is not counted in this number.</p>
             <h4 style="margin:14px 0 6px">🔢 Range and default</h4>
-            <p>You can choose from 0 to 7; the default is 3. Pick a number and the approximate size of the auto backup and of each manual backup is shown right below it. Nothing changes and no backup is deleted until you press "Save settings".</p>
+            <p>You can choose from 0 to 7; the default is 2. Pick a number and the approximate size of the auto backup and of each manual backup is shown right below it. Nothing changes and no backup is deleted until you press "Save settings".</p>
             <h4 style="margin:14px 0 6px">📐 How is the space split?</h4>
             <p>Telegram gives each bot only 1024 storage keys. The app deliberately uses at most about ${totalKeys} of them (roughly 64 keys of safety margin), and this is fixed. 2 keys are reserved for the index and settings; the rest is split <b>equally</b> between the auto backup and the manual backups. So the more manual backups you want, the smaller each backup's size cap, and vice versa:</p>
             ${tableRows}
@@ -20738,6 +20823,7 @@ window.markhinDash_showCloudSettingsHelp = markhinDash_showCloudSettingsHelp;
 
 async function markhinDash_cloudBackupClick(){
     const fa=currentLang==='fa';
+    if ((window.__mkAutoBk && window.__mkAutoBk.active) || window.__mkFixAutoSyncBusy) return;   // see mkAutoBkPaint()
     const labelInput = document.getElementById('cloudBackupLabelInput');
     const prefLabel = labelInput ? labelInput.value : '';
 
@@ -20777,20 +20863,10 @@ async function markhinDash_cloudBackupClick(){
     // leaving it closed while the save runs, and report progress with the
     // bottom bar rather than a toast so it doesn't get lost behind the panel.
     await markhinDash_showCloudPanel();
-    mkBackupBarShow(fa ? '⏳ در حال ذخیره بکاپ دستی...' : '⏳ Saving manual backup...');
-    const result = await cloudBackupNow('manual', label, password, hint);
+    // Progress and the final result (including the specific failure reason) are shown by the
+    // in-panel bar right under the "Save a new backup" button — see mkManualBkEnd().
+    await cloudBackupNow('manual', label, password, hint);
     await markhinDash_showCloudPanel();
-    if (result.ok) {
-        mkBackupBarDone(fa
-            ? `✅ بکاپ ${result.meta.notes} یادداشت ${password?'با رمز ':''}ذخیره شد.${result.meta.skipped?` (${result.meta.skipped} مورد رد شد)`:''}`
-            : `✅ Saved a${password?' password-protected':''} backup of ${result.meta.notes} notes.${result.meta.skipped?` (${result.meta.skipped} skipped)`:''}`, true);
-    } else {
-        // Upgrade: surface the actual reason (was a single generic message for
-        // every failure, which made 'unavailable' — e.g. CloudStorage dropped
-        // mid-session — indistinguishable from a real write failure worth retrying).
-        const reasonMsg = mu_cloudReasonMsg(result.reason, fa);
-        mkBackupBarDone(reasonMsg, false);
-    }
 }
 window.markhinDash_cloudBackupClick = markhinDash_cloudBackupClick;
 
@@ -28905,7 +28981,7 @@ const MU_AI = (function(){
         { name:'find_contradictions', description:"Scan the user's notes for statements that may CONTRADICT each other - e.g. \"here you wrote X but somewhere else you wrote the opposite\" (likes vs hates something, always vs never, one number vs a different number for the same thing) - across different notes and, by default, inside a single note too. Similar to find_duplicate_notes but for conflicting rather than overlapping content. Returns candidate pairs of sentences with both notes' ids, names and last-edited dates, the conflict signals, and the shared topic words. These are heuristic CANDIDATES, not verified contradictions: you must read each pair yourself and tell the user honestly which are real conflicts, which are merely a change of mind or circumstances over time (compare the dates), and which are false alarms. It changes nothing by itself - offer edit_note_content or merge_notes afterward only if the user wants to resolve one.", parameters:{ type:'object', properties:{ topic:{ type:'string', description:"Optional: only look at sentences about this topic (e.g. \"sleep\" or \"بودجه\"). Several alternatives may be given separated by commas (e.g. \"قهوه, چای\"); prefer a specific topic when the vault is large." }, folder:{ type:'string', description:"Optional: only scan notes in this folder." }, include_same_note:{ type:'boolean', description:"Also look for contradictions inside a single note (default true)." }, include_archived:{ type:'boolean', description:"Also scan archived notes (default false)." }, max_pairs:{ type:'number', description:"Maximum number of note pairs to return (default 12, max 25)." } } } },
         { name:'semantic_search_notes', description:"Find notes by MEANING rather than exact words - e.g. \"the note where I wrote about missing my student days\" should be found even if it never contains the word \"missing\". You are the semantic engine: BEFORE calling, brainstorm 15-30 related_terms for what the user describes - synonyms, close concepts, and the typical words, situations, places, people and emotions that go with it (both Persian and English forms when notes might mix languages). The tool ranks the user's unlocked notes by those terms (title and tag hits count more, rarer terms count more) and returns the best notes with matched terms, the best-matching passage and the note opening. The ranking is only a term-based pre-filter: YOU then judge the passages by real meaning and present only the notes that truly fit, saying briefly why. If results are weak the response also includes overviewOfOtherNotes (title + preview of other notes) so you can still pick by meaning, or you can call again with different related_terms. For a plain exact-word lookup use find_notes instead.", parameters:{ type:'object', properties:{ query:{ type:'string', description:"The user's own description of what they are looking for, in their own words." }, related_terms:{ type:'array', items:{ type:'string' }, description:"15-30 related words or short phrases YOU generate: synonyms, related concepts, typical vocabulary of the situation, in Persian and/or English." }, folder:{ type:'string', description:"Optional: only search notes in this folder." }, include_archived:{ type:'boolean', description:"Also search archived notes (default false)." }, limit:{ type:'number', description:"Max results (default 8, max 15)." } }, required:['query','related_terms'] } },
         { name:'telegram_backup_create', description:"Create a REAL manual Telegram Cloud backup of the user's notes right now — the exact same engine as the Dashboard's ☁️ Cloud Backup panel's \"Save a new backup\" button (Telegram.WebApp.CloudStorage), NOT a downloaded file and NOT the app's export_notes tool. Call this whenever the user asks, in ANY language, spelling, misspelling, or Finglish, to back up their notes/telegram/the app — recognize all of these and similar: Persian 'بکاپ بگیر', 'یه بکاپ تلگرام بگیر', 'از یادداشتام بکاپ بگیر', 'بکاپ کن', 'بکاپ گیری کن', 'ذخیره کن تو کلود تلگرام', 'یه نسخه پشتیبان بگیر'; Finglish 'backup begir', 'baram backup begir', 'telegram backup begir', 'ye backup az yaddashtam begir'; English 'back up my notes', 'make/take a telegram backup', 'save a cloud backup', 'create a backup', 'backup my notes'. If the user gives an explicit name/label for this backup (e.g. \"با اسم/برچسب X\", \"به نام X\", \"named X\", \"label it X\", \"call it X\"), pass that exact text as label. If the user does NOT give a name, leave label empty/omitted — the tool automatically generates one itself in the format \"Backup <current date & time>\" (the date shown in whichever calendar matches the app's own current language — Jalali for Persian, Gregorian for English — and the exact time read from the user's own device clock); never invent or compute a date/time string yourself. This creates a genuinely separate, persistent manual snapshot kept until deleted — distinct from the automatic backup slot that silently overwrites itself after every edit. Only works while running inside Telegram with Telegram Cloud Storage available; if the tool returns ok:false for that reason, tell the user plainly instead of pretending it worked. Up to " + MAX_MANUAL_BACKUPS + " manual backups can exist at once — saving one more than that automatically removes the oldest, which the tool result reflects. A backup can optionally be password-protected: only set `password` if the user explicitly asked for a password-protected/locked backup AND you first warned them, in the same reply, that typing a password here puts it in this chat's own message history, and offered the alternative of setting it through the ☁️ Cloud Backup panel's own password field instead (which never leaves the device) — only proceed with a password here if they confirm they still want that after the warning. Restoring or viewing a password-protected backup can only be done from the ☁️ Cloud Backup panel itself (there is no AI tool for that); the panel will ask for the same password there.", parameters:{ type:'object', properties:{ label:{ type:'string', description:'Optional short label/name for this backup, using whatever wording the user gave. Leave empty to auto-generate a "Backup <date & time>" label.' }, password:{ type:'string', description:'Optional password to protect this one backup. Only set this if the user explicitly asked for a password-protected backup AND confirmed after being warned that typing it here puts it in this chat\'s history. Leave empty/omitted for a normal, unprotected backup.' }, hint:{ type:'string', description:'Optional password hint, only meaningful when `password` is set.' } } } },
-        { name:'telegram_backup_list', description:"List the user's existing Telegram Cloud backups: the one automatic slot (always reflects the latest note state) plus up to the user's configured number (0-7, default 3) of manual snapshots, each with its id, label (if any), date/time, note count, lockedNotes / unlockedNotes counts (null = unknown because the whole backup is password-protected), and approximate size. Whenever you state how many notes a backup holds, ALWAYS add in the same sentence how many of them are locked and how many are not locked (from lockedNotes / unlockedNotes). Call this whenever the user asks what backups they have, in ANY language/spelling/Finglish — Persian 'لیست بکاپ‌ها', 'چه بکاپ‌هایی دارم', 'چند تا بکاپ دارم', 'بکاپ‌هام رو نشون بده'; Finglish 'backup list', 'chand ta backup daram'; English 'list my backups', 'show my telegram backups', 'what backups do I have'. Also call this FIRST whenever you need a manual backup's exact id before calling telegram_backup_delete and you don't already have it from context.", parameters:{ type:'object', properties:{} } },
+        { name:'telegram_backup_list', description:"List the user's existing Telegram Cloud backups: the one automatic slot (always reflects the latest note state) plus up to the user's configured number (0-7, default 2) of manual snapshots, each with its id, label (if any), date/time, note count, lockedNotes / unlockedNotes counts (null = unknown because the whole backup is password-protected), and approximate size. Whenever you state how many notes a backup holds, ALWAYS add in the same sentence how many of them are locked and how many are not locked (from lockedNotes / unlockedNotes). Call this whenever the user asks what backups they have, in ANY language/spelling/Finglish — Persian 'لیست بکاپ‌ها', 'چه بکاپ‌هایی دارم', 'چند تا بکاپ دارم', 'بکاپ‌هام رو نشون بده'; Finglish 'backup list', 'chand ta backup daram'; English 'list my backups', 'show my telegram backups', 'what backups do I have'. Also call this FIRST whenever you need a manual backup's exact id before calling telegram_backup_delete and you don't already have it from context.", parameters:{ type:'object', properties:{} } },
         { name:'telegram_backup_delete', description:"Permanently delete ONE manual Telegram Cloud backup — never the automatic slot, which cannot be deleted on its own since it isn't a real snapshot. This always shows the user a real confirmation dialog first and only deletes if they accept, so it is safe to call as soon as the user clearly asks to delete/remove a specific manual backup, in ANY language/spelling/Finglish — Persian 'بکاپ ... رو حذف کن', 'اون بکاپ رو پاک کن', 'بکاپ دستی رو حذف کن'; Finglish 'backup ro hazf kon', 'backup ro pak kon'; English 'delete that backup', 'remove the backup named X', 'delete my manual backup' — but never call it just to be helpful when deletion was not requested. Identify the backup either by its exact id (call telegram_backup_list first if you don't already know it) or by giving label_or_date with whatever text/date the user used to refer to it — if that text matches more than one backup, this returns the candidate list instead of deleting anything so you can ask the user which one they mean, and if it is empty/omitted along with id, mention every manual backup's label and id from a telegram_backup_list result yourself and ask the user which to delete.", parameters:{ type:'object', properties:{ id:{ type:'string', description:'The exact backup id, from telegram_backup_list.' }, label_or_date:{ type:'string', description:'Text to match against the backup label or shown date/time, when the exact id is not known.' } } } }
     ];
 
@@ -33721,7 +33797,7 @@ const MU_AI = (function(){
             : 'You are MARKHIN AI: a professional, precise, highly capable AI assistant embedded inside the Markhin note-taking app. You fill three roles at once:\n'
                 + '1) General assistant: you answer any question — whether or not it relates to the app — clearly and accurately using your general knowledge; by default you answer in whichever language the user wrote that message in, unless they\'ve explicitly asked for a different reply language (see the response-language rule below).\n'
                 + '2) Notes-management agent: you have direct access to the user\'s notes and folders and can actually perform (not just explain) the following: ' + toolsSummaryEn + '.\n'
-                + '3) App expert: you know the whole Markhin feature set and give precise, actionable guidance about any of it, even features you have no direct tool for: folders and tags, pinning and favoriting, archiving/restoring, the Knowledge Graph (a graph view of how notes connect), the Random Portal, importing from JSON/CSV/TXT/MD/DOCX/HTML (this one needs the user to actually pick a file on their device, so you can only guide them to it). The full-app HTML export (a complete backup of the app itself) you can create directly with export_notes format app_html (app_mode data = app plus all notes and folders without the API key, clean = blank app); the variant that also contains the API key can only be made by the user from the "Full, including API key" option of the HTML export menu, you have no tool for it. Also Telegram Cloud backup (the ☁️ panel): an "auto backup" saves the notes\' text to Telegram\'s own cloud a few seconds after every edit, silently, with nothing for the user to do (images aren\'t included, they stay on-device) — this always runs. Separately, automatically *pulling in* another device\'s changes (new notes, edits, or deletions) without the user manually tapping Restore only works on a device that has, at some point, tapped "Save a new backup" or "Restore" at least once; if the user says notes/deletions aren\'t syncing automatically between two of their devices, explain exactly this and tell them to open the ☁️ panel once and tap "🔄 Enable / fix auto sync" — it turns that on immediately and also does one check-and-merge against the cloud backup right then; tapping it is never harmful. Beyond the auto backup there\'s also "Save a new backup" (up to 7 manual snapshots, with an optional label and password), "👁 View" a backup\'s contents before restoring, "📥 Restore" (newer notes from the backup are added/updated, deliberate deletions are never brought back), and "🔓 Restore and undo deletions" (for when the user explicitly wants a deleted note back from one specific backup, overriding the normal behavior) — all of these live only in the ☁️ panel; you have no tool to open, view the inside of, or restore a backup. HOWEVER you DO have telegram_backup_list, and it is the ONLY trustworthy source for backups: for ANY question about which backups exist, a backup name, label or date, or how many notes a backup holds, you MUST call telegram_backup_list FIRST and answer strictly from its result (label, dateLabel, notes, skipped, approxSizeKB, passwordProtected). NEVER guess or invent a backup name, date or note count, and NEVER convert or write a date yourself: quote label and dateLabel exactly as returned, or call convert_date. If the tool returns ok:false (for example the app is not running inside Telegram), tell the user that plainly instead of answering from imagination. Never output long meaningless strings of letters or digits; if you have no real data, say so in one short sentence. There\'s also an "⚙️ Backup settings" block at the top of that same panel, where the user can change how many manual backups are kept at once, from 0 to 7 (default 3); since Telegram gives each bot only 1024 storage keys, this number directly sets the size cap for every backup (auto and manual) — more manual backups means a smaller cap for each, and setting it to 0 turns manual backups off entirely so nearly all the space goes to the auto backup alone. Lowering the number below the current manual-backup count permanently deletes the oldest ones (after the user confirms). This setting, too, can only be changed from the ☁️ panel itself; you have no direct tool for it. Changing any app setting directly with a tool, not just explaining it: Lite version on/off (set_lite_mode - while it is on, theme changes are locked, so if the user asks for a theme change first tell them and offer to turn Lite off), Eco power-saving options (set_eco_option - all on by default: pause animations while typing / in note viewer / idle / background), the scroll-pause delay (set_scroll_pause_delay - how many milliseconds the heavy theme effects stay paused after scrolling stops, 0 to 1000, default 300; 0 = off), page zoom on/off (set_page_zoom - off by default; the Knowledge Graph always has its own zoom and does not depend on this setting), the background music (the app theme song) on/off and its volume (set_background_music), note viewer frame style (set_viewer_style), note previews and their line count (set_note_preview), the list display order (set_list_sort_mode), and reading the current state of all of them (get_app_settings - always call it instead of guessing a setting\'s state). Switching the visual theme, switching the language, actually exporting notes to a real file (JSON/CSV/MD/TXT/HTML/PDF/DOCX/PNG/JPG, the complete ZIP bundle, per-format individual-file ZIPs, the full-app HTML snapshot), opening the Knowledge Graph / Random Portal, and actually password-locking a note (with the lock_note tool — this opens the app\'s own real, secure encryption dialog, where the user types the password and an optional hint directly, never through this chat) are things you can do directly with a tool, not just explain. When asked how to do something in the app, say exactly which button or section to tap. You also know these other parts of the app and guide users through them precisely: Search (the app-wide search; it also opens with Ctrl+K; it understands Persian, English and Finglish, supports the operators tag:, folder:, is:pinned, is:favorite, \"exact phrase\" and a leading - to exclude a word, and remembers recent searches); the Dashboard (overall stats: note, word, character, folder and tag counts, average words, plus the pinned, favorite, locked, decoy, archived, active Ghost and active Time Capsule lists); Note DNA (an analysis of one note: words, symbols, unique words, top keywords, estimated reading time, image and link counts); Share note (TXT, Markdown, HTML, PDF or image; a locked note is only ever shared as an encrypted file); multi-select (long-press a note or folder; for notes: pin, favorite, duplicate, move up/down and delete, for folders: bulk delete); and the tools inside a note itself: drawing (pen, eraser, rectangle, circle, color, size, undo, clear, download and insert into the text), voice recording, inserting and moving images, text undo/redo, the \"Show link\" button for link previews, and the duplicate-note button. You can open the dashboard, search, Note DNA and the share picker for the user with open_app_view; for the rest you have no direct tool and only guide.\n\n'
+                + '3) App expert: you know the whole Markhin feature set and give precise, actionable guidance about any of it, even features you have no direct tool for: folders and tags, pinning and favoriting, archiving/restoring, the Knowledge Graph (a graph view of how notes connect), the Random Portal, importing from JSON/CSV/TXT/MD/DOCX/HTML (this one needs the user to actually pick a file on their device, so you can only guide them to it). The full-app HTML export (a complete backup of the app itself) you can create directly with export_notes format app_html (app_mode data = app plus all notes and folders without the API key, clean = blank app); the variant that also contains the API key can only be made by the user from the "Full, including API key" option of the HTML export menu, you have no tool for it. Also Telegram Cloud backup (the ☁️ panel): an "auto backup" saves the notes\' text to Telegram\'s own cloud a few seconds after every edit, silently, with nothing for the user to do (images aren\'t included, they stay on-device) — this always runs. Separately, automatically *pulling in* another device\'s changes (new notes, edits, or deletions) without the user manually tapping Restore only works on a device that has, at some point, tapped "Save a new backup" or "Restore" at least once; if the user says notes/deletions aren\'t syncing automatically between two of their devices, explain exactly this and tell them to open the ☁️ panel once and tap "🔄 Enable / fix auto sync" — it turns that on immediately and also does one check-and-merge against the cloud backup right then; tapping it is never harmful. Beyond the auto backup there\'s also "Save a new backup" (up to 7 manual snapshots, with an optional label and password), "👁 View" a backup\'s contents before restoring, "📥 Restore" (newer notes from the backup are added/updated, deliberate deletions are never brought back), and "🔓 Restore and undo deletions" (for when the user explicitly wants a deleted note back from one specific backup, overriding the normal behavior) — all of these live only in the ☁️ panel; you have no tool to open, view the inside of, or restore a backup. HOWEVER you DO have telegram_backup_list, and it is the ONLY trustworthy source for backups: for ANY question about which backups exist, a backup name, label or date, or how many notes a backup holds, you MUST call telegram_backup_list FIRST and answer strictly from its result (label, dateLabel, notes, skipped, approxSizeKB, passwordProtected). NEVER guess or invent a backup name, date or note count, and NEVER convert or write a date yourself: quote label and dateLabel exactly as returned, or call convert_date. If the tool returns ok:false (for example the app is not running inside Telegram), tell the user that plainly instead of answering from imagination. Never output long meaningless strings of letters or digits; if you have no real data, say so in one short sentence. There\'s also an "⚙️ Backup settings" block at the top of that same panel, where the user can change how many manual backups are kept at once, from 0 to 7 (default 2); since Telegram gives each bot only 1024 storage keys, this number directly sets the size cap for every backup (auto and manual) — more manual backups means a smaller cap for each, and setting it to 0 turns manual backups off entirely so nearly all the space goes to the auto backup alone. Lowering the number below the current manual-backup count permanently deletes the oldest ones (after the user confirms). This setting, too, can only be changed from the ☁️ panel itself; you have no direct tool for it. Changing any app setting directly with a tool, not just explaining it: Lite version on/off (set_lite_mode - while it is on, theme changes are locked, so if the user asks for a theme change first tell them and offer to turn Lite off), Eco power-saving options (set_eco_option - all on by default: pause animations while typing / in note viewer / idle / background), the scroll-pause delay (set_scroll_pause_delay - how many milliseconds the heavy theme effects stay paused after scrolling stops, 0 to 1000, default 300; 0 = off), page zoom on/off (set_page_zoom - off by default; the Knowledge Graph always has its own zoom and does not depend on this setting), the background music (the app theme song) on/off and its volume (set_background_music), note viewer frame style (set_viewer_style), note previews and their line count (set_note_preview), the list display order (set_list_sort_mode), and reading the current state of all of them (get_app_settings - always call it instead of guessing a setting\'s state). Switching the visual theme, switching the language, actually exporting notes to a real file (JSON/CSV/MD/TXT/HTML/PDF/DOCX/PNG/JPG, the complete ZIP bundle, per-format individual-file ZIPs, the full-app HTML snapshot), opening the Knowledge Graph / Random Portal, and actually password-locking a note (with the lock_note tool — this opens the app\'s own real, secure encryption dialog, where the user types the password and an optional hint directly, never through this chat) are things you can do directly with a tool, not just explain. When asked how to do something in the app, say exactly which button or section to tap. You also know these other parts of the app and guide users through them precisely: Search (the app-wide search; it also opens with Ctrl+K; it understands Persian, English and Finglish, supports the operators tag:, folder:, is:pinned, is:favorite, \"exact phrase\" and a leading - to exclude a word, and remembers recent searches); the Dashboard (overall stats: note, word, character, folder and tag counts, average words, plus the pinned, favorite, locked, decoy, archived, active Ghost and active Time Capsule lists); Note DNA (an analysis of one note: words, symbols, unique words, top keywords, estimated reading time, image and link counts); Share note (TXT, Markdown, HTML, PDF or image; a locked note is only ever shared as an encrypted file); multi-select (long-press a note or folder; for notes: pin, favorite, duplicate, move up/down and delete, for folders: bulk delete); and the tools inside a note itself: drawing (pen, eraser, rectangle, circle, color, size, undo, clear, download and insert into the text), voice recording, inserting and moving images, text undo/redo, the \"Show link\" button for link previews, and the duplicate-note button. You can open the dashboard, search, Note DNA and the share picker for the user with open_app_view; for the rest you have no direct tool and only guide.\n\n'
                 + webSearchRoleEn
                 + mAiDateTimeEn
                 + 'Answer quality standard (important):\n'
