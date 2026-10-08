@@ -5206,6 +5206,17 @@ setTimeout(finish,MAX)})();</script>
             pointer-events: none;
         }
         .mk-backup-bar.show { transform: translateY(0); }
+        /* In-panel progress bar shown right under the "auto backup" row of the ☁️ panel
+           while the silent auto backup is being written. */
+        .mk-auto-prog { margin: 2px 0 10px; padding: 8px 10px; border-radius: 8px; background: rgba(255,255,255,.05); }
+        .mk-auto-prog-text { font-size: 12px; margin-bottom: 6px; opacity: .9; }
+        .mk-auto-prog-track { height: 5px; border-radius: 3px; background: rgba(255,255,255,.12); overflow: hidden; }
+        .mk-auto-prog-fill { height: 100%; width: 0%; background: linear-gradient(90deg,#4ade80,#22c55e); transition: width .3s ease; }
+        .mk-auto-prog.indeterminate .mk-auto-prog-fill { width: 35%; animation: mkBackupBarSlide 1.1s ease-in-out infinite; }
+        .mk-auto-prog.error .mk-auto-prog-fill { background: linear-gradient(90deg,#ef4444,#f87171); }
+        @media (prefers-reduced-motion: reduce) {
+            .mk-auto-prog.indeterminate .mk-auto-prog-fill { animation: none; width: 60%; margin-inline-start: 20%; }
+        }
         .mk-backup-bar-text { font-size: 12.5px; color: var(--text-color); text-align: center; margin-bottom: 7px; }
         .mk-backup-bar-track { height: 5px; border-radius: 3px; background: rgba(255,255,255,.12); overflow: hidden; }
         .mk-backup-bar-fill { height: 100%; width: 0%; background: linear-gradient(90deg,#4ade80,#22c55e); transition: width .35s ease, background .25s ease; }
@@ -7344,6 +7355,40 @@ window.mu_syncHtmlBg = function(){
                 return true;
             } catch (_) { return false; }
         }
+        /* ---- Telegram header follows the active theme ----------------------------
+           The native bar above the mini app used to be a fixed #03101c, which only matched
+           the dark-blue themes. Each theme's page background is a gradient, so this is the
+           colour of that gradient along the TOP edge of the screen (where the header sits),
+           so the header blends into the page. It is re-applied whenever body's theme-* class
+           changes (theme picker, tap-to-cycle, Lite mode, AI set_theme, startup) — a class
+           observer is used so every one of those paths is covered without touching them. */
+        const MU_TG_HEADER_COLORS = {
+            'yourname':'#221a5a','oceanic':'#01476e','anime':'#221335','hugo':'#0b131e','darkweb':'#090000',
+            'terminal':'#000201','interstellar':'#000000','onepiece':'#195d83','hogwarts':'#120d30','homealone':'#02050c',
+            'strangerthings':'#190505','vampire':'#27010c','phantom':'#230f42','halloween':'#030104','dreamy':'#20103b',
+            'spider':'#07000a','redhorizon':'#3b1308','midnightblue':'#071430','aurora':'#031018','aurora-phantom':'#27174d',
+            'love':'#3f1020','cyberpunk':'#05000d','anonymous':'#0e0e0e'
+        };
+        let __muTgHdrApplied = '';
+        function mu_syncTgHeaderColor(){
+            try {
+                let color = '';
+                const cl = document.body.classList;
+                for (let i = 0; i < cl.length; i++) {
+                    const c = cl[i];
+                    if (c.indexOf('theme-') === 0 && MU_TG_HEADER_COLORS[c.slice(6)]) { color = MU_TG_HEADER_COLORS[c.slice(6)]; break; }
+                }
+                if (!color) return;
+                const meta = document.getElementById('mAiThemeColorMeta');
+                if (meta && meta.getAttribute('content') !== color) meta.setAttribute('content', color);
+                const tg = (window.Telegram && window.Telegram.WebApp) || null;
+                if (tg && typeof tg.setHeaderColor === 'function' && color !== __muTgHdrApplied) {
+                    tg.setHeaderColor(color);
+                    __muTgHdrApplied = color;
+                }
+            } catch (_) {}
+        }
+        try { new MutationObserver(mu_syncTgHeaderColor).observe(document.body, { attributes: true, attributeFilter: ['class'] }); } catch (_) {}
         function mu_applyTelegramSetup(){
             TG = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
             IS_TELEGRAM = !!TG || /Telegram/i.test(navigator.userAgent || '');
@@ -7370,10 +7415,10 @@ window.mu_syncHtmlBg = function(){
             try {
                 if (TG) {
                     const bg = '#03101c';
-                    TG.setHeaderColor && TG.setHeaderColor(bg);
                     TG.setBackgroundColor && TG.setBackgroundColor(bg);
                 }
             } catch (_) {}
+            mu_syncTgHeaderColor();   // header colour = the active theme's top-edge colour
         }
         if (window.__muTgLoaded) { window.__muTgLoaded.then(mu_applyTelegramSetup); } else { mu_applyTelegramSetup(); }
         // If telegram-web-app.js only finished loading AFTER the 2.5 s wait above (slow network),
@@ -8136,7 +8181,7 @@ window.mu_syncHtmlBg = function(){
             // overwrite the real index with [] below and orphan every backup.
             if (raw === null) throw new Error('cloud-read-failed');
             const idx = raw ? safeParseJSON(raw, null) : null;
-            if (Array.isArray(idx)) return idx.filter(e => e && typeof e === 'object' && e.id);
+            if (Array.isArray(idx)) { const clean = idx.filter(e => e && typeof e === 'object' && e.id); window.__cloudIdxCache = clean.slice(); return clean; }
             const legacyMetaRaw = await cloudGetItem(CLOUD_META_KEY);
             if (legacyMetaRaw === null) throw new Error('cloud-read-failed');
             const legacyMeta = legacyMetaRaw ? safeParseJSON(legacyMetaRaw, null) : null;
@@ -8190,6 +8235,73 @@ window.mu_syncHtmlBg = function(){
                 }
                 return idx.slice().sort((a, b) => (b.ts || 0) - (a.ts || 0));
             });
+        }
+
+        // ---- Live state of the silent auto backup ------------------------------
+        // The ☁️ panel used to sit on "Checking..." for as long as an auto backup was
+        // being written, because every panel read waits its turn in cloudSerial. Now the
+        // auto backup publishes its progress here; while it runs the panel opens at once
+        // from the last-known index (window.__cloudIdxCache) and shows a progress bar
+        // under the auto-backup row, then refreshes itself when the write finishes.
+        window.__mkAutoBk = { active: false, phase: 'idle', done: 0, total: 0, run: 0 };
+        function mkAutoBkPaint() {
+            const s = window.__mkAutoBk, fa = currentLang === 'fa';
+            // The auto copy is being replaced right now, so its own View/Restore buttons stay
+            // disabled until the write ends (also applies if the panel was already open).
+            const off = !!(s && s.active);
+            document.querySelectorAll('#cloudPanelBody [data-backup-id="auto"] [data-cloud-action]').forEach(b => {
+                if (b.disabled !== off) { b.disabled = off; b.style.opacity = off ? '.5' : ''; }
+            });
+            const el = document.getElementById('cloudAutoProg');
+            if (!el) return;
+            if (!s || s.phase === 'idle') { el.innerHTML = ''; return; }
+            let wrap = el.firstElementChild;
+            if (!wrap) {
+                el.innerHTML = '<div class="mk-auto-prog"><div class="mk-auto-prog-text" dir="auto"></div><div class="mk-auto-prog-track"><div class="mk-auto-prog-fill"></div></div></div>';
+                wrap = el.firstElementChild;
+            }
+            const textEl = wrap.firstElementChild, fill = wrap.querySelector('.mk-auto-prog-fill');
+            let text, pct = null, err = false;
+            if (s.phase === 'prepare') {
+                text = fa ? '⏳ بکاپ خودکار در حال آماده‌سازی و ادغام با نسخه‌ی ابری…' : '⏳ Auto backup: preparing & merging with the cloud copy…';
+            } else if (s.phase === 'writing') {
+                pct = s.total ? Math.min(99, Math.round(s.done / s.total * 100)) : 0;
+                text = fa ? `💾 در حال ذخیره‌ی بکاپ خودکار… ${s.done} از ${s.total} (${pct}٪)` : `💾 Saving auto backup… ${s.done} of ${s.total} (${pct}%)`;
+            } else if (s.phase === 'finalizing') {
+                pct = 100;
+                text = fa ? '⏳ نهایی‌سازی بکاپ خودکار…' : '⏳ Finalizing auto backup…';
+            } else if (s.phase === 'done') {
+                pct = 100;
+                text = fa ? '✅ بکاپ خودکار ذخیره شد' : '✅ Auto backup saved';
+            } else {
+                pct = 100; err = true;
+                text = fa ? '⚠️ ذخیره‌ی بکاپ خودکار ناموفق بود.' : '⚠️ Auto backup failed.';
+            }
+            textEl.textContent = text;
+            wrap.classList.toggle('indeterminate', pct === null);
+            wrap.classList.toggle('error', err);
+            fill.style.width = pct === null ? '' : pct + '%';
+        }
+        function mkAutoBkSet(patch) {
+            Object.assign(window.__mkAutoBk, patch);
+            mkAutoBkPaint();
+        }
+        function mkAutoBkEnd(res) {
+            const s = window.__mkAutoBk;
+            const run = ++s.run;
+            s.active = false;
+            if (res && res.ok) s.phase = 'done';
+            else if (res && res.reason === 'protected') s.phase = 'idle';
+            else s.phase = 'fail';
+            mkAutoBkPaint();
+            // The write is finished, so the serial queue is free: refresh the open panel
+            // with the real, fresh list.
+            if (document.getElementById('cloudPanelBody') && typeof markhinDash_renderCloudPanelBody === 'function') {
+                try { markhinDash_renderCloudPanelBody(true).catch(() => {}); } catch (_) {}
+            }
+            setTimeout(() => {
+                if (s.run === run && !s.active && (s.phase === 'done' || s.phase === 'fail')) { s.phase = 'idle'; mkAutoBkPaint(); }
+            }, s.phase === 'fail' ? 5000 : 2500);
         }
 
         let __cloudBackupTimer = null;
@@ -8315,12 +8427,17 @@ window.mu_syncHtmlBg = function(){
         // Result: { ok:true, meta } or { ok:false, reason } where reason is one of
         // 'unavailable' | 'manual-disabled' | 'no-space' | 'too-large' | 'write-failed' | 'protected'.
         function cloudBackupNow(kind, label, password, hint) {
+            const isAuto = (kind !== 'manual');
             return cloudSerial(async () => {
-                try { return await cloudBackupNowImpl(kind, label, password, hint); }
+                if (isAuto) mkAutoBkSet({ active: true, phase: 'prepare', done: 0, total: 0, run: window.__mkAutoBk.run + 1 });
+                let res;
+                try { res = await cloudBackupNowImpl(kind, label, password, hint); }
                 catch (e) {
                     console.warn('Cloud backup error', e);
-                    return { ok: false, reason: (e && e.message === 'cloud-read-failed') ? 'unavailable' : 'write-failed' };
+                    res = { ok: false, reason: (e && e.message === 'cloud-read-failed') ? 'unavailable' : 'write-failed' };
                 }
+                if (isAuto) mkAutoBkEnd(res);
+                return res;
             });
         }
         // Removes leftover chunk keys of one key-namespace at/after `keep` (from an older,
@@ -8459,12 +8576,15 @@ window.mu_syncHtmlBg = function(){
             // Keys of a version that has no index entry yet are removed on failure so they
             // don't become orphans eating the key budget forever.
             const rollback = async (n) => { if (!inPlace) await cloudRemoveItems(keys.slice(0, n)); };
+            if (kind === 'auto') mkAutoBkSet({ phase: 'writing', done: 0, total: chunks.length });
             for (let i = 0; i < chunks.length; i++) {
                 if (!(await cloudSetItem(keys[i], chunks[i]))) {
                     await rollback(i + 1);
                     return { ok: false, reason: 'write-failed' };
                 }
+                if (kind === 'auto') mkAutoBkSet({ done: i + 1 });
             }
+            if (kind === 'auto') mkAutoBkSet({ phase: 'finalizing' });
 
             const cleanLabel = kind === 'manual' ? String(label || '').trim().slice(0, CLOUD_LABEL_MAX_LEN) : '';
             const entry = { id, kind, ts: Date.now(), notes: totalNotes - skipped, skipped, chunks: chunks.length, c: compressed ? 1 : 0, len: storedData.length, label: cleanLabel };
@@ -8489,6 +8609,7 @@ window.mu_syncHtmlBg = function(){
                 await rollback(keys.length);
                 return { ok: false, reason: 'write-failed' };
             }
+            window.__cloudIdxCache = nextIdx.slice();
             cloudSetLinked();
 
             // Only after the index is safely updated: drop what it no longer points to.
@@ -20252,7 +20373,10 @@ async function markhinDash_showCloudPanel(){
     __mkCloudPassCache.clear();
     showAdvanced(markhinDash_headHtml(`☁️ ${fa?'بکاپ Cloud تلگرام':'Telegram Cloud Backup'}`,false)+
         `<div id="cloudPanelBody" style="font-size:12.5px;line-height:1.9">${fa?'در حال بررسی...':'Checking...'}</div>`);
-    await cloudLoadSettings(true);
+    // While an auto backup is being written, don't wait on Cloud at all: the body is
+    // drawn at once from the last-known list, with a live progress bar (see
+    // mkAutoBkPaint), and refreshes itself when the write ends.
+    if (!(window.__mkAutoBk && window.__mkAutoBk.active)) await cloudLoadSettings(true);
     await markhinDash_renderCloudPanelBody();
 }
 window.markhinDash_showCloudPanel = markhinDash_showCloudPanel;
@@ -20260,12 +20384,27 @@ window.markhinDash_showCloudPanel = markhinDash_showCloudPanel;
 // Renders/refreshes the panel's body in place (list of backups + actions)
 // without re-opening the modal — used on first open and after every
 // backup/delete so the list always reflects what's actually in the cloud.
-async function markhinDash_renderCloudPanelBody(){
+async function markhinDash_renderCloudPanelBody(keepInput){
     const fa=currentLang==='fa';
     const body = document.getElementById('cloudPanelBody');
     if (!body) return;
-    await cloudLoadSettings(false);
+    const __busy = !!(window.__mkAutoBk && window.__mkAutoBk.active);
+    // While an auto backup is writing, don't touch Cloud here (it would queue / race the write).
+    if (!__busy) await cloudLoadSettings(false);
     let list;
+    // keepInput is only passed by the auto-backup-finished refresh: it keeps a half-typed
+    // label and an unsaved manual-backup-count selection instead of resetting them.
+    const __labelKeep = keepInput ? ((document.getElementById('cloudBackupLabelInput') || {}).value || '') : '';
+    const __limBox = keepInput ? document.getElementById('cloudLimitBox') : null;
+    const __pendingLimit = __limBox ? Number(__limBox.dataset.pending) : null;
+    if (__busy && Array.isArray(window.__cloudIdxCache)) {
+        // Auto backup is mid-write: show the last-known list instead of queueing behind it.
+        list = window.__cloudIdxCache.slice().sort((a, b) => (b.ts || 0) - (a.ts || 0));
+    } else if (__busy) {
+        body.innerHTML = `<div id="cloudAutoProg"></div><div class="markhin-smart-empty">${fa?'فهرست بکاپ‌ها بلافاصله بعد از پایان ذخیره‌ی خودکار نمایش داده می‌شود.':'The backup list will appear right after the auto backup finishes saving.'}</div>`;
+        mkAutoBkPaint();
+        return;
+    } else
     try { list = await cloudListBackups(); }
     catch (e) {
         body.innerHTML = `<div class="markhin-smart-empty">${fa?'⚠️ خواندن اطلاعات از Cloud تلگرام ناموفق بود. پنل را ببند و دوباره باز کن.':'⚠️ Could not read from Telegram Cloud. Close this panel and open it again.'}</div>`;
@@ -20289,7 +20428,7 @@ async function markhinDash_renderCloudPanelBody(){
     // incorrectly. Routing it through the same serial queue means it only
     // ever reads once nothing else is mid-write, just like every other read
     // in this panel.
-    const autoBlocked = await cloudSerial(() => cloudAutoWouldBeBlocked(autoEntry));
+    const autoBlocked = __busy ? false : await cloudSerial(() => cloudAutoWouldBeBlocked(autoEntry));
     body.innerHTML =
         `<div style="margin:0 0 10px"><button type="button" class="btn-main" style="width:100%" onclick="markhinDash_showCloudHelp()">❓ ${fa?'راهنما و طرز استفاده':'Help & how to use'}</button></div>` +
         `<p style="opacity:.7">${fa?'⚠️ فقط متن و اطلاعات یادداشت‌ها بکاپ می‌شود؛ تصاویر فقط روی همین دستگاه می‌مانند و در بکاپ نیستند. این بکاپ بین همه‌ی دستگاه‌هایی که همین ربات را در تلگرام باز کنی مشترک است.':'⚠️ Only note text/metadata is backed up here — images stay on this device and are not included. This backup is shared across every device where you open this bot in Telegram.'}</p>` +
@@ -20307,11 +20446,14 @@ async function markhinDash_renderCloudPanelBody(){
         `<h4 style="margin:16px 0 6px;font-size:12.5px;opacity:.85">${fa?'وضعیت خودکار':'Auto state'}</h4>` +
         `<p style="opacity:.7;margin:0 0 6px">${cloudIsLinked() ? (fa?'🔗 سینک خودکار بین دستگاه‌ها روی این دستگاه فعال است.':'🔗 Auto sync between devices is active on this device.') : (fa?'⚪️ سینک خودکار هنوز روی این دستگاه فعال نشده — این دستگاه منتظر بکاپ/بازیابی دستی می‌ماند.':'⚪️ Auto sync has not been enabled on this device yet — it will wait for a manual backup/restore.')}</p>` +
         `<div style="margin:0 0 10px"><button id="cloudFixAutoSyncBtn" type="button" class="btn-main" style="width:100%" onclick="markhinDash_cloudFixAutoSync()">🔄 ${fa?'فعال‌سازی / تعمیر سینک خودکار':'Enable / fix auto sync'}</button></div>` +
-        autoSectionHtml +
+        autoSectionHtml + '<div id="cloudAutoProg"></div>' +
         ((manualEnabled || manualEntries.length)
             ? `<h4 style="margin:16px 0 6px;font-size:12.5px;opacity:.85">${fa?`بکاپ‌های ذخیره‌شده (${manualEntries.length} از ${MAX_MANUAL_BACKUPS})`:`Saved backups (${manualEntries.length} of ${MAX_MANUAL_BACKUPS})`}</h4>` + manualSectionHtml
             : '');
 
+    if (__labelKeep) { const li = document.getElementById('cloudBackupLabelInput'); if (li) li.value = __labelKeep; }
+    if (__pendingLimit !== null && !isNaN(__pendingLimit) && __pendingLimit !== MAX_MANUAL_BACKUPS) markhinDash_cloudPickLimit(__pendingLimit);
+    mkAutoBkPaint();
     body.querySelectorAll('[data-backup-id]').forEach(row=>{
         const id = row.dataset.backupId;
         row.querySelectorAll('[data-cloud-action]').forEach(btn=>{
