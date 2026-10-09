@@ -9244,6 +9244,93 @@ window.mu_syncHtmlBg = function(){
             return { added, updated, skippedDeleted, unchanged, newFolders, willRetire };
         }
 
+        // ---- "Full replace" restore mode -------------------------------------------
+        // Unlike the normal merge (newer wins, nothing is removed), this makes this device's
+        // notes and folders match the backup exactly: notes that are not in the backup are
+        // deleted (tombstoned, so they cannot come back from the auto slot / other devices),
+        // and notes that differ are overwritten with the backup's version even when the local
+        // copy is newer. Overwritten notes are re-stamped "now" so the next auto-sync/push
+        // keeps them instead of merging the newer cloud copy straight back over them.
+        function cloudNoteStamps(n) {
+            const t = Date.parse(n && n.lastEdited) || 0;
+            const m = Date.parse(n && n.metaEditedAt) || t;
+            return [t, m];
+        }
+        function cloudComputeReplaceDiff(data) {
+            const backupNotes = (data.notes || []).filter(n => n && typeof n === 'object' && n.id != null);
+            const ids = new Set(backupNotes.map(n => String(n.id)));
+            const added = [], updated = [];
+            let unchanged = 0;
+            backupNotes.forEach(cn => {
+                const local = categories.find(c => c && String(c.id) === String(cn.id));
+                if (!local) { added.push(cn.name || ''); return; }
+                const a = cloudNoteStamps(local), b = cloudNoteStamps(cn);
+                if (a[0] !== b[0] || a[1] !== b[1]) updated.push(cn.name || local.name || ''); else unchanged++;
+            });
+            const removed = categories.filter(c => c && !ids.has(String(c.id))).map(c => c.name || '');
+            const keep = new Map();
+            const addKeep = f => { if (typeof f === 'string' && f && f !== DEFAULT_FOLDER) { const k = normalizeText(f); if (!keep.has(k)) keep.set(k, f); } };
+            (data.folders || []).forEach(addKeep);
+            backupNotes.forEach(n => { addKeep(n.folder); (Array.isArray(n.extraFolders) ? n.extraFolders : []).forEach(addKeep); });
+            const localKeys = new Set(folders.map(f => normalizeText(f)));
+            const newFolders = Array.from(keep.entries()).filter(([k]) => !localKeys.has(k)).map(([, f]) => f);
+            const removedFolders = folders.filter(f => f !== DEFAULT_FOLDER && !keep.has(normalizeText(f)));
+            return { added, updated, removed, unchanged, newFolders, removedFolders };
+        }
+        function cloudApplyReplaceData(data) {
+            const backupNotes = (data.notes || []).filter(n => n && typeof n === 'object' && n.id != null);
+            const ids = new Set(backupNotes.map(n => String(n.id)));
+            const nowStr = new Date().toUTCString();
+            const staleStr = new Date(-1000).toUTCString(); // older than any real edit, still truthy for the merge's `|| 0` fallbacks
+            // Shallow snapshot so a failure half-way leaves the notes exactly as they were.
+            const before = categories.map(c => (c && typeof c === 'object') ? Object.assign({}, c) : c);
+            const beforeFolders = folders.slice();
+            const beforeCurrent = currentFolder;
+            const removedIds = [];
+            const goneFolders = [];
+            try {
+                const removed = categories.filter(c => c && !ids.has(String(c.id)));
+                removed.forEach(c => { removedIds.push(c.id); recordTombstone(c.id); });
+                categories = categories.filter(c => c && ids.has(String(c.id)));
+                if (typeof activeOpenId !== 'undefined' && activeOpenId != null && removedIds.some(x => String(x) === String(activeOpenId))) activeOpenId = null;
+                const toStamp = [];
+                backupNotes.forEach(cn => {
+                    const local = categories.find(c => String(c.id) === String(cn.id));
+                    if (!local) return;
+                    const a = cloudNoteStamps(local), b = cloudNoteStamps(cn);
+                    if (a[0] !== b[0] || a[1] !== b[1]) { local.lastEdited = staleStr; local.metaEditedAt = staleStr; toStamp.push(String(local.id)); }
+                });
+                // Backup's own tombstones for notes that ARE in the backup must not retire them again.
+                const mergeData = Object.assign({}, data, { tombstones: (Array.isArray(data.tombstones) ? data.tombstones : []).filter(t => t && !ids.has(String(t.id))) });
+                const res = cloudApplyMergeData(mergeData, true);
+                toStamp.forEach(id => {
+                    const local = categories.find(c => String(c.id) === id);
+                    if (local) { local.lastEdited = nowStr; local.metaEditedAt = nowStr; }
+                });
+                // Folders: mirror the backup's folder list.
+                const keep = new Set();
+                const addKeep = f => { if (typeof f === 'string' && f && f !== DEFAULT_FOLDER) keep.add(normalizeText(f)); };
+                (data.folders || []).forEach(addKeep);
+                backupNotes.forEach(n => { addKeep(n.folder); (Array.isArray(n.extraFolders) ? n.extraFolders : []).forEach(addKeep); });
+                folders.filter(f => f !== DEFAULT_FOLDER && !keep.has(normalizeText(f))).forEach(f => goneFolders.push(f));
+                goneFolders.forEach(f => {
+                    categories.forEach(item => { if (window.mu_inFolder(item, f)) window.mu_removeFolderFromNote(item, f, true); });
+                    recordFolderTombstone(f);
+                });
+                if (goneFolders.length) {
+                    const g = new Set(goneFolders);
+                    folders = folders.filter(f => !g.has(f));
+                    if (currentFolder && g.has(currentFolder)) currentFolder = DEFAULT_FOLDER;
+                }
+                return { added: res.added, updated: toStamp.length, removed: removed.length, removedFolders: goneFolders.length };
+            } catch (e) {
+                categories = before; folders = beforeFolders; currentFolder = beforeCurrent;
+                removedIds.forEach(id => { try { clearTombstone(id); } catch (_) {} });
+                goneFolders.forEach(f => { try { clearFolderTombstone(f); } catch (_) {} });
+                throw e;
+            }
+        }
+
         // Bug fix (auto backup was push-only, not real sync): editing on device A and
         // opening the app on device B used to only ever show B's own last state —
         // picking up A's edits required manually opening the Cloud panel and tapping
@@ -9312,6 +9399,115 @@ window.mu_syncHtmlBg = function(){
             if (!ok) return false;
             await cloudRemoveItems(cloudEntryKeys(entry));
             return true;
+        }
+
+        // ---- Edit a saved MANUAL backup: label and/or password -------------------------
+        // opts: { label?, passwordMode: 'keep'|'set'|'remove', newPassword?, hint?, currentPassword? }
+        // A label change only touches the index entry. A password change re-encrypts the stored
+        // payload and writes it to the OTHER key-namespace (id <-> id+'b') first; the index only
+        // switches to the new copy after every chunk landed and read back intact, then the old
+        // keys are removed — so an interrupted edit can never leave the backup unreadable.
+        // Resolves { ok:true, meta } or { ok:false, reason }.
+        function cloudEditManualBackup(id, opts) {
+            return cloudSerial(() => cloudEditManualBackupImpl(id, opts || {}).catch(e => { console.warn('Cloud edit error', e); return { ok: false, reason: 'write-failed' }; }));
+        }
+        async function cloudEditManualBackupImpl(id, opts) {
+            if (!hasCloudStorage) return { ok: false, reason: 'unavailable' };
+            const idx = await cloudReadIndex();
+            const entry = idx.find(e => e.id === id && e.kind === 'manual');
+            if (!entry) return { ok: false, reason: 'missing' };
+            const cleanLabel = String(opts.label != null ? opts.label : (entry.label || '')).trim().slice(0, CLOUD_LABEL_MAX_LEN);
+            let mode = opts.passwordMode === 'set' ? 'set' : (opts.passwordMode === 'remove' ? 'remove' : 'keep');
+            if (mode === 'remove' && !entry.enc) mode = 'keep';
+            const newPw = String(opts.newPassword || '').trim();
+            if (mode === 'set' && !newPw) return { ok: false, reason: 'bad-input' };
+            const cleanHint = String(opts.hint || '').trim().slice(0, CLOUD_HINT_MAX_LEN);
+
+            // Re-reads the index right before committing (another device may have changed it
+            // meanwhile) and applies `mutate` to this entry only. Resolves the previous entry,
+            // 'missing' or false.
+            const commit = async (mutate) => {
+                let fresh;
+                try { fresh = await cloudReadIndex(); } catch (_) { return false; }
+                const prev = fresh.find(e => e.id === id && e.kind === 'manual');
+                if (!prev) return 'missing';
+                const next = fresh.map(e => e.id === id ? mutate(Object.assign({}, e)) : e);
+                if (!(await cloudSetItem(CLOUD_INDEX_KEY, JSON.stringify(next)))) return false;
+                window.__cloudIdxCache = next.slice();
+                return prev;
+            };
+
+            if (mode === 'keep') {
+                const r = await commit(e => { e.label = cleanLabel; return e; });
+                if (r === 'missing') return { ok: false, reason: 'missing' };
+                if (!r) return { ok: false, reason: 'write-failed' };
+                return { ok: true, meta: Object.assign({}, entry, { label: cleanLabel }) };
+            }
+
+            // ---- password change: read the stored payload (decrypting it if needed) ----
+            const oldKeys = cloudEntryKeys(entry);
+            const parts = await cloudGetItems(oldKeys);
+            if (oldKeys.some(k => !parts[k])) return { ok: false, reason: 'write-failed' };
+            const raw = oldKeys.map(k => parts[k]).join('');
+            if (entry.len && raw.length !== entry.len) return { ok: false, reason: 'write-failed' };
+            let payload = raw;
+            if (entry.enc) {
+                const cur = String(opts.currentPassword || '').trim();
+                if (!cur) return { ok: false, reason: 'wrong-password' };
+                try {
+                    const envelope = safeParseJSON(raw, null);
+                    if (!envelope) return { ok: false, reason: 'wrong-password' };
+                    const dec = await decryptNotePayload(cur, envelope);
+                    payload = dec.html;
+                } catch (_) { return { ok: false, reason: 'wrong-password' }; }
+            }
+            let storedData = payload;
+            if (mode === 'set') {
+                try { storedData = JSON.stringify(await encryptNotePayload(newPw, payload, '')); }
+                catch (e) { console.warn('Backup re-encryption failed', e); return { ok: false, reason: 'write-failed' }; }
+            }
+            const chunks = cloudSplitChunks(storedData);
+            if (!chunks.length) return { ok: false, reason: 'write-failed' };
+
+            // Budget: the new copy may be a bit bigger (encryption overhead) than the old one.
+            const othersChunks = idx.filter(e => e.id !== id).reduce((sum, e) => sum + (e.chunks || 0), 0);
+            const room = CLOUD_KEY_BUDGET - CLOUD_RESERVED_KEYS - othersChunks;
+            const allowed = Math.max(entry.chunks || 0, Math.min(MAX_CHUNKS_PER_BACKUP, room));
+            if (chunks.length > allowed) return { ok: false, reason: 'no-space' };
+            const totalKeysNow = CLOUD_RESERVED_KEYS + idx.reduce((sum, e) => sum + (e.chunks || 0), 0);
+            if (totalKeysNow + chunks.length > 1000) return { ok: false, reason: 'no-space' };
+
+            const oldPfx = cloudEntryPrefix(entry);
+            const newPfx = (oldPfx === id) ? (id + 'b') : id;
+            try { await cloudRemoveStrayTail(newPfx, 0); } catch (_) {}
+            const keys = cloudBackupChunkKeys(newPfx, chunks.length);
+            for (let i = 0; i < chunks.length; i++) {
+                if (!(await cloudSetItem(keys[i], chunks[i]))) {
+                    await cloudRemoveItems(keys.slice(0, i + 1));
+                    return { ok: false, reason: 'write-failed' };
+                }
+            }
+            let verified = false;
+            try { verified = await cloudVerifyWritten(keys, chunks, true); } catch (_) { verified = false; }
+            if (!verified) { await cloudRemoveItems(keys); return { ok: false, reason: 'verify-failed' }; }
+
+            const r = await commit(e => {
+                e.label = cleanLabel;
+                e.chunks = chunks.length;
+                e.len = storedData.length;
+                if (newPfx === id) delete e.pfx; else e.pfx = newPfx;
+                if (mode === 'set') { e.enc = 1; if (cleanHint) e.hint = cleanHint; else delete e.hint; }
+                else { delete e.enc; delete e.hint; }
+                return e;
+            });
+            if (r === 'missing' || !r) {
+                await cloudRemoveItems(keys);
+                return { ok: false, reason: r === 'missing' ? 'missing' : 'write-failed' };
+            }
+            // Only after the index points at the new copy: drop the old one.
+            if (cloudEntryPrefix(r) !== newPfx) { try { await cloudRemoveItems(cloudEntryKeys(r)); } catch (_) {} }
+            const meta = Object.assign({}, entry, { label: cleanLabel, chunks: chunks.length, len: storedData.length });
+            return { ok: true, meta };
         }
 
         const i18n = {
@@ -20671,6 +20867,20 @@ function mu_cloudSettingsHtml(manualCount){
 // Forcing dir="ltr" explicitly in that case (and whenever the first real
 // letter after the "@"/digit isn't Persian/Arabic/Hebrew) keeps a saved
 // label's on-screen order identical to what was typed.
+// Exact size of a saved backup: `len` is the number of characters actually stored in Telegram
+// Cloud (after compression/encryption); older entries without it fall back to chunks x chunk size.
+function mu_cloudFmtBytes(n){
+    const fa=currentLang==='fa';
+    n=Math.max(0,Number(n)||0);
+    if (n<1024) return `${n} ${fa?'بایت':'B'}`;
+    if (n<1048576) return `${(n/1024).toFixed(n<102400?1:0)} ${fa?'کیلوبایت':'KB'}`;
+    return `${(n/1048576).toFixed(2)} ${fa?'مگابایت':'MB'}`;
+}
+function mu_cloudEntryBytes(e){
+    return (e && Number(e.len)>0) ? Number(e.len) : ((e && e.chunks)||0) * CLOUD_CHUNK_SIZE;
+}
+function mu_cloudEntrySizeText(e){ return mu_cloudFmtBytes(mu_cloudEntryBytes(e)); }
+
 function mu_labelDirAttr(text){
     var STRONG_RTL = /[\u0590-\u05FF\u0621-\u064A\u0671-\u06D3\u06FA-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFC]/;
     var STRONG_LTR = /[A-Za-z\u00C0-\u024F]/;
@@ -20696,17 +20906,24 @@ function mu_cloudBackupRowHtml(e, opts){
     // Upgrade: rough size estimate (chunks × chunk size) next to the note count,
     // so it's visible at a glance how much of a backup slot's budget is used —
     // ties into the size limits now spelled out in the Help panel.
-    const sizeText = mu_fmtCloudSize((e.chunks||0) * CLOUD_CHUNK_SIZE);
-    const sub = `${mu_fmtCloudDate(e.ts)} · ${e.notes} ${fa?'یادداشت':'notes'} · ${sizeText}${e.skipped?` · ⚠️ ${e.skipped} ${fa?'رد شد':'skipped'}`:''}`;
+    const sizeText = mu_cloudEntrySizeText(e);
+    const usedKeys = e.chunks||0;
+    const sub = `${mu_fmtCloudDate(e.ts)} · ${e.notes} ${fa?'یادداشت':'notes'} · ${fa?'حجم':'Size'}: ${sizeText} · ${usedKeys} ${fa?'کلید':'keys'}${e.skipped?` · ⚠️ ${e.skipped} ${fa?'رد شد':'skipped'}`:''}`;
+    const capKeys = Math.max(1, MAX_CHUNKS_PER_BACKUP);
+    const pct = Math.min(100, Math.round(usedKeys / capKeys * 100));
+    const barHtml = `<div style="height:4px;border-radius:3px;background:rgba(255,255,255,.12);margin:6px 0 0;overflow:hidden"><div style="width:${pct}%;height:100%;background:${pct>=90?'#ff9f43':'currentColor'};opacity:.7"></div></div><div dir="auto" style="font-size:11px;opacity:.6;margin-top:2px">${fa?`${usedKeys} از ${capKeys} کلیدِ سهم هر بکاپ (${pct}٪)`:`${usedKeys} of ${capKeys} keys in each backup's share (${pct}%)`}</div>`;
+    const editBtn = (opts.allowDelete && e.kind==='manual') ? `<button type="button" class="btn-main" data-cloud-action="edit">✏️ ${fa?'ویرایش':'Edit'}</button>` : '';
     const delBtn = opts.allowDelete ? `<button type="button" class="btn-main" data-cloud-action="delete">🗑 ${fa?'حذف':'Delete'}</button>` : '';
     return `<div class="markhin-smart-item" data-backup-id="${escapeHtml(e.id)}" style="margin-bottom:8px">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
             <b ${labelDirAttr} style="min-width:0">${label}</b>
         </div>
         <div class="snippet" dir="auto">${sub}</div>
+        ${barHtml}
         <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
             <button type="button" class="btn-main" data-cloud-action="view">👁 ${fa?'مشاهده':'View'}</button>
             <button type="button" class="btn-main" data-cloud-action="restore">📥 ${fa?'بازیابی':'Restore'}</button>
+            ${editBtn}
             ${delBtn}
         </div>
     </div>`;
@@ -20785,10 +21002,12 @@ const MK_CLOUD_ICONS = (function(){
         '✅': '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
         '❌': C + '<line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>',
         '📦': '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>',
+        '✏': '<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>',
+        '♻': '<polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>',
         '⏳': '<path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.17a2 2 0 0 0-.59-1.42L12 12l-4.41 4.41A2 2 0 0 0 7 17.83V22"/><path d="M7 2v4.17a2 2 0 0 0 .59 1.42L12 12l4.41-4.41A2 2 0 0 0 17 6.17V2"/>'
     };
 })();
-const MK_CLOUD_ICO_RE = /(?:☁|❓|⚠|🛡|🔗|⚪|🔄|⚙|💾|📖|📤|📥|👁|🗑|🔒|🔓|📌|ℹ|✅|❌|📦|⏳)️?/g;
+const MK_CLOUD_ICO_RE = /(?:☁|❓|⚠|🛡|🔗|⚪|🔄|⚙|💾|📖|📤|📥|👁|🗑|🔒|🔓|📌|ℹ|✅|❌|📦|⏳|✏|♻)️?/g;
 function mkCloudIconSvg(ch){
     const key = ch.replace(/️/g, '');
     const inner = MK_CLOUD_ICONS[key];
@@ -20843,7 +21062,7 @@ function mkCloudIconifyStart(){
     run();
 }
 
-async function markhinDash_showCloudPanel(){
+async function markhinDash_showCloudPanel(keepTab){
     const fa=currentLang==='fa';
     // This panel is opened from the standalone ☁️ toolbar button (not from
     // inside the Dashboard), so there is no Dashboard screen underneath it
@@ -20851,7 +21070,9 @@ async function markhinDash_showCloudPanel(){
     // (closeAdvancedModal), not jump into markhinDashboardMain() the way a
     // real Dashboard sub-screen's ✕ would.
     window.__mkCloudSettingsOpen = false;
-    window.__mkCloudTab = 'auto';
+    // keepTab=true: internal returns to the panel (after a manual save, view, delete,
+    // restore, guide...) stay on the tab the person was on instead of jumping to 'auto'.
+    if (!keepTab) window.__mkCloudTab = 'auto';
     __mkCloudPassCache.clear();
     showAdvanced(markhinDash_headHtml(`☁️ ${fa?'بکاپ Cloud تلگرام':'Telegram Cloud Backup'}`,false)+
         `<div id="cloudPanelBody" style="font-size:12.5px;line-height:1.9">${fa?'در حال بررسی...':'Checking...'}</div>`);
@@ -20905,6 +21126,7 @@ async function markhinDash_renderCloudPanelBody(keepInput){
         : `<div class="markhin-smart-empty">${fa?'هنوز بکاپ دستی‌ای ذخیره نکرده‌ای.':'No manual backups saved yet.'}</div>`;
 
     const manualEnabled = MAX_MANUAL_BACKUPS > 0;
+    const __manualTotalTxt = manualEntries.length ? ` · ${fa?'مجموع حجم':'Total size'}: ${mu_cloudFmtBytes(manualEntries.reduce((sum,e)=>sum+mu_cloudEntryBytes(e),0))}` : '';
     // Bug fix: this used to call cloudAutoWouldBeBlocked() directly, outside
     // cloudSerial — the exact same race cloudListBackups() above was fixed for
     // (see its comment): a concurrent in-flight backup/delete/settings write
@@ -20946,7 +21168,7 @@ async function markhinDash_renderCloudPanelBody(keepInput){
                 `<div style="margin:2px 0 10px"><button id="cloudBackupBtn" type="button" class="btn-main btn-save-prominent" style="width:100%" onclick="markhinDash_cloudBackupClick()">📤 ${fa?'ذخیره‌ی یک بکاپ جدید':'Save a new backup'}</button></div><div id="cloudManualWhy" dir="auto" style="font-size:12px;line-height:1.7;opacity:.85;margin:-4px 0 10px"></div><div id="cloudManualProg"></div>`)
             : `<p style="opacity:.7;margin:0 0 8px">${fa?'ℹ️ بکاپ دستی الان غیرفعال است (تعداد روی 0 است)؛ تقریباً تمام فضای Cloud فقط به بکاپ خودکار اختصاص دارد. برای فعال‌کردنش، تعداد را در «⚙️ تنظیمات بکاپ» بالا زیاد کن.':'ℹ️ Manual backups are off (set to 0); almost all the Cloud space goes to the auto backup alone. To turn them on, raise the number in "⚙️ Backup settings" above.'}</p>`) +
         ((manualEnabled || manualEntries.length)
-            ? `<h4 style="margin:16px 0 6px;font-size:12.5px;opacity:.85">${fa?`بکاپ‌های ذخیره‌شده (${manualEntries.length} از ${MAX_MANUAL_BACKUPS})`:`Saved backups (${manualEntries.length} of ${MAX_MANUAL_BACKUPS})`}</h4>` + manualSectionHtml
+            ? `<h4 style="margin:16px 0 6px;font-size:12.5px;opacity:.85">${fa?`بکاپ‌های ذخیره‌شده (${manualEntries.length} از ${MAX_MANUAL_BACKUPS})`:`Saved backups (${manualEntries.length} of ${MAX_MANUAL_BACKUPS})`}${__manualTotalTxt}</h4>` + manualSectionHtml
             : '') +
         mu_cloudKeyUsageHtml('manual', __realKeys, manualEntries.length) +
         '</div>';
@@ -20962,6 +21184,7 @@ async function markhinDash_renderCloudPanelBody(keepInput){
                 e.stopPropagation();
                 if (action==='view') markhinDash_cloudViewBackup(id);
                 else if (action==='restore') markhinDash_cloudRestoreClick(id);
+                else if (action==='edit') markhinDash_cloudEditClick(id);
                 else if (action==='delete') markhinDash_cloudDeleteClick(id);
             };
         });
@@ -21108,7 +21331,7 @@ function markhinDash_showCloudHelp(){
             <p>Only note text/metadata is backed up — images always stay on the device that has them. Since backups live in Telegram's own cloud (not on this device), they're shared across every device where you open this same bot with the same account.</p>
             <p>This feature doesn't depend on any separate server — it runs entirely on Telegram's own infrastructure (Telegram Cloud Storage). Because of that, a few technical limits come from Telegram itself: each stored value can hold at most 4096 characters, so every backup is split into 3500-character chunks and can hold at most ${MAX_CHUNKS_PER_BACKUP} chunks (roughly ${cloudBackupSizeKB} KB of text). The total number of keys used (2 index/settings keys + one auto slot + up to ${MAX_MANUAL_BACKUPS} manual backups, each up to ${MAX_CHUNKS_PER_BACKUP} keys) reaches ${cloudTotalKeysUsed} keys in the worst case — leaving about ${cloudKeyMargin} keys as a safety margin before Telegram's 1024-key ceiling.</p>
         </div>`;
-    showAdvanced(markhinDash_headHtml(`❓ ${fa?'راهنمای بکاپ Cloud':'Cloud Backup guide'}`,true,'markhinDash_showCloudPanel()') + bodyHtml);
+    showAdvanced(markhinDash_headHtml(`❓ ${fa?'راهنمای بکاپ Cloud':'Cloud Backup guide'}`,true,'markhinDash_showCloudPanel(true)') + bodyHtml);
 }
 window.markhinDash_showCloudHelp = markhinDash_showCloudHelp;
 
@@ -21255,7 +21478,7 @@ function markhinDash_showCloudSettingsHelp(){
             <h4 style="margin:14px 0 6px">⚠️ Reminder</h4>
             <p>Only note text/metadata is backed up; images always stay on the device that has them.</p>
         </div>`;
-    showAdvanced(markhinDash_headHtml(`📖 ${fa?'راهنمای کامل تنظیمات بکاپ':'Backup settings guide'}`,true,'markhinDash_showCloudPanel()') + bodyHtml);
+    showAdvanced(markhinDash_headHtml(`📖 ${fa?'راهنمای کامل تنظیمات بکاپ':'Backup settings guide'}`,true,'markhinDash_showCloudPanel(true)') + bodyHtml);
 }
 window.markhinDash_showCloudSettingsHelp = markhinDash_showCloudSettingsHelp;
 
@@ -21287,7 +21510,7 @@ async function markhinDash_cloudBackupClick(){
         cancelText: fa?'انصراف':'Cancel',
         extraButton: { label: fa?'🔓 بکاپ بدون رمز':'🔓 Backup without password' }
     });
-    if (!res) { markhinDash_showCloudPanel(); return; }
+    if (!res) { markhinDash_showCloudPanel(true); return; }
 
     const values = res.values || {};
     const label = values.label || '';
@@ -21300,11 +21523,14 @@ async function markhinDash_cloudBackupClick(){
     // Stay on (return to) the same Telegram Cloud backup panel instead of
     // leaving it closed while the save runs, and report progress with the
     // bottom bar rather than a toast so it doesn't get lost behind the panel.
-    await markhinDash_showCloudPanel();
+    window.__mkCloudTab = 'manual';
+    await markhinDash_showCloudPanel(true);
     // Progress and the final result (including the specific failure reason) are shown by the
     // in-panel bar right under the "Save a new backup" button — see mkManualBkEnd().
+    window.__mkCloudTab = 'manual';
     await cloudBackupNow('manual', label, password, hint);
-    await markhinDash_showCloudPanel();
+    window.__mkCloudTab = 'manual';
+    await markhinDash_showCloudPanel(true);
 }
 window.markhinDash_cloudBackupClick = markhinDash_cloudBackupClick;
 
@@ -21333,10 +21559,10 @@ function mu_cloudConfirm(message) {
 // restore — the "👁 View" action from the panel's list.
 async function markhinDash_cloudViewBackup(id){
     const fa=currentLang==='fa';
-    const headHtml = markhinDash_headHtml(`👁 ${fa?'محتوای بکاپ':'Backup contents'}`,true,'markhinDash_showCloudPanel()');
+    const headHtml = markhinDash_headHtml(`👁 ${fa?'محتوای بکاپ':'Backup contents'}`,true,'markhinDash_showCloudPanel(true)');
     showAdvanced(headHtml+`<div id="cloudViewBody" style="font-size:12.5px;line-height:1.9">${fa?'در حال بارگذاری...':'Loading...'}</div>`);
     const result = await mu_cloudGetBackupData(id);
-    if (result && result.cancelled) { markhinDash_showCloudPanel(); return; }
+    if (result && result.cancelled) { markhinDash_showCloudPanel(true); return; }
     // The password prompt (if one was needed) replaced this modal's content with
     // its own dialog and then closed it again — re-show the loading skeleton so
     // there's always a #cloudViewBody to fill in below.
@@ -21356,7 +21582,7 @@ async function markhinDash_cloudViewBackup(id){
     const unlockedCount = notes.length - lockedCount;
     body.innerHTML =
         (result.meta.label ? `<p style="margin:0 0 4px"><b>📌 ${escapeHtml(result.meta.label)}</b></p>` : '') +
-        `<p style="opacity:.7">${mu_fmtCloudDate(result.meta.ts)} · ${notes.length} ${fa?'یادداشت':'notes'}${result.meta.skipped?` · ⚠️ ${result.meta.skipped} ${fa?'رد شد':'skipped'}`:''}</p>` +
+        `<p style="opacity:.7">${mu_fmtCloudDate(result.meta.ts)} · ${notes.length} ${fa?'یادداشت':'notes'} · ${fa?'حجم':'Size'}: ${mu_cloudEntrySizeText(result.meta)}${result.meta.skipped?` · ⚠️ ${result.meta.skipped} ${fa?'رد شد':'skipped'}`:''}</p>` +
         `<p style="opacity:.85;margin:2px 0 0">🔒 ${fa?'قفل‌دار':'Locked'}: ${lockedCount} · 🔓 ${fa?'بدون قفل':'Not locked'}: ${unlockedCount}</p>` +
         `<div style="margin:10px 0"><button type="button" class="btn-main btn-save-prominent" style="width:100%" onclick="markhinDash_cloudRestoreClick('${id}')">📥 ${fa?'بازیابی همین بکاپ':'Restore this backup'}</button></div>` +
         (rowsHtml || `<div class="markhin-smart-empty">${fa?'یادداشتی در این بکاپ نیست.':'No notes in this backup.'}</div>`);
@@ -21373,7 +21599,7 @@ async function markhinDash_cloudDeleteClick(id){
     showToast(fa?'در حال حذف...':'Deleting...', 1200);
     const deleted = await cloudDeleteBackup(id);
     showToast(deleted ? (fa?'🗑 بکاپ حذف شد.':'🗑 Backup deleted.') : mu_cloudReasonMsg('write-failed', fa), 2400);
-    markhinDash_showCloudPanel();
+    markhinDash_showCloudPanel(true);
 }
 window.markhinDash_cloudDeleteClick = markhinDash_cloudDeleteClick;
 
@@ -21387,13 +21613,25 @@ window.markhinDash_cloudDeleteClick = markhinDash_cloudDeleteClick;
 // specifics anyway). `force` mirrors "🔓 Restore and undo deletions": when
 // true, tombstoned notes are counted as coming back instead of skipped, and
 // the screen carries the same warning the old confirm dialog used to.
-async function markhinDash_cloudRestorePreview(id, force){
+// Fetched backup kept only while the person flips between the two restore modes on the
+// preview screen (so switching mode doesn't re-download a large backup). Any other entry
+// to the preview fetches fresh, because the auto slot can change at any time.
+let __mkRestorePrev = null;
+async function markhinDash_cloudRestorePreview(id, force, mode, reuse){
     const fa = currentLang==='fa';
+    mode = (mode === 'replace') ? 'replace' : 'merge';
     const headHtml = markhinDash_headHtml(`🔎 ${fa?'پیش‌نمایش بازیابی':'Restore preview'}`, true, `markhinDash_cloudViewBackup('${id}')`);
-    showAdvanced(headHtml+`<div style="font-size:12.5px;line-height:1.9">${fa?'در حال محاسبه...':'Calculating...'}</div>`);
-    const result = await mu_cloudGetBackupData(id);
-    if (result && result.cancelled) { markhinDash_cloudViewBackup(id); return; }
-    if (!result) { showToast(fa?'این بکاپ پیدا نشد یا خراب است.':'This backup could not be found or is corrupted.', 2600); markhinDash_showCloudPanel(); return; }
+    let result;
+    if (reuse && __mkRestorePrev && __mkRestorePrev.id === id) {
+        result = __mkRestorePrev.result;
+    } else {
+        __mkRestorePrev = null;
+        showAdvanced(headHtml+`<div style="font-size:12.5px;line-height:1.9">${fa?'در حال محاسبه...':'Calculating...'}</div>`);
+        result = await mu_cloudGetBackupData(id);
+        if (result && result.cancelled) { markhinDash_cloudViewBackup(id); return; }
+        if (!result) { showToast(fa?'این بکاپ پیدا نشد یا خراب است.':'This backup could not be found or is corrupted.', 2600); markhinDash_showCloudPanel(true); return; }
+        __mkRestorePrev = { id, result };
+    }
     // A person-created manual snapshot (kind==='manual') is a deliberate, one-off
     // save the user explicitly asked to keep — unlike the auto slot, which is
     // silently overwritten after every edit and merges in constantly (including
@@ -21405,9 +21643,18 @@ async function markhinDash_cloudRestorePreview(id, force){
     // auto slot keeps the normal safe behavior (tombstones still block it) unless
     // the person explicitly reaches "🔓 Restore and undo deletions" for it.
     if (result.meta && result.meta.kind === 'manual') force = true;
-    const diff = cloudComputeRestoreDiff(result.data, force);
-    const when = mu_fmtCloudDate(result.meta.ts);
-    const shortLabel = result.meta.label ? String(result.meta.label).slice(0, 40) : '';
+    const meta = result.meta || {};
+    const notesCount = Array.isArray(result.data.notes) ? result.data.notes.length : 0;
+    // Full replace is refused when it could delete notes that were never backed up:
+    // an incomplete backup (some notes didn't fit) or an empty one.
+    let replaceBlock = '';
+    if (meta.skipped) replaceBlock = fa ? `این بکاپ کامل نیست (${meta.skipped} یادداشت در آن جا نشده)؛ جایگزینی کامل ممکن بود یادداشت‌های بکاپ‌نشده را پاک کند.` : `This backup is incomplete (${meta.skipped} note(s) didn't fit); a full replace could delete notes that were never backed up.`;
+    else if (!notesCount && categories.length) replaceBlock = fa ? 'این بکاپ هیچ یادداشتی ندارد؛ جایگزینی کامل همه‌ی یادداشت‌های این دستگاه را پاک می‌کرد.' : 'This backup has no notes; a full replace would erase every note on this device.';
+    if (mode === 'replace' && replaceBlock) mode = 'merge';
+    const isReplace = mode === 'replace';
+    const diff = isReplace ? cloudComputeReplaceDiff(result.data) : cloudComputeRestoreDiff(result.data, force);
+    const when = mu_fmtCloudDate(meta.ts);
+    const shortLabel = meta.label ? String(meta.label).slice(0, 40) : '';
     const backupDesc = shortLabel ? (fa?`«${shortLabel}» (${when})`:`"${shortLabel}" (${when})`) : when;
 
     function listBlock(title, names){
@@ -21416,27 +21663,57 @@ async function markhinDash_cloudRestorePreview(id, force){
         const more = names.length > 8 ? `<div style="opacity:.6">+${names.length-8} ${fa?'مورد دیگر':'more'}</div>` : '';
         return `<div style="margin:0 0 10px"><b>${title} (${names.length})</b><div style="opacity:.8;margin-top:3px">${shown.join('، ')}</div>${more}</div>`;
     }
+    const q = s => `'${id}', ${force?'true':'false'}, '${s}', true`;
+    const modeBtn = (m, label) => `<button type="button" class="btn-main" ${(m==='replace' && replaceBlock)?'disabled':''} onclick="markhinDash_cloudRestorePreview(${q(m)})" style="flex:1;min-width:0;${mode===m?'outline:2px solid currentColor;font-weight:bold;':((m==='replace' && replaceBlock)?'opacity:.35;':'opacity:.7;')}">${label}</button>`;
+    const modeHtml =
+        `<div style="display:flex;gap:6px;margin:0 0 8px">${modeBtn('merge', '🔀 '+(fa?'ادغام با موجود':'Merge with existing'))}${modeBtn('replace', '♻️ '+(fa?'جایگزینی کامل':'Full replace'))}</div>` +
+        `<p style="opacity:.7;margin:0 0 12px;font-size:12px;line-height:1.8">${isReplace
+            ? (fa?'یادداشت‌ها و پوشه‌های این دستگاه دقیقاً مثل بکاپ می‌شوند: آنچه در بکاپ نیست حذف می‌شود و تغییرات جدیدتر روی نسخه‌ی بکاپ برمی‌گردند.':'Notes and folders on this device become exactly what the backup holds: anything not in it is deleted and newer edits go back to the backup version.')
+            : (fa?'یادداشت‌های فعلی حفظ می‌شوند؛ فقط موارد جدید اضافه و نسخه‌های قدیمی‌تر به‌روز می‌شوند. چیزی حذف نمی‌شود.':'Your current notes are kept; only new notes are added and older versions updated. Nothing is deleted.')}</p>` +
+        (replaceBlock ? `<p style="margin:0 0 12px;padding:8px;border-radius:8px;background:rgba(255,193,7,.12);font-size:12px;line-height:1.8">ℹ️ ${escapeHtml(replaceBlock)}</p>` : '');
 
-    const nothingToChange = !diff.added.length && !diff.updated.length && !diff.willRetire && !diff.newFolders.length;
-    const bodyHtml =
-        `<p style="opacity:.75;margin:0 0 12px">${fa?`بازیابی از ${backupDesc}:`:`Restoring from ${backupDesc}:`}</p>` +
-        (nothingToChange
-            ? `<div class="markhin-smart-empty">${fa?'تغییری لازم نیست؛ یادداشت‌های این دستگاه از این بکاپ جدیدتر یا برابرند.':'Nothing to change — the notes on this device are already as new as this backup.'}</div>`
-            : (
-                listBlock(fa?'🆕 یادداشت‌های جدید':'🆕 New notes', diff.added) +
-                listBlock(fa?'✏️ به‌روزرسانی می‌شوند':'✏️ Will be updated', diff.updated) +
-                (diff.newFolders.length ? `<div style="margin:0 0 10px"><b>📁 ${fa?'پوشه‌های جدید':'New folders'} (${diff.newFolders.length})</b><div style="opacity:.8;margin-top:3px">${diff.newFolders.map(escapeHtml).join('، ')}</div></div>` : '') +
-                (diff.willRetire ? `<p style="opacity:.75">🗑️ ${fa?`${diff.willRetire} یادداشت که جای دیگری حذف شده، اینجا هم ${force?'ممکن است تحت تاثیر قرار بگیرد':'حذف می‌شود'}.`:`${diff.willRetire} note(s) deleted elsewhere will ${force?'be affected here too':'be deleted here too'}.`}</p>` : '') +
-                (diff.unchanged ? `<p style="opacity:.55">✓ ${fa?`${diff.unchanged} یادداشت بدون تغییر`:`${diff.unchanged} note(s) unchanged`}</p>` : '')
-            )
-        ) +
-        (!force && diff.skippedDeleted.length ? `<p style="opacity:.6">🚫 ${fa?`${diff.skippedDeleted.length} یادداشتِ حذف‌شده روی این دستگاه دوباره اضافه نمی‌شود.`:`${diff.skippedDeleted.length} note(s) you deleted here won't be added back.`}</p>` : '') +
-        (force ? `<p style="margin:10px 0;padding:8px;border-radius:8px;background:rgba(255,193,7,.12)">⚠️ ${fa?'این حالت، یادداشت‌های حذف‌شده روی این دستگاه را هم برمی‌گرداند.':'This mode also brings back notes you deleted on this device.'}</p>` : '') +
+    let bodyHtml;
+    if (isReplace) {
+        const nothing = !diff.added.length && !diff.updated.length && !diff.removed.length && !diff.newFolders.length && !diff.removedFolders.length;
+        bodyHtml =
+            `<p style="opacity:.75;margin:0 0 12px">${fa?`جایگزینی کامل با ${backupDesc}:`:`Full replace with ${backupDesc}:`}</p>` +
+            (nothing
+                ? `<div class="markhin-smart-empty">${fa?'تغییری لازم نیست؛ این دستگاه از قبل دقیقاً مثل این بکاپ است.':'Nothing to change — this device already matches this backup.'}</div>`
+                : (
+                    listBlock(fa?'🆕 یادداشت‌های جدید':'🆕 New notes', diff.added) +
+                    listBlock(fa?'♻️ با نسخه‌ی بکاپ جایگزین می‌شوند':'♻️ Replaced by the backup version', diff.updated) +
+                    listBlock(fa?'🗑️ حذف می‌شوند (در بکاپ نیستند)':'🗑️ Deleted (not in the backup)', diff.removed) +
+                    (diff.newFolders.length ? `<div style="margin:0 0 10px"><b>📁 ${fa?'پوشه‌های جدید':'New folders'} (${diff.newFolders.length})</b><div style="opacity:.8;margin-top:3px">${diff.newFolders.map(escapeHtml).join('، ')}</div></div>` : '') +
+                    (diff.removedFolders.length ? `<div style="margin:0 0 10px"><b>📁 ${fa?'پوشه‌های حذف‌شونده':'Folders removed'} (${diff.removedFolders.length})</b><div style="opacity:.8;margin-top:3px">${diff.removedFolders.map(escapeHtml).join('، ')}</div></div>` : '') +
+                    (diff.unchanged ? `<p style="opacity:.55">✓ ${fa?`${diff.unchanged} یادداشت بدون تغییر`:`${diff.unchanged} note(s) unchanged`}</p>` : '')
+                )
+            ) +
+            (diff.removed.length || diff.updated.length
+                ? `<p style="margin:10px 0;padding:8px;border-radius:8px;background:rgba(255,107,122,.13);font-size:12px;line-height:1.8">⚠️ ${fa?'حذف و جایگزینی قابل بازگشت نیست و با سینک خودکار به دستگاه‌های دیگر هم می‌رسد. تصاویر یادداشت‌های حذف‌شده هم از بین می‌روند (تصاویر در بکاپ نیستند).':'Deleting and replacing cannot be undone and reaches your other devices through auto sync. Images of deleted notes are lost too (images are not part of backups).'}</p>`
+                : '');
+    } else {
+        const nothingToChange = !diff.added.length && !diff.updated.length && !diff.willRetire && !diff.newFolders.length;
+        bodyHtml =
+            `<p style="opacity:.75;margin:0 0 12px">${fa?`بازیابی از ${backupDesc}:`:`Restoring from ${backupDesc}:`}</p>` +
+            (nothingToChange
+                ? `<div class="markhin-smart-empty">${fa?'تغییری لازم نیست؛ یادداشت‌های این دستگاه از این بکاپ جدیدتر یا برابرند.':'Nothing to change — the notes on this device are already as new as this backup.'}</div>`
+                : (
+                    listBlock(fa?'🆕 یادداشت‌های جدید':'🆕 New notes', diff.added) +
+                    listBlock(fa?'✏️ به‌روزرسانی می‌شوند':'✏️ Will be updated', diff.updated) +
+                    (diff.newFolders.length ? `<div style="margin:0 0 10px"><b>📁 ${fa?'پوشه‌های جدید':'New folders'} (${diff.newFolders.length})</b><div style="opacity:.8;margin-top:3px">${diff.newFolders.map(escapeHtml).join('، ')}</div></div>` : '') +
+                    (diff.willRetire ? `<p style="opacity:.75">🗑️ ${fa?`${diff.willRetire} یادداشت که جای دیگری حذف شده، اینجا هم ${force?'ممکن است تحت تاثیر قرار بگیرد':'حذف می‌شود'}.`:`${diff.willRetire} note(s) deleted elsewhere will ${force?'be affected here too':'be deleted here too'}.`}</p>` : '') +
+                    (diff.unchanged ? `<p style="opacity:.55">✓ ${fa?`${diff.unchanged} یادداشت بدون تغییر`:`${diff.unchanged} note(s) unchanged`}</p>` : '')
+                )
+            ) +
+            (!force && diff.skippedDeleted.length ? `<p style="opacity:.6">🚫 ${fa?`${diff.skippedDeleted.length} یادداشتِ حذف‌شده روی این دستگاه دوباره اضافه نمی‌شود.`:`${diff.skippedDeleted.length} note(s) you deleted here won't be added back.`}</p>` : '') +
+            (force ? `<p style="margin:10px 0;padding:8px;border-radius:8px;background:rgba(255,193,7,.12)">⚠️ ${fa?'این حالت، یادداشت‌های حذف‌شده روی این دستگاه را هم برمی‌گرداند.':'This mode also brings back notes you deleted on this device.'}</p>` : '');
+    }
+    const confirmLabel = isReplace ? `♻️ ${fa?'تایید و جایگزینی کامل':'Confirm & replace'}` : `✅ ${fa?'تایید و بازیابی':'Confirm & restore'}`;
+    showAdvanced(headHtml + modeHtml + bodyHtml +
         `<div style="margin:14px 0 6px;display:flex;gap:8px">` +
-            `<button type="button" class="btn-main btn-save-prominent" style="flex:1" onclick="markhinDash_cloudRestoreConfirmed('${id}', ${force?'true':'false'})">✅ ${fa?'تایید و بازیابی':'Confirm & restore'}</button>` +
+            `<button type="button" class="btn-main btn-save-prominent" style="flex:1" onclick="markhinDash_cloudRestoreConfirmed('${id}', ${force?'true':'false'}, '${mode}')">${confirmLabel}</button>` +
             `<button type="button" class="btn-main" style="flex:1;opacity:.75" onclick="markhinDash_cloudViewBackup('${id}')">${fa?'انصراف':'Cancel'}</button>` +
-        `</div>`;
-    showAdvanced(headHtml + bodyHtml);
+        `</div>`);
 }
 window.markhinDash_cloudRestorePreview = markhinDash_cloudRestorePreview;
 
@@ -21444,11 +21721,46 @@ window.markhinDash_cloudRestorePreview = markhinDash_cloudRestorePreview;
 // above. Re-fetches the backup (its password, if any, is already cached by
 // mu_cloudGetBackupData) instead of threading the already-fetched payload
 // through the preview screen's onclick string, since backups can be large
-// and this keeps that call site a plain id + force flag.
-async function markhinDash_cloudRestoreConfirmed(id, force){
+// and this keeps that call site a plain id + force flag + mode.
+async function markhinDash_cloudRestoreConfirmed(id, force, mode){
     const fa = currentLang==='fa';
+    __mkRestorePrev = null;
     const result = await mu_cloudGetBackupData(id);
-    if (!result || result.cancelled) { markhinDash_showCloudPanel(); return; }
+    if (!result || result.cancelled) { markhinDash_showCloudPanel(true); return; }
+
+    if (mode === 'replace') {
+        const meta = result.meta || {};
+        const n = Array.isArray(result.data.notes) ? result.data.notes.length : 0;
+        if (meta.skipped || (!n && categories.length)) {
+            showToast(fa?'جایگزینی کامل برای این بکاپ ممکن نیست.':'Full replace is not possible for this backup.', 3000);
+            markhinDash_showCloudPanel(true); return;
+        }
+        const d = cloudComputeReplaceDiff(result.data);
+        if (d.removed.length || d.updated.length) {
+            const okc = await mu_cloudConfirm(fa
+                ? `${d.removed.length} یادداشت برای همیشه حذف و ${d.updated.length} یادداشت به نسخه‌ی بکاپ برگردانده می‌شود. قابل بازگشت نیست. ادامه می‌دهی؟`
+                : `${d.removed.length} note(s) will be permanently deleted and ${d.updated.length} reverted to the backup version. This cannot be undone. Continue?`);
+            if (!okc) return;
+        }
+        let r;
+        try { r = cloudApplyReplaceData(result.data); }
+        catch (e) {
+            console.warn('Full replace failed', e);
+            showToast(fa?'❌ جایگزینی انجام نشد؛ چیزی تغییر نکرد.':'❌ Full replace failed; nothing was changed.', 3400);
+            return;
+        }
+        cloudSetLinked();
+        saveToLocalStorage(); saveFoldersToLocalStorage();
+        try { if (typeof mu_flushStorage === 'function') await mu_flushStorage(); } catch (_) {}
+        try { if (typeof scheduleCloudBackup === 'function') scheduleCloudBackup(true); } catch (_) {}
+        showToast(fa
+            ? `✅ جایگزینی کامل انجام شد — ${r.added} جدید، ${r.updated} جایگزین‌شده، ${r.removed} حذف‌شده.`
+            : `✅ Full replace done — ${r.added} new, ${r.updated} replaced, ${r.removed} deleted.`, 3800);
+        closeAdvancedModal();
+        renderApp();
+        return;
+    }
+
     const { updated, added, skippedDeleted, retired } = cloudApplyMergeData(result.data, force);
     cloudSetLinked();
     saveToLocalStorage(); saveFoldersToLocalStorage();
@@ -21467,6 +21779,7 @@ async function markhinDash_cloudRestoreConfirmed(id, force){
 }
 window.markhinDash_cloudRestoreConfirmed = markhinDash_cloudRestoreConfirmed;
 
+
 // Entry point from the panel's list row and the "📥 Restore this backup"
 // button — now just opens the diff preview instead of applying straight
 // after a plain yes/no confirm.
@@ -21474,6 +21787,75 @@ async function markhinDash_cloudRestoreClick(id){
     return markhinDash_cloudRestorePreview(id, false);
 }
 window.markhinDash_cloudRestoreClick = markhinDash_cloudRestoreClick;
+
+// "✏️ Edit" on a saved manual backup: change its label and/or password after it was made.
+// Typing a new password (twice) sets/changes it; "🔓 Remove password" (encrypted backups only)
+// stores it unprotected; leaving the password boxes empty keeps the current protection.
+async function markhinDash_cloudEditClick(id){
+    const fa = currentLang==='fa';
+    let list;
+    try { list = await cloudListBackups(); }
+    catch (e) { showToast(mu_cloudReasonMsg('write-failed', fa), 2600); return; }
+    const entry = list.find(e => e.id === id && e.kind === 'manual');
+    if (!entry) { showToast(fa?'این بکاپ دیگر وجود ندارد.':'This backup no longer exists.', 2600); markhinDash_showCloudPanel(true); return; }
+    window.__mkCloudTab = 'manual';
+    const res = await promptFieldsModal({
+        title: fa ? '✏️ ویرایش بکاپ دستی' : '✏️ Edit manual backup',
+        message: entry.enc
+            ? (fa ? 'این بکاپ رمزدار است. برای عوض‌کردن رمز، رمز جدید را دو بار بنویس (راهنما هم همان‌جا تنظیم می‌شود)، یا «حذف رمز» را بزن. اگر رمزها را خالی بگذاری، رمز و راهنمای فعلی بدون تغییر می‌ماند.' : 'This backup is password-protected. To change the password enter a new one twice (the hint is set there too), or tap "Remove password". Leave the password boxes empty to keep the current password and hint.')
+            : (fa ? 'برچسب را تغییر بده. برای رمزدار کردن این بکاپ، رمز را دو بار بنویس؛ خالی بگذاری بدون رمز می‌ماند.' : 'Change the label. To password-protect this backup enter a password twice; leave it empty to keep it unprotected.'),
+        fields: [
+            { id: 'label', type: 'text', label: fa ? 'برچسب' : 'Label', placeholder: fa ? 'برچسب اختیاری…' : 'Optional label…', defaultValue: entry.label || '' },
+            { id: 'pw', type: 'password', label: entry.enc ? (fa ? 'رمز جدید (اختیاری)' : 'New password (optional)') : (fa ? 'رمز (اختیاری)' : 'Password (optional)'), placeholder: fa ? '🔐 رمز' : '🔐 Password' },
+            { id: 'pw2', type: 'password', label: fa ? 'تکرار رمز' : 'Repeat password', placeholder: fa ? '🔐 تکرار رمز' : '🔐 Repeat password' },
+            { id: 'hint', type: 'text', label: fa ? 'راهنمای رمز (اختیاری)' : 'Password hint (optional)', placeholder: fa ? 'راهنمای رمز…' : 'Password hint…' }
+        ],
+        matchGroup: { a: 'pw', b: 'pw2', unlock: 'hint', optional: true },
+        okText: fa ? '💾 ذخیره' : '💾 Save',
+        extraButton: entry.enc ? { label: fa ? '🔓 حذف رمز' : '🔓 Remove password' } : undefined
+    });
+    if (!res) { markhinDash_showCloudPanel(true); return; }
+
+    const label = String(res.values.label || '').trim().slice(0, CLOUD_LABEL_MAX_LEN);
+    const newPw = String(res.values.pw || '').trim();
+    let mode = 'keep';
+    if (res.action === 'extra') mode = 'remove';
+    else if (newPw) mode = 'set';
+    if (mode === 'keep' && label === String(entry.label || '')) {
+        showToast(fa ? 'ℹ️ تغییری ثبت نشد.' : 'ℹ️ Nothing was changed.', 2000);
+        markhinDash_showCloudPanel(true); return;
+    }
+    if (mode === 'remove') {
+        const okc = await mu_cloudConfirm(fa ? 'رمز این بکاپ حذف می‌شود و محتوایش بدون رمز در Cloud می‌ماند. ادامه می‌دهی؟' : "This backup's password will be removed and its content will be stored unprotected. Continue?");
+        if (!okc) { markhinDash_showCloudPanel(true); return; }
+    }
+    // Changing/removing the password of an encrypted backup needs the CURRENT password.
+    let currentPassword = '';
+    if (entry.enc && mode !== 'keep') {
+        const got = await mu_cloudGetBackupData(id);
+        if (got && got.cancelled) { markhinDash_showCloudPanel(true); return; }
+        if (!got) { showToast(fa?'این بکاپ پیدا نشد یا خراب است.':'This backup could not be found or is corrupted.', 2800); markhinDash_showCloudPanel(true); return; }
+        currentPassword = __mkCloudPassCache.get(id) || '';
+    }
+    showToast(fa ? '⏳ در حال ذخیره‌ی تغییرات…' : '⏳ Saving changes…', 60000);
+    const r = await cloudEditManualBackup(id, { label, passwordMode: mode, newPassword: newPw, hint: res.values.hint, currentPassword });
+    __mkCloudPassCache.delete(id);
+    if (r && r.ok) {
+        showToast(mode === 'set' ? (fa?'✅ بکاپ ویرایش شد و رمز تنظیم شد.':'✅ Backup updated and password set.')
+            : mode === 'remove' ? (fa?'✅ بکاپ ویرایش شد و رمز حذف شد.':'✅ Backup updated and password removed.')
+            : (fa?'✅ برچسب ذخیره شد.':'✅ Label saved.'), 2800);
+    } else {
+        const reason = r && r.reason;
+        showToast(reason === 'missing' ? (fa?'این بکاپ دیگر وجود ندارد.':'This backup no longer exists.')
+            : reason === 'wrong-password' ? (fa?'❌ رمز فعلی اشتباه بود؛ چیزی تغییر نکرد.':'❌ Wrong current password; nothing was changed.')
+            : reason === 'bad-input' ? (fa?'❌ رمز معتبر وارد نشد.':'❌ No valid password entered.')
+            : reason === 'no-space' ? (fa?'⚠️ فضای Cloud برای این تغییر کافی نیست (رمزنگاری کمی حجم را بیشتر می‌کند). یک بکاپ دستی قدیمی را حذف کن یا تعداد بکاپ‌ها را کم کن.':'⚠️ Not enough Cloud space for this change (encryption adds a little size). Delete an older manual backup or lower the backup count.')
+            : mu_cloudReasonMsg(reason || 'write-failed', fa), 3600);
+    }
+    markhinDash_showCloudPanel(true);
+}
+window.markhinDash_cloudEditClick = markhinDash_cloudEditClick;
+
 
 // "🔓 Restore and undo deletions" — the deliberate-override counterpart to
 // markhinDash_cloudRestoreClick above. A normal restore skips any note this
@@ -21502,6 +21884,7 @@ return {
     showCloudPanel: markhinDash_showCloudPanel,
     cloudBackupClick: markhinDash_cloudBackupClick,
     cloudRestoreClick: markhinDash_cloudRestoreClick,
+    cloudEditClick: markhinDash_cloudEditClick,
     cloudViewBackup: markhinDash_cloudViewBackup,
     cloudDeleteClick: markhinDash_cloudDeleteClick
 };
