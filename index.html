@@ -287,7 +287,6 @@ setTimeout(finish,MAX)})();</script>
     <link rel="preconnect" href="https://fonts.cdnfonts.com">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.cdnfonts.com/css/cyberpunk" media="print" onload="this.media='all';window.__muFontSwapRestore&&window.__muFontSwapRestore();">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&family=Orbitron:wght@700&family=Cinzel:wght@700&family=Share+Tech+Mono&family=Creepster&family=Poller+One&family=Dancing+Script:wght@700&family=Quicksand:wght@500;700&family=Pacifico&family=Lalezar&display=swap" media="print" onload="this.media='all';window.__muFontSwapRestore&&window.__muFontSwapRestore();">
     <script>
         /* -----------------------------------------------------------------
@@ -599,8 +598,7 @@ setTimeout(finish,MAX)})();</script>
         };
     </script>
     <noscript>
-        <link rel="stylesheet" href="https://fonts.cdnfonts.com/css/cyberpunk">
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&family=Orbitron:wght@700&family=Cinzel:wght@700&family=Share+Tech+Mono&family=Creepster&family=Poller+One&family=Dancing+Script:wght@700&family=Quicksand:wght@500;700&family=Pacifico&family=Lalezar&display=swap">
+            <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&family=Orbitron:wght@700&family=Cinzel:wght@700&family=Share+Tech+Mono&family=Creepster&family=Poller+One&family=Dancing+Script:wght@700&family=Quicksand:wght@500;700&family=Pacifico&family=Lalezar&display=swap">
     </noscript>
     <style>
 
@@ -654,19 +652,18 @@ setTimeout(finish,MAX)})();</script>
            for a single frame every time the page scrolls, which reads as the
            whole page "jumping". transform:translateZ(0) plus will-change is
            what forces that dedicated layer. */
-        body.theme-oceanic::before, body.theme-oceanic::after,
+        body.theme-oceanic::before,
         body.theme-midnightblue::before, body.theme-midnightblue::after,
         body.theme-spider::before, body.theme-spider::after,
-        .mu-spider-web, .mu-spider::before, .mu-spider::after,
+        .mu-spider-web,
         body.theme-aurora::before, body.theme-aurora::after,
-        body.theme-dreamy::before, body.theme-dreamy::after,
+        body.theme-dreamy::before,
         body.theme-phantom::before, body.theme-phantom::after,
         body.theme-aurora-phantom::before,
         body.theme-redhorizon::before, body.theme-redhorizon::after,
         .mu-redhorizon-stars, .mu-redhorizon-stars::before, .mu-redhorizon-stars::after,
         body.theme-yourname::before, body.theme-yourname::after,
-        body.theme-interstellar::before, body.theme-interstellar::after,
-        .mu-interstellar-ring,
+        body.theme-interstellar::before,
         body.theme-terminal::before, body.theme-terminal::after,
         .mu-terminal-cursor,
         body.theme-darkweb::before,
@@ -675,21 +672,18 @@ setTimeout(finish,MAX)})();</script>
         .mu-vampire-branches,
         body.theme-halloween::before, body.theme-halloween::after,
         .mu-halloween-pumpkin, .mu-halloween-fog, .mu-halloween-branches,
-        body.theme-hogwarts::before, body.theme-hogwarts::after,
-        .mu-hogwarts-castle, .mu-hogwarts-lake, .mu-hogwarts-lake::before, .mu-hogwarts-lake::after,
+        body.theme-hogwarts::before,
+        .mu-hogwarts-castle,
         body.theme-strangerthings::before, body.theme-strangerthings::after,
-        .mu-st-forest, .mu-st-portal, .mu-st-bike, .mu-st-bike::before, .mu-st-bike::after, .mu-st-static,
+        .mu-st-portal, .mu-st-static,
         body.theme-homealone::before, body.theme-homealone::after,
         .mu-ha-street, .mu-ha-paintcan, .mu-ha-paintcan::before, .mu-ha-paintcan::after, .mu-ha-footprints,
-        body.theme-onepiece::before, body.theme-onepiece::after,
-        .mu-op-waves, .mu-op-waves::before, .mu-op-waves::after,
-        .mu-op-ship, .mu-op-bob, .mu-op-flag, .mu-op-gulls span,
+        body.theme-onepiece::before,
         body.theme-hugo::before, body.theme-hugo::after,
         body.theme-anime::before, body.theme-anime::after,
         body.theme-anonymous::before, body.theme-anonymous::after,
         .mu-anon-beam,
         body.theme-love::before, body.theme-love::after,
-        body.theme-cyberpunk::before, body.theme-cyberpunk::after,
         .top-right-controls {
             transform: translateZ(0);
             backface-visibility: hidden;
@@ -714,9 +708,6 @@ setTimeout(finish,MAX)})();</script>
         body.mu-scrolling[class*="theme-"]::before,
         body.mu-scrolling[class*="theme-"]::after,
         body.mu-scrolling .mu-spider-web,
-        body.mu-scrolling .mu-spider::before,
-        body.mu-scrolling .mu-spider::after,
-        body.mu-scrolling .mu-interstellar-ring,
         body.mu-scrolling .mu-terminal-cursor,
         body.mu-scrolling .mu-darkweb-rain-col,
         body.mu-scrolling .mu-darkweb-scanlines,
@@ -730,24 +721,12 @@ setTimeout(finish,MAX)})();</script>
         body.mu-scrolling .mu-halloween-branches,
         body.mu-scrolling .mu-hogwarts-castle,
         body.mu-scrolling .mu-hc-clockface,
-        body.mu-scrolling .mu-hogwarts-lake,
-        body.mu-scrolling .mu-hogwarts-lake::before,
-        body.mu-scrolling .mu-hogwarts-lake::after,
         body.mu-scrolling .mu-st-portal,
-        body.mu-scrolling .mu-st-bike,
         body.mu-scrolling .mu-st-static,
         body.mu-scrolling .mu-ha-paintcan,
         body.mu-scrolling .mu-ha-street,
         body.mu-scrolling.theme-homealone::after,
-        body.mu-scrolling .mu-op-waves::before,
-        body.mu-scrolling .mu-op-waves::after,
-        body.mu-scrolling .mu-op-ship,
-        body.mu-scrolling .mu-op-bob,
-        body.mu-scrolling .mu-op-flag,
-        body.mu-scrolling .mu-op-gulls span,
-        body.mu-scrolling .mu-anon-beam,
-        body.mu-scrolling.theme-cyberpunk::before,
-        body.mu-scrolling.theme-cyberpunk::after {
+        body.mu-scrolling .mu-anon-beam {
             animation-play-state: paused !important;
             filter: none !important;
             /* Keep the fixed layer painted; removing/recompositing it while a
@@ -778,10 +757,7 @@ setTimeout(finish,MAX)})();</script>
             body[class*="theme-"]::before, body[class*="theme-"]::after {
                 animation: none !important;
             }
-            .mu-spider-web, .mu-spider::before, .mu-spider::after {
-                animation: none !important;
-            }
-            .mu-interstellar-ring {
+            .mu-spider-web {
                 animation: none !important;
             }
             .mu-terminal-cursor {
@@ -790,7 +766,7 @@ setTimeout(finish,MAX)})();</script>
             .mu-darkweb-rain-col, .mu-darkweb-scanlines {
                 animation: none !important;
             }
-            body.theme-dreamy::before, body.theme-dreamy::after {
+            body.theme-dreamy::before {
                 animation: none !important;
             }
             .mu-redhorizon-stars::before, .mu-redhorizon-stars::after {
@@ -806,19 +782,17 @@ setTimeout(finish,MAX)})();</script>
             .mu-halloween-pumpkin, .mu-halloween-fog, .mu-halloween-branches {
                 animation: none !important;
             }
-            .mu-hogwarts-castle, .mu-hc-clockface, .mu-hogwarts-lake, .mu-hogwarts-lake::before, .mu-hogwarts-lake::after {
+            .mu-hogwarts-castle, .mu-hc-clockface {
                 animation: none !important;
             }
-            .mu-st-portal, .mu-st-bike, .mu-st-bike::before, .mu-st-bike::after, .mu-st-static {
+            .mu-st-portal, .mu-st-static {
                 animation: none !important;
             }
             body.theme-homealone::before, body.theme-homealone::after,
             .mu-ha-paintcan {
                 animation: none !important;
             }
-            body.theme-onepiece::before, body.theme-onepiece::after,
-            .mu-op-waves::before, .mu-op-waves::after,
-            .mu-op-ship, .mu-op-bob, .mu-op-flag, .mu-op-gulls span {
+            body.theme-onepiece::before {
                 animation: none !important;
             }
             body.theme-hugo::before, body.theme-hugo::after {
@@ -834,14 +808,11 @@ setTimeout(finish,MAX)})();</script>
             body.theme-love::before, body.theme-love::after {
                 animation: none !important;
             }
-            body.theme-cyberpunk::before, body.theme-cyberpunk::after {
-                animation: none !important;
-            }
         }
 
         /* Themes with Enhanced Aesthetics & Animations */
-        /* Oceanic — deep-sea gradient with drifting sunlit caustics and a
-           slow stream of rising bubbles, for a more immersive underwater vibe. */
+        /* Oceanic — deep-sea gradient with drifting sunlit caustics for a
+           more immersive underwater vibe (the rising bubbles were removed on request). */
         body.theme-oceanic {
             --bg-gradient: linear-gradient(165deg, #014f79 0%, #01324f 30%, #012036 60%, #00121f 100%) !important;
             --panel-bg: rgba(72, 202, 228, 0.05) !important;
@@ -889,34 +860,6 @@ setTimeout(finish,MAX)})();</script>
             50%  { transform: translate3d(-2%, 2%, 0); }
             100% { transform: translate3d(2%, -1.5%, 0); }
         }
-        body.theme-oceanic::after {
-            /* A gentle stream of bubbles rising from the bottom of the screen. */
-            content: "";
-            position: fixed;
-            inset: 0;
-            pointer-events: none;
-            z-index: -1;
-            background-repeat: no-repeat;
-            /* Stop count trimmed from 7 to 4: background-position keyframes
-               can't be handed off to the compositor the way transform/opacity
-               can, so every tick repaints this whole fixed layer — fewer
-               gradient stops means less to recompute per repaint, for a bubble
-               stream that reads the same at a glance. */
-            background-image:
-                radial-gradient(circle 3px at 12% 0%, rgba(202, 240, 248, .55), transparent 65%),
-                radial-gradient(circle 4px at 38% 0%, rgba(202, 240, 248, .4), transparent 65%),
-                radial-gradient(circle 2.5px at 62% 0%, rgba(202, 240, 248, .5), transparent 65%),
-                radial-gradient(circle 3px at 86% 0%, rgba(202, 240, 248, .4), transparent 65%);
-            background-position:
-                12% 108%, 38% 118%, 62% 110%, 86% 116%;
-            contain: paint;
-            animation: oceanBubbles 16s linear infinite;
-            opacity: .8;
-        }
-        @keyframes oceanBubbles {
-            0%   { background-position: 12% 108%, 38% 118%, 62% 110%, 86% 116%; }
-            100% { background-position: 10% -15%, 34% -20%, 60% -12%, 84% -18%; }
-        }
 
         body.theme-spider {
             --bg-gradient: radial-gradient(circle, #1a001d 0%, #050008 100%) !important;
@@ -949,6 +892,7 @@ setTimeout(finish,MAX)})();</script>
             100% { transform: translate3d(2%, -1%, 0); }
         }
         body.theme-spider::after {
+            display: none; /* stars removed on request */
             content: "";
             position: fixed;
             inset: 0;
@@ -1000,57 +944,10 @@ setTimeout(finish,MAX)})();</script>
             0%, 100% { opacity: .45; }
             50%      { opacity: .7; }
         }
-        .mu-spider { display: none; }
-        body.theme-spider .mu-spider {
-            display: block;
-            position: fixed;
-            top: 0;
-            right: 64px;
-            width: 2px;
-            height: 140px;
-            pointer-events: none;
-            z-index: -1;
-            contain: paint;
-        }
-        body.theme-spider .mu-spider::before {
-            content: "";
-            position: absolute;
-            top: 0; left: 50%;
-            width: 1.5px;
-            height: 130px;
-            background: linear-gradient(rgba(220, 180, 255, .55), rgba(220, 180, 255, .15));
-            transform-origin: top center;
-            animation: spiderThread 18s ease-in-out infinite;
-        }
-        @keyframes spiderThread {
-            0%   { transform: translateX(-50%) scaleY(0); }
-            32%  { transform: translateX(-50%) scaleY(1); }
-            68%  { transform: translateX(-50%) scaleY(1); }
-            100% { transform: translateX(-50%) scaleY(0); }
-        }
-        body.theme-spider .mu-spider::after {
-            content: "🕷️";
-            position: absolute;
-            top: 0; left: 50%;
-            font-size: 22px;
-            line-height: 1;
-            filter: drop-shadow(0 0 6px rgba(220, 140, 255, .55));
-            animation: spiderDangle 18s ease-in-out infinite;
-        }
-        @keyframes spiderDangle {
-            0%   { transform: translateX(-50%) translateY(0) rotate(0deg); }
-            32%  { transform: translateX(-50%) translateY(130px) rotate(0deg); }
-            40%  { transform: translateX(-50%) translateY(130px) rotate(-5deg); }
-            48%  { transform: translateX(-50%) translateY(130px) rotate(5deg); }
-            56%  { transform: translateX(-50%) translateY(130px) rotate(-3deg); }
-            64%  { transform: translateX(-50%) translateY(130px) rotate(0deg); }
-            68%  { transform: translateX(-50%) translateY(130px) rotate(0deg); }
-            100% { transform: translateX(-50%) translateY(0) rotate(0deg); }
-        }
 
         /* Dreamy (رویایی) — a soft lucid dreamscape at night, built with the
            same layered recipe as the other enhanced themes: an ambient sky
-           wash + twinkling stars behind everything, a properly shaded pearl-
+           wash behind everything (the stars were removed on request), a properly shaded pearl-
            pink moon breathing softly in the corner with thin mist crossing
            it, and — the theme's own signature — a handful of glowing pastel
            "dream orbs" that drift slowly upward and sway side to side before
@@ -1089,92 +986,7 @@ setTimeout(finish,MAX)})();</script>
             50%  { transform: translate3d(2.5%, -2%, 0); }
             100% { transform: translate3d(-2.5%, 2%, 0); }
         }
-        /* A scatter of soft twinkling stars behind the dream-orbs and moon. */
-        body.theme-dreamy::after {
-            content: "";
-            position: fixed;
-            inset: 0;
-            pointer-events: none;
-            z-index: -1;
-            contain: paint;
-            background-image:
-                radial-gradient(circle 1px at 15% 20%, rgba(255, 255, 255, .85), transparent 100%),
-                radial-gradient(circle 1.5px at 45% 12%, rgba(255, 214, 240, .7), transparent 100%),
-                radial-gradient(circle 1px at 72% 24%, rgba(214, 200, 255, .65), transparent 100%),
-                radial-gradient(circle 1.5px at 88% 40%, rgba(200, 225, 255, .5), transparent 100%),
-                radial-gradient(circle 1px at 30% 45%, rgba(255, 255, 255, .45), transparent 100%),
-                radial-gradient(circle 1px at 58% 55%, rgba(255, 214, 240, .4), transparent 100%);
-            animation: dreamyTwinkle 6s ease-in-out infinite alternate;
-        }
-        @keyframes dreamyTwinkle {
-            0%   { opacity: .45; }
-            50%  { opacity: 1; }
-            100% { opacity: .55; }
-        }
 
-        /* Cyberpunk — a rain-slicked neon city at night: a violet-to-black
-           gradient with a magenta glow low on the horizon, a fine cyan/
-           magenta grid drifting like distant skyline windows, an
-           occasional CRT-style glitch flicker, a bright dual-color scan
-           beam sweeping down the screen, and a slow rise of small glowing
-           data-bits drifting up through the dark like sparks off a neon
-           sign. Same layered ::before/::after recipe as the other
-           animated themes, plus two dedicated moving elements. No emoji
-           anywhere in it. */
-        body.theme-cyberpunk {
-            --bg-gradient: radial-gradient(ellipse 90% 60% at 50% 100%, #3a0a5c 0%, #1c0838 30%, #10041f 55%, #05000d 100%) !important;
-            --panel-bg: rgba(0, 240, 255, 0.045) !important;
-            --panel-border: rgba(255, 0, 200, 0.22) !important;
-            --card-bg: rgba(7, 0, 18, 0.87) !important;
-            --text-color: #4ff5ff !important;
-            text-shadow: 0 0 6px rgba(79, 245, 255, 0.35), 0 1px 3px rgba(0, 0, 0, 0.65) !important;
-        }
-        body.theme-cyberpunk::before {
-            /* Fine skyline grid drifting slowly, with a warm magenta glow
-               pooling near the bottom like neon reflected off wet streets,
-               and a cooler cyan glow high up — a breathing city horizon. */
-            content: "";
-            position: fixed;
-            inset: 0;
-            pointer-events: none;
-            z-index: -1;
-            contain: paint;
-            background:
-                linear-gradient(rgba(0, 240, 255, .05) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255, 0, 200, .05) 1px, transparent 1px),
-                radial-gradient(ellipse 80% 45% at 50% 105%, rgba(255, 0, 200, .22) 0%, transparent 70%),
-                radial-gradient(ellipse 65% 35% at 50% -5%, rgba(0, 240, 255, .12) 0%, transparent 70%);
-            background-size: 38px 38px, 38px 38px, 100% 100%, 100% 100%;
-            animation: cyberGridDrift 7s linear infinite, cyberPulse 5s ease-in-out infinite;
-        }
-        @keyframes cyberGridDrift {
-            0%   { background-position: 0 0,   0 0, 0 0, 0 0; }
-            100% { background-position: 0 38px, 38px 0, 0 0, 0 0; }
-        }
-        @keyframes cyberPulse {
-            0%, 100% { opacity: .82; }
-            50%      { opacity: 1; }
-        }
-        body.theme-cyberpunk::after {
-            /* A subtle CRT/hologram flicker — mostly steady, with a brief,
-               irregular glitch every few seconds where the image seems to
-               judder half a pixel, like a signal losing sync for a beat. */
-            content: "";
-            position: fixed;
-            inset: 0;
-            pointer-events: none;
-            z-index: -1;
-            contain: paint;
-            background: repeating-linear-gradient(0deg, rgba(255, 255, 255, .025) 0px, rgba(255, 255, 255, .025) 1px, transparent 1px, transparent 3px);
-            animation: cyberGlitch 6.5s steps(1) infinite;
-        }
-        @keyframes cyberGlitch {
-            0%, 91%, 100% { opacity: .3; transform: translate3d(0, 0, 0); }
-            92%           { opacity: .55; transform: translate3d(-2px, 0, 0); }
-            93%           { opacity: .2;  transform: translate3d(2px, 0, 0); }
-            94%           { opacity: .5;  transform: translate3d(-1px, 0, 0); }
-            95%, 97%      { opacity: .25; transform: translate3d(0, 0, 0); }
-        }
         /* Love — a warm, candlelit dusk rather than anything literal: deep
            wine-rose fading to near-black, a soft golden warmth breathing
            slowly near the top like candlelight through a curtain (never a
@@ -1277,12 +1089,7 @@ setTimeout(finish,MAX)})();</script>
             color: #f5f5f5 !important;
             text-shadow: 0 0 8px rgba(255, 255, 255, .3), 0 1px 3px rgba(0, 0, 0, .7) !important;
         }
-        body.theme-anonymous .btn-main {
-            background: linear-gradient(180deg, rgba(26, 26, 26, .92) 0%, rgba(6, 6, 6, .96) 100%) !important;
-            border: 1px solid rgba(255, 255, 255, .16) !important;
-            color: #f2f2f2 !important;
-            box-shadow: 0 0 0 1px rgba(255, 255, 255, .04) inset, 0 2px 8px rgba(0, 0, 0, .45) !important;
-        }
+        body.theme-anonymous .btn-main { color: #f2f2f2 !important; }
 
         /* Terminal — a classic green-phosphor CRT hacker console: fine
            scanlines with a faint flicker, a scatter of falling code columns
@@ -1481,22 +1288,10 @@ setTimeout(finish,MAX)})();</script>
             color: #ff8a8a !important;
             text-shadow: 0 0 10px rgba(255, 60, 60, .55), 0 1px 3px rgba(0, 0, 0, .85) !important;
         }
-        body.theme-darkweb .btn-main {
-            font-family: 'Share Tech Mono', monospace !important;
-            background: linear-gradient(180deg, rgba(40, 0, 0, .9) 0%, rgba(10, 0, 0, .95) 100%) !important;
-            border: 1px solid rgba(255, 60, 60, .35) !important;
-            color: #ff9a9a !important;
-            box-shadow: 0 0 0 1px rgba(255, 60, 60, .12) inset, 0 2px 8px rgba(0, 0, 0, .5) !important;
-        }
-        body.theme-darkweb .btn-main:hover {
-            border-color: rgba(255, 80, 80, .85) !important;
-            box-shadow: 0 0 10px rgba(255, 60, 60, .35), 0 0 0 1px rgba(255, 60, 60, .2) inset !important;
-        }
+        body.theme-darkweb .btn-main { font-family: 'Share Tech Mono', monospace !important; color: #ff9a9a !important; }
 
         /* Interstellar — the film's signature shot: Gargantua's black silhouette
-           wrapped in a glowing warm-amber accretion disk, hanging in a field of
-           distant stars, with a thin warped ring of light arcing over the disk
-           (gravitational lensing bending its own glow up and over itself).
+           wrapped in a glowing warm-amber accretion disk, hanging in empty black space (the stars were removed on request), (the spinning golden ring around it was removed on request).
            Same layered recipe as the other animated themes above (blurred
            glow + static twinkle + one dedicated moving element), built
            around this film's own imagery. */
@@ -1526,7 +1321,7 @@ setTimeout(finish,MAX)})();</script>
            layers (opacity:0 + will-change) and the theme class just flips
            opacity to 1 with no transition, so they appear in the same frame
            as the background. */
-        .mu-interstellar-hole, .mu-interstellar-ring {
+        .mu-interstellar-hole {
             display: block;
             position: fixed;
             left: calc(78% - 100px);
@@ -1540,9 +1335,9 @@ setTimeout(finish,MAX)})();</script>
             backface-visibility: hidden;
             will-change: transform, opacity;
         }
-        body.theme-interstellar .mu-interstellar-hole,
-        body.theme-interstellar .mu-interstellar-ring {
-            opacity: 1;
+        body.theme-interstellar .mu-interstellar-hole {
+            display: none; /* black hole removed on request */
+            opacity: 0;
         }
         /* The hole and ring are drawn as SVG instead of CSS boxes (gradient +
            border-radius + box-shadow + contain:paint). A boxed layer could be
@@ -1550,7 +1345,7 @@ setTimeout(finish,MAX)})();</script>
            entered (amber square, then it snapped to the right shape); an SVG
            has no box background to paint, so there's nothing square to show.
            The short fade-in also hides any first-frame raster hiccup. */
-        .mu-interstellar-hole svg, .mu-interstellar-ring svg {
+        .mu-interstellar-hole svg {
             position: absolute;
             left: -18px;
             top: -18px;
@@ -1570,7 +1365,6 @@ setTimeout(finish,MAX)})();</script>
             position: fixed;
             top: -8%; left: -8%; right: -8%; bottom: -8%;
             background:
-                radial-gradient(circle 190px at 74.14% 27.59%, rgba(255, 220, 165, .38) 0%, rgba(255, 175, 95, .22) 35%, rgba(150, 70, 20, .1) 65%, transparent 100%),
                 radial-gradient(ellipse 50% 30% at 18% 85%, rgba(70, 110, 190, .08) 0%, transparent 65%);
             filter: blur(6px);
             pointer-events: none;
@@ -1586,44 +1380,6 @@ setTimeout(finish,MAX)})();</script>
             0%   { transform: translate3d(0, 0, 0); }
             50%  { transform: translate3d(1%, -1%, 0); }
             100% { transform: translate3d(-1%, 1%, 0); }
-        }
-        body.theme-interstellar::after {
-            /* A distant scatter of stars, twinkling faintly — deep space is
-               never actually empty. */
-            content: "";
-            position: fixed;
-            inset: 0;
-            pointer-events: none;
-            z-index: -1;
-            contain: paint;
-            background-image:
-                radial-gradient(circle 1px at 10% 15%, rgba(255, 255, 255, .8), transparent 100%),
-                radial-gradient(circle 1.5px at 28% 8%, rgba(255, 255, 255, .65), transparent 100%),
-                radial-gradient(circle 1px at 46% 32%, rgba(255, 255, 255, .55), transparent 100%),
-                radial-gradient(circle 1px at 62% 12%, rgba(255, 255, 255, .6), transparent 100%),
-                radial-gradient(circle 1.5px at 15% 55%, rgba(255, 255, 255, .45), transparent 100%),
-                radial-gradient(circle 1px at 35% 70%, rgba(255, 255, 255, .4), transparent 100%),
-                radial-gradient(circle 1px at 90% 60%, rgba(255, 255, 255, .5), transparent 100%);
-            animation: interstellarTwinkle 6.5s ease-in-out infinite alternate;
-        }
-        @keyframes interstellarTwinkle {
-            0%   { opacity: .5; }
-            50%  { opacity: 1; }
-            100% { opacity: .6; }
-        }
-        /* The warped light ring — Gargantua's signature detail: gravitational
-           lensing bends the accretion disk's own light up and over the black
-           hole, so a thin bright arc appears to wrap above (and below) the
-           silhouette rather than only circling it edge-on. Drawn as a ring
-           (a circle with only its border painted) centered on the same fixed
-           point as the black disk baked into --bg-gradient above, rotating
-           very slowly so the shimmer never looks static. */
-        body.theme-interstellar .mu-interstellar-ring {
-            animation: interstellarRingSpin 34s linear infinite;
-        }
-        @keyframes interstellarRingSpin {
-            0%   { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
         }
 
         /* Halloween — deep purple-to-black night sky over a harvest field,
@@ -1948,98 +1704,8 @@ setTimeout(finish,MAX)})();</script>
             50%  { transform: translate3d(-1.5%, 1%, 0); }
             100% { transform: translate3d(1.5%, -1%, 0); }
         }
-        body.theme-redhorizon::after {
-            content: "";
-            position: fixed;
-            inset: 0;
-            pointer-events: none;
-            z-index: -1;
-            contain: paint;
-            background-image:
-                radial-gradient(circle 1px at 10% 14%, rgba(255, 240, 224, .75), transparent 100%),
-                radial-gradient(circle 1.5px at 30% 8%, rgba(255, 240, 224, .6), transparent 100%),
-                radial-gradient(circle 1px at 72% 10%, rgba(255, 240, 224, .55), transparent 100%),
-                radial-gradient(circle 1.5px at 90% 20%, rgba(255, 240, 224, .5), transparent 100%),
-                radial-gradient(circle 1px at 50% 16%, rgba(255, 240, 224, .4), transparent 100%),
-                radial-gradient(circle 1px at 6% 30%, rgba(255, 226, 200, .4), transparent 100%),
-                radial-gradient(circle 2px at 95% 34%, rgba(255, 236, 214, .35), transparent 100%),
-                radial-gradient(circle 1px at 62% 6%, rgba(255, 230, 208, .5), transparent 100%),
-                radial-gradient(circle 1px at 24% 22%, rgba(255, 236, 214, .45), transparent 100%),
-                radial-gradient(circle 1.5px at 44% 38%, rgba(255, 230, 208, .38), transparent 100%),
-                radial-gradient(circle 1px at 82% 44%, rgba(255, 226, 200, .3), transparent 100%),
-                radial-gradient(circle 1px at 4% 46%, rgba(255, 236, 214, .32), transparent 100%);
-            animation: redHorizonTwinkle 6.5s ease-in-out infinite alternate;
-        }
-        @keyframes redHorizonTwinkle {
-            0%   { opacity: .45; }
-            50%  { opacity: 1; }
-            100% { opacity: .55; }
-        }
-        /* Two extra star layers, each its own fixed element rather than
-           squeezed into body's own ::before/::after (already spoken for by
-           the ambient glow and the layer above), so every layer can twinkle
-           on its own independent timing instead of the whole sky fading in
-           and out together. Different duration + negative delay per layer
-           means the three fields drift in and out of phase with each other,
-           so at any moment some stars are dimming while others are
-           brightening — reading as many stars twinkling on their own rather
-           than one synchronized blob. Same lightweight radial-gradient/opacity
-           recipe as the layer above, so the extra stars cost next to nothing. */
-        .mu-redhorizon-stars { display: none; }
-        body.theme-redhorizon .mu-redhorizon-stars {
-            display: block;
-            position: fixed;
-            inset: 0;
-            pointer-events: none;
-            z-index: -1;
-            contain: paint;
-        }
-        body.theme-redhorizon .mu-redhorizon-stars::before {
-            content: "";
-            position: absolute;
-            inset: 0;
-            background-image:
-                radial-gradient(circle 1px at 14% 4%, rgba(255, 240, 224, .65), transparent 100%),
-                radial-gradient(circle 1.5px at 38% 12%, rgba(255, 234, 210, .55), transparent 100%),
-                radial-gradient(circle 1px at 58% 24%, rgba(255, 230, 208, .4), transparent 100%),
-                radial-gradient(circle 1.5px at 78% 8%, rgba(255, 240, 224, .6), transparent 100%),
-                radial-gradient(circle 1px at 96% 46%, rgba(255, 226, 200, .35), transparent 100%),
-                radial-gradient(circle 1px at 8% 40%, rgba(255, 236, 214, .4), transparent 100%),
-                radial-gradient(circle 1px at 26% 48%, rgba(255, 230, 208, .3), transparent 100%),
-                radial-gradient(circle 1.5px at 66% 40%, rgba(255, 234, 210, .38), transparent 100%),
-                radial-gradient(circle 1px at 46% 6%, rgba(255, 240, 224, .55), transparent 100%),
-                radial-gradient(circle 1px at 88% 28%, rgba(255, 226, 200, .42), transparent 100%);
-            animation: redHorizonTwinkleB 8.2s ease-in-out infinite alternate;
-            animation-delay: -3s;
-        }
-        body.theme-redhorizon .mu-redhorizon-stars::after {
-            content: "";
-            position: absolute;
-            inset: 0;
-            background-image:
-                radial-gradient(circle 1px at 20% 10%, rgba(255, 236, 214, .5), transparent 100%),
-                radial-gradient(circle 1px at 34% 30%, rgba(255, 230, 208, .35), transparent 100%),
-                radial-gradient(circle 1.5px at 50% 44%, rgba(255, 226, 200, .3), transparent 100%),
-                radial-gradient(circle 1px at 64% 16%, rgba(255, 240, 224, .58), transparent 100%),
-                radial-gradient(circle 1px at 84% 38%, rgba(255, 234, 210, .34), transparent 100%),
-                radial-gradient(circle 1.5px at 4% 20%, rgba(255, 240, 224, .48), transparent 100%),
-                radial-gradient(circle 1px at 12% 36%, rgba(255, 230, 208, .32), transparent 100%),
-                radial-gradient(circle 1px at 92% 12%, rgba(255, 236, 214, .5), transparent 100%),
-                radial-gradient(circle 1px at 42% 20%, rgba(255, 226, 200, .36), transparent 100%),
-                radial-gradient(circle 1px at 70% 48%, rgba(255, 234, 210, .28), transparent 100%);
-            animation: redHorizonTwinkleC 5.4s ease-in-out infinite alternate;
-            animation-delay: -1.7s;
-        }
-        @keyframes redHorizonTwinkleB {
-            0%   { opacity: .35; }
-            50%  { opacity: .95; }
-            100% { opacity: .5; }
-        }
-        @keyframes redHorizonTwinkleC {
-            0%   { opacity: .4; }
-            50%  { opacity: 1; }
-            100% { opacity: .4; }
-        }
+        /* Red Horizon: all star layers (::after and .mu-redhorizon-stars) were removed on request. */
+        .mu-redhorizon-stars { display: none !important; }
         /* Actual mountain silhouette — the soft blurred tint in ::before above
            only reads as atmosphere, not a mountain, so this is a dedicated
            element with a real jagged skyline cut via clip-path: two ridges
@@ -2116,6 +1782,7 @@ setTimeout(finish,MAX)})();</script>
             100% { transform: translate3d(2%, -1%, 0); }
         }
         body.theme-midnightblue::after {
+            display: none; /* stars removed on request */
             /* Tiny twinkling plankton specks scattered through the water —
                background-position keyframes can't hand off to the
                compositor, so kept to a handful of stops (same tradeoff
@@ -2177,29 +1844,7 @@ setTimeout(finish,MAX)})();</script>
             50%  { transform: translate3d(2.5%, -3%, 0); }
             100% { transform: translate3d(-2.5%, 2.5%, 0); }
         }
-        body.theme-aurora::after {
-            content: "";
-            position: fixed;
-            inset: 0;
-            pointer-events: none;
-            z-index: -1;
-            contain: paint;
-            /* Star count trimmed from 8 to 5 — this layer isn't blurred so the
-               stops themselves are cheap, but it still repaints every twinkle
-               tick, so fewer stops is a direct per-frame saving. */
-            background-image:
-                radial-gradient(circle 1px at 15% 18%, rgba(255, 255, 255, .8), transparent 100%),
-                radial-gradient(circle 1.5px at 48% 25%, rgba(255, 255, 255, .7), transparent 100%),
-                radial-gradient(circle 1px at 78% 30%, rgba(255, 255, 255, .65), transparent 100%),
-                radial-gradient(circle 1.5px at 90% 15%, rgba(255, 255, 255, .5), transparent 100%),
-                radial-gradient(circle 1px at 58% 50%, rgba(255, 255, 255, .45), transparent 100%);
-            animation: auroraTwinkle 6s ease-in-out infinite alternate;
-        }
-        @keyframes auroraTwinkle {
-            0%   { opacity: .5; }
-            50%  { opacity: 1; }
-            100% { opacity: .6; }
-        }
+        /* Aurora: the star layer (::after) was removed on request — only the northern-lights ribbons remain. */
 
         /* Phantom — a haunted purple-blue mist that drifts through the dark,
            built up from a flat glow into a full haunted scene: a huge
@@ -2299,12 +1944,7 @@ setTimeout(finish,MAX)})();</script>
             color: #d8b4fe !important;
             text-shadow: 0 0 10px rgba(192, 132, 252, .6), 0 0 24px rgba(139, 92, 246, .35), 0 1px 3px rgba(0, 0, 0, .8) !important;
         }
-        body.theme-phantom .btn-main {
-            background: linear-gradient(180deg, rgba(30, 14, 54, .92) 0%, rgba(10, 5, 20, .96) 100%) !important;
-            border: 1px solid rgba(168, 85, 247, .4) !important;
-            color: #d8b4fe !important;
-            box-shadow: 0 0 0 1px rgba(168, 85, 247, .1) inset, 0 2px 8px rgba(0, 0, 0, .4) !important;
-        }
+        body.theme-phantom .btn-main { color: #d8b4fe !important; }
 
         /* Aurora Phantom — a hybrid of the two: proper aurora curtains (not
            just a soft glow) woven from emerald, icy blue and violet bands,
@@ -2416,14 +2056,13 @@ setTimeout(finish,MAX)})();</script>
            (no emoji anywhere, and no candle icons — the only "flame"
            here is the warm amber glow sitting inside the castle's own
            windows and its shimmer on the water below). A deep indigo
-           sky the color of the enchanted Great Hall ceiling, quietly
-           scattered with stars; a pale full moon breathing softly
+           sky the color of the enchanted Great Hall ceiling, (the stars were removed on request); a pale full moon breathing softly
            behind two slow-drifting cloud wisps; a tall, asymmetric
            skyline of round towers, square battlemented keeps and a
            soaring central spire carrying its own small pennant, joined
            by a covered viaduct bridge, every window its own tiny warm
-           light; the whole castle mirrored upside-down and rippling in
-           the still black lake at its feet; an occasional gold snitch
+           light; the castle standing on its crag right at the bottom edge
+           (the lake was removed on request); an occasional gold snitch
            darting across the sky on fast, fluttering wings; and one
            lone post owl — warm tawny feathers, broad amber eyes —
            gliding steadily across the scene on its own slower loop.
@@ -2440,7 +2079,7 @@ setTimeout(finish,MAX)})();</script>
         /* Ambient sky: a warm amber-torch bleed rising from the castle at
            the bottom corners (window-light, not literal flame icons),
            plus a faint violet haze near the top — sits behind the drawn
-           moon/castle/lake layers below. */
+           moon/castle layers below. */
         body.theme-hogwarts::before {
             content: "";
             position: fixed;
@@ -2459,27 +2098,6 @@ setTimeout(finish,MAX)})();</script>
             0%   { transform: translate3d(0, 0, 0); }
             50%  { transform: translate3d(-2%, 1%, 0); }
             100% { transform: translate3d(2%, -1%, 0); }
-        }
-        body.theme-hogwarts::after {
-            content: "";
-            position: fixed;
-            inset: 0;
-            pointer-events: none;
-            z-index: -1;
-            contain: paint;
-            background-image:
-                radial-gradient(circle 1px at 10% 14%, rgba(255,255,255,.85), transparent 100%),
-                radial-gradient(circle 1.5px at 28% 8%, rgba(255,250,220,.7), transparent 100%),
-                radial-gradient(circle 1px at 46% 20%, rgba(255,255,255,.6), transparent 100%),
-                radial-gradient(circle 1px at 64% 10%, rgba(255,255,255,.7), transparent 100%),
-                radial-gradient(circle 1.5px at 80% 18%, rgba(255,250,220,.65), transparent 100%),
-                radial-gradient(circle 1px at 92% 6%, rgba(255,255,255,.5), transparent 100%),
-                radial-gradient(circle 1px at 36% 30%, rgba(255,255,255,.4), transparent 100%);
-            animation: hogwartsTwinkle 6.5s ease-in-out infinite alternate;
-        }
-        @keyframes hogwartsTwinkle {
-            0%   { opacity: .4; }
-            100% { opacity: .95; }
         }
         /* The castle — re-designed to read as the actual Hogwarts
            silhouette rather than a generic gothic cathedral: it sits
@@ -2501,7 +2119,7 @@ setTimeout(finish,MAX)})();</script>
         body.theme-hogwarts .mu-hogwarts-castle {
             display: block;
             position: fixed;
-            left: 0; right: 0; bottom: 42px;
+            left: 0; right: 0; bottom: 0;
             height: 286px;
             pointer-events: none;
             z-index: -1;
@@ -2680,68 +2298,11 @@ setTimeout(finish,MAX)})();</script>
             background: linear-gradient(180deg, #362c26 0%, #100c0a 100%);
             border-radius: 2px 2px 0 0;
         }
-        /* The Black Lake — a still dark strip beneath the castle,
-           carrying an upside-down, rippling echo of its lit windows:
-           the same warm points of light as the towers above, flipped
-           vertically, gently smeared by a soft blur, and breathing in
-           brightness on a slow independent loop the way light shimmers
-           on real water. No literal mirrored castle shape — just its
-           reflected glow, which reads far more like still water than a
-           duplicated silhouette would. */
-        .mu-hogwarts-lake { display: none; }
-        body.theme-hogwarts .mu-hogwarts-lake {
-            display: block;
-            position: fixed;
-            left: 0; right: 0; bottom: 0;
-            height: 42px;
-            pointer-events: none;
-            z-index: -1;
-            contain: paint;
-            overflow: hidden;
-            background: linear-gradient(180deg, #0c0918 0%, #050310 55%, #010009 100%);
-            box-shadow: inset 0 6px 14px rgba(0, 0, 0, .6);
-        }
-        body.theme-hogwarts .mu-hogwarts-lake::before {
-            content: "";
-            position: absolute;
-            inset: 0;
-            background-image:
-                radial-gradient(ellipse 20px 10px at 4% 15%, rgba(255, 205, 120, .22), transparent 70%),
-                radial-gradient(ellipse 24px 12px at 15% 20%, rgba(255, 205, 120, .18), transparent 70%),
-                radial-gradient(ellipse 30px 14px at 25% 15%, rgba(255, 205, 120, .2), transparent 70%),
-                radial-gradient(ellipse 40px 16px at 42% 25%, rgba(255, 214, 140, .3), transparent 70%),
-                radial-gradient(ellipse 30px 14px at 58% 18%, rgba(255, 205, 120, .22), transparent 70%),
-                radial-gradient(ellipse 24px 12px at 71% 15%, rgba(255, 205, 120, .18), transparent 70%),
-                radial-gradient(ellipse 28px 13px at 85% 18%, rgba(255, 205, 120, .2), transparent 70%),
-                radial-gradient(ellipse 20px 10px at 96% 14%, rgba(255, 205, 120, .16), transparent 70%);
-            filter: blur(3px);
-            animation: hogwartsLakeShimmer 5s ease-in-out infinite;
-        }
-        body.theme-hogwarts .mu-hogwarts-lake::after {
-            content: "";
-            position: absolute;
-            inset: 0;
-            background: repeating-linear-gradient(
-                180deg,
-                rgba(180, 190, 220, .05) 0px,
-                transparent 2px,
-                transparent 5px
-            );
-            animation: hogwartsLakeRipple 3.2s linear infinite;
-        }
-        @keyframes hogwartsLakeShimmer {
-            0%, 100% { opacity: .65; transform: translateY(0); }
-            50%      { opacity: 1; transform: translateY(1px); }
-        }
-        @keyframes hogwartsLakeRipple {
-            0%   { transform: translateY(0); }
-            100% { transform: translateY(7px); }
-        }
 
 
         /* Forbidden Forest treeline — a cluster of dark, rounded
            tree-canopy silhouettes hugging the left and right edges of
-           the screen, sitting behind the castle and lake so the
+           the screen, sitting behind the castle so the
            grounds read as an actual valley the castle sits in rather
            than a lone building floating on a flat horizon. Pure
            layered radial-gradients, same GPU-cheap recipe as the rest
@@ -2750,7 +2311,7 @@ setTimeout(finish,MAX)})();</script>
         body.theme-hogwarts .mu-hogwarts-forest {
             display: block;
             position: fixed;
-            left: 0; right: 0; bottom: 38px;
+            left: 0; right: 0; bottom: 0;
             height: 64px;
             pointer-events: none;
             z-index: -2;
@@ -2789,17 +2350,7 @@ setTimeout(finish,MAX)})();</script>
             color: #e9cf8e !important;
             text-shadow: 0 0 10px rgba(230, 190, 100, .4), 0 1px 3px rgba(0, 0, 0, .7) !important;
         }
-        body.theme-hogwarts .btn-main {
-            font-family: 'Cinzel', serif !important;
-            background: linear-gradient(180deg, rgba(46, 34, 78, .9) 0%, rgba(18, 13, 36, .95) 100%) !important;
-            border: 1px solid rgba(201, 165, 92, .55) !important;
-            color: #e9cf8e !important;
-            box-shadow: 0 0 0 1px rgba(201, 165, 92, .12) inset, 0 2px 8px rgba(0, 0, 0, .35) !important;
-        }
-        body.theme-strangerthings .btn-main:hover {
-            border-color: rgba(230, 195, 110, .85) !important;
-            box-shadow: 0 0 10px rgba(230, 195, 110, .35), 0 0 0 1px rgba(201, 165, 92, .2) inset !important;
-        }
+        body.theme-hogwarts .btn-main { font-family: 'Cinzel', serif !important; color: #e9cf8e !important; }
 
         /* Stranger Things (چیزهای عجیب) — an original, hand-built homage
            to a very online 80s small-town-horror vibe: a bruised
@@ -2807,21 +2358,21 @@ setTimeout(finish,MAX)})();</script>
            dim red spores/ash in the air (an "other side" atmosphere,
            not a copy of any specific creature or scene), a low jagged
            tear of crimson light on the horizon standing in for a rift
-           between worlds, a dead, leafless treeline along the whole
-           width of the ground, a plain kid's
-           bicycle silhouette coasting slowly across the scene the way
-           someone out after dark on a quiet street would, and a very
+           between worlds (the bicycle, treeline box and bulbs were removed
+           on request), and a very
            faint scanline flicker over the whole page for that early-
            VHS/analog-tape feel. Every shape is plain CSS — gradients,
            clip-path and box-shadow — nothing traced or copied from the
            show itself. */
+        /* Palette refreshed: midnight teal-blue sky (the Upside Down), crimson neon
+           edges and glow, warm cream text,. Options keep the same shared glass style as every other theme. */
         body.theme-strangerthings {
-            --bg-gradient: radial-gradient(ellipse 92% 55% at 50% -4%, #2c0808 0%, #1e0706 20%, #130404 42%, #0a0303 68%, #030101 100%) !important;
-            --panel-bg: rgba(190, 35, 25, .06) !important;
-            --panel-border: rgba(210, 50, 35, .32) !important;
-            --card-bg: rgba(10, 4, 4, .88) !important;
-            --text-color: #ecdfce !important;
-            text-shadow: 0 1px 4px rgba(0, 0, 0, .75) !important;
+            --bg-gradient: radial-gradient(ellipse 95% 55% at 50% -6%, #12283c 0%, #0c1b2c 20%, #08131f 42%, #050b13 68%, #020407 100%) !important;
+            --panel-bg: rgba(60, 120, 160, 0.085) !important;
+            --panel-border: rgba(255, 82, 66, .46) !important;
+            --card-bg: rgba(5, 11, 19, .92) !important;
+            --text-color: #f6eadf !important;
+            text-shadow: 0 1px 4px rgba(0, 0, 0, .8) !important;
         }
         /* Ambient rift-light bleed near the ground plus a faint red
            haze up high, and a scatter of dim rising spores/ash — sits
@@ -2834,7 +2385,7 @@ setTimeout(finish,MAX)})();</script>
                 radial-gradient(ellipse 70% 30% at 50% 100%, rgba(180, 20, 20, .18) 0%, transparent 70%),
                 radial-gradient(ellipse 55% 22% at 14% 92%, rgba(120, 15, 15, .14) 0%, transparent 70%),
                 radial-gradient(ellipse 55% 22% at 88% 90%, rgba(120, 15, 15, .14) 0%, transparent 70%),
-                radial-gradient(ellipse 70% 40% at 50% 4%, rgba(90, 10, 10, .1) 0%, transparent 70%);
+                radial-gradient(ellipse 80% 42% at 50% 2%, rgba(50, 130, 175, .17) 0%, transparent 70%);
             filter: blur(7px);
             pointer-events: none;
             z-index: -1;
@@ -2874,7 +2425,7 @@ setTimeout(finish,MAX)})();</script>
             display: block;
             position: fixed;
             left: 50%;
-            bottom: 120px;
+            bottom: 60px;
             width: 230px;
             height: 74px;
             transform: translateX(-50%) rotate(-2deg);
@@ -2889,89 +2440,6 @@ setTimeout(finish,MAX)})();</script>
         @keyframes stPortalPulse {
             0%, 100% { opacity: .75; filter: brightness(1); }
             50%      { opacity: 1; filter: brightness(1.25); }
-        }
-        /* A dead, leafless treeline running the full width of the
-           ground — plain dark ellipses with a faint red rim-light
-           bleeding up from the rift behind them. */
-        .mu-st-forest { display: none; }
-        body.theme-strangerthings .mu-st-forest {
-            display: block;
-            position: fixed;
-            left: 0; right: 0; bottom: 0;
-            height: 96px;
-            pointer-events: none;
-            z-index: -2;
-            contain: paint;
-            background:
-                radial-gradient(ellipse 26px 80px at 2% 100%, #060202 0%, transparent 76%),
-                radial-gradient(ellipse 20px 62px at 9% 100%, #080302 0%, transparent 76%),
-                radial-gradient(ellipse 30px 88px at 16% 100%, #060202 0%, transparent 76%),
-                radial-gradient(ellipse 22px 66px at 24% 100%, #080302 0%, transparent 76%),
-                radial-gradient(ellipse 28px 84px at 32% 100%, #060202 0%, transparent 76%),
-                radial-gradient(ellipse 20px 60px at 40% 100%, #080302 0%, transparent 76%),
-                radial-gradient(ellipse 26px 78px at 48% 100%, #060202 0%, transparent 76%),
-                radial-gradient(ellipse 22px 68px at 57% 100%, #080302 0%, transparent 76%),
-                radial-gradient(ellipse 30px 90px at 65% 100%, #060202 0%, transparent 76%),
-                radial-gradient(ellipse 20px 60px at 73% 100%, #080302 0%, transparent 76%),
-                radial-gradient(ellipse 28px 82px at 81% 100%, #060202 0%, transparent 76%),
-                radial-gradient(ellipse 22px 66px at 89% 100%, #080302 0%, transparent 76%),
-                radial-gradient(ellipse 30px 88px at 96% 100%, #060202 0%, transparent 76%);
-            box-shadow: inset 0 44px 60px rgba(150, 20, 15, .1);
-        }
-        /* A plain bicycle silhouette (frame, rider, two wheels) coasting
-           slowly across the lower part of the scene on its own loop —
-           built entirely from borders, a clip-path frame shape and a
-           rounded rider blob. */
-        .mu-st-bike { display: none; }
-        body.theme-strangerthings .mu-st-bike {
-            display: block;
-            position: fixed;
-            width: 46px;
-            height: 34px;
-            bottom: 128px;
-            left: -60px;
-            pointer-events: none;
-            z-index: -1;
-            contain: paint;
-            animation: stBikeRide 24s linear infinite;
-        }
-        body.theme-strangerthings .mu-st-bike::before,
-        body.theme-strangerthings .mu-st-bike::after {
-            content: "";
-            position: absolute;
-            bottom: 0;
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            border: 2.5px solid #100a0a;
-            background: rgba(0, 0, 0, .12);
-        }
-        body.theme-strangerthings .mu-st-bike::before { left: 0; }
-        body.theme-strangerthings .mu-st-bike::after { right: 0; }
-        body.theme-strangerthings .mu-st-bike-frame {
-            position: absolute;
-            left: 6px;
-            bottom: 8px;
-            width: 34px;
-            height: 14px;
-            background: #100a0a;
-            clip-path: polygon(0% 100%, 30% 30%, 46% 30%, 70% 100%, 62% 100%, 44% 46%, 30% 46%, 12% 100%);
-        }
-        body.theme-strangerthings .mu-st-bike-rider {
-            position: absolute;
-            left: 15px;
-            bottom: 14px;
-            width: 16px;
-            height: 20px;
-            background: #100a0a;
-            border-radius: 60% 60% 40% 40% / 70% 70% 30% 30%;
-        }
-        @keyframes stBikeRide {
-            0%   { transform: translate3d(0, 0, 0); opacity: 0; }
-            8%   { opacity: .9; }
-            50%  { transform: translate3d(60vw, -2vh, 0); }
-            92%  { opacity: .9; }
-            100% { transform: translate3d(120vw, -4vh, 0); opacity: 0; }
         }
         /* A very faint scanline flicker over the whole scene for the
            analog-tape/early-VHS feel — thin, low-opacity, and blended
@@ -3002,20 +2470,10 @@ setTimeout(finish,MAX)})();</script>
         body.theme-strangerthings .toolbar-section-title {
             font-family: 'Poller One', serif !important;
             letter-spacing: 1px;
-            color: #ff3b30 !important;
-            text-shadow: 0 0 12px rgba(255, 40, 30, .65), 0 0 28px rgba(255, 20, 10, .35), 0 1px 3px rgba(0, 0, 0, .8) !important;
+            color: #ff4538 !important;
+            text-shadow: 0 0 6px rgba(255, 70, 55, .8), 0 0 16px rgba(255, 40, 30, .65), 0 0 34px rgba(255, 20, 10, .4), 0 1px 3px rgba(0, 0, 0, .85) !important;
         }
-        body.theme-strangerthings .btn-main {
-            font-family: 'VT323', monospace !important;
-            background: linear-gradient(180deg, rgba(40, 10, 10, .92) 0%, rgba(14, 4, 4, .96) 100%) !important;
-            border: 1px solid rgba(220, 40, 30, .5) !important;
-            color: #f2d9c9 !important;
-            box-shadow: 0 0 0 1px rgba(220, 40, 30, .12) inset, 0 2px 8px rgba(0, 0, 0, .4) !important;
-        }
-        body.theme-strangerthings .btn-main:hover {
-            border-color: rgba(255, 60, 45, .9) !important;
-            box-shadow: 0 0 12px rgba(255, 50, 35, .4), 0 0 0 1px rgba(220, 40, 30, .2) inset !important;
-        }
+        body.theme-strangerthings .btn-main { font-family: 'VT323', monospace !important; color: #f8ede2 !important; }
 
         /* Home Alone (تنها در خانه) — an original, hand-built homage to a
            cozy-but-mischievous Christmas Eve in the suburbs: a deep navy
@@ -3065,6 +2523,7 @@ setTimeout(finish,MAX)})();</script>
            whose shared background-position is animated straight down,
            looping seamlessly since the tile repeats. */
         body.theme-homealone::after {
+            display: none; /* snowfall removed on request */
             content: "";
             position: fixed;
             inset: 0;
@@ -3093,7 +2552,7 @@ setTimeout(finish,MAX)})();</script>
            suburban street on a winter night. */
         .mu-ha-street { display: none; }
         body.theme-homealone .mu-ha-street {
-            display: block;
+            display: none; /* removed on request */
             position: fixed;
             left: 0; right: 0; bottom: 0;
             height: 92px;
@@ -3117,7 +2576,7 @@ setTimeout(finish,MAX)})();</script>
            film's classic booby-traps, not a copy of anything specific. */
         .mu-ha-paintcan { display: none; }
         body.theme-homealone .mu-ha-paintcan {
-            display: block;
+            display: none; /* removed on request */
             position: fixed;
             top: 54px;
             right: 9%;
@@ -3162,7 +2621,7 @@ setTimeout(finish,MAX)})();</script>
            bottom of the scene. */
         .mu-ha-footprints { display: none; }
         body.theme-homealone .mu-ha-footprints {
-            display: block;
+            display: none; /* removed on request */
             position: fixed;
             left: 0; right: 0;
             bottom: 74px;
@@ -3184,29 +2643,17 @@ setTimeout(finish,MAX)})();</script>
             color: #ffcf7a !important;
             text-shadow: 0 0 10px rgba(255, 200, 110, .55), 0 0 22px rgba(214, 60, 50, .3), 0 1px 3px rgba(0, 0, 0, .8) !important;
         }
-        body.theme-homealone .btn-main {
-            font-family: 'Quicksand', sans-serif !important;
-            background: linear-gradient(180deg, rgba(30, 44, 74, .92) 0%, rgba(10, 16, 30, .96) 100%) !important;
-            border: 1px solid rgba(214, 168, 92, .45) !important;
-            color: #f3e6cf !important;
-            box-shadow: 0 0 0 1px rgba(214, 168, 92, .12) inset, 0 2px 8px rgba(0, 0, 0, .4) !important;
-        }
-        body.theme-homealone .btn-main:hover {
-            border-color: rgba(255, 210, 120, .85) !important;
-            box-shadow: 0 0 10px rgba(255, 200, 110, .35), 0 0 0 1px rgba(214, 168, 92, .2) inset !important;
-        }
+        body.theme-homealone .btn-main { font-family: 'Quicksand', sans-serif !important; color: #f3e6cf !important; }
 
         /* One Piece (وان پیس) — a sun-drenched Grand Line seascape: a bright
            turquoise sky sinking into deep ocean blue, a warm golden sun low
            over the water, two rolling wave layers (same hand-traced sine
            silhouette technique as Oceanic's .mu-oceanic-waves, recolored),
-           a handful of distant gulls, and a small pirate ship drifting past
-           under its own flag — a plain skull-and-crossbones under a straw
-           hat, drawn entirely from CSS shapes. No emoji, no reproduced
+           (The pirate ship, the gulls and the twinkling water
+           glints were removed on request.) No emoji, no reproduced
            artwork or logos anywhere in this theme. */
         body.theme-onepiece {
             --bg-gradient:
-                radial-gradient(ellipse 60% 40% at 18% 80%, rgba(255, 196, 62, .16) 0%, transparent 65%),
                 linear-gradient(180deg, #1a5f85 0%, #14507a 20%, #0c3f63 40%, #072f4e 60%, #03223a 80%, #011627 100%) !important;
             --panel-bg: rgba(255, 210, 90, 0.05) !important;
             --panel-border: rgba(255, 205, 90, 0.28) !important;
@@ -3221,11 +2668,8 @@ setTimeout(finish,MAX)})();</script>
             position: fixed;
             top: -8%; left: -10%; right: -10%; bottom: -8%;
             background:
-                radial-gradient(ellipse 26% 10% at 70% 14%, rgba(255,255,255,.14) 0%, transparent 70%),
-                radial-gradient(ellipse 20% 8% at 84% 24%, rgba(255,255,255,.1) 0%, transparent 70%),
                 radial-gradient(ellipse 30% 9% at 15% 10%, rgba(255,255,255,.08) 0%, transparent 70%),
-                radial-gradient(ellipse 22% 8% at 40% 6%, rgba(255,255,255,.07) 0%, transparent 70%),
-                radial-gradient(ellipse 45% 30% at 20% 74%, rgba(255, 205, 90, .22) 0%, transparent 70%);
+                radial-gradient(ellipse 22% 8% at 40% 6%, rgba(255,255,255,.07) 0%, transparent 70%);
             pointer-events: none;
             z-index: -1;
             contain: paint;
@@ -3234,179 +2678,6 @@ setTimeout(finish,MAX)})();</script>
         @keyframes onepieceCloudDrift {
             0%   { transform: translate3d(0, 0, 0); }
             100% { transform: translate3d(-2%, .5%, 0); }
-        }
-        /* Sunlight glinting on the water's surface, a scatter of small
-           bright points twinkling low in the frame. */
-        body.theme-onepiece::after {
-            content: "";
-            position: fixed;
-            inset: 0;
-            pointer-events: none;
-            z-index: -1;
-            contain: paint;
-            background-image:
-                radial-gradient(circle 1.5px at 22% 68%, rgba(255,244,214,.9), transparent 100%),
-                radial-gradient(circle 1px at 34% 74%, rgba(255,244,214,.7), transparent 100%),
-                radial-gradient(circle 1.5px at 46% 66%, rgba(255,244,214,.85), transparent 100%),
-                radial-gradient(circle 1px at 58% 78%, rgba(255,244,214,.6), transparent 100%),
-                radial-gradient(circle 1.5px at 70% 70%, rgba(255,244,214,.8), transparent 100%),
-                radial-gradient(circle 1px at 82% 76%, rgba(255,244,214,.65), transparent 100%),
-                radial-gradient(circle 1.5px at 12% 82%, rgba(255,244,214,.7), transparent 100%);
-            animation: onepieceGlint 4.5s ease-in-out infinite alternate;
-        }
-        @keyframes onepieceGlint {
-            0%   { opacity: .35; }
-            50%  { opacity: 1; }
-            100% { opacity: .4; }
-        }
-        /* Sea horizon — same two-layer, hand-traced sine-wave silhouette
-           technique as Oceanic's .mu-oceanic-waves (a far hazy swell behind
-           a nearer, darker wave, each tiled at 200% width and looped with a
-           seamless -50% translateX), recolored into a brighter turquoise so
-           it reads as sunlit Grand Line water rather than deep-sea dark.
-           Hidden for every other theme; only shown while .theme-onepiece is
-           on body. */
-        .mu-op-waves { display: none; }
-        body.theme-onepiece .mu-op-waves {
-            display: block;
-            position: fixed;
-            left: 0; right: 0; bottom: -2%;
-            height: 22vh;
-            min-height: 140px;
-            overflow: hidden;
-            pointer-events: none;
-            z-index: -1;
-            contain: paint;
-        }
-        body.theme-onepiece .mu-op-waves::before {
-            content: "";
-            position: absolute;
-            top: 0; left: 0;
-            width: 200%; height: 100%;
-            background: linear-gradient(180deg, rgba(15, 123, 176, 0) 0%, rgba(7, 94, 140, .55) 45%, rgba(2, 68, 104, .8) 100%);
-            clip-path: polygon(0% 100%, 0.00% 50.00%, 8.33% 43.07%, 16.67% 43.07%, 25.00% 50.00%, 33.33% 56.93%, 41.67% 56.93%, 50.00% 50.00%, 58.33% 43.07%, 66.67% 43.07%, 75.00% 50.00%, 83.33% 56.93%, 91.67% 56.93%, 100.00% 50.00%, 108.33% 43.07%, 116.67% 43.07%, 125.00% 50.00%, 133.33% 56.93%, 141.67% 56.93%, 150.00% 50.00%, 158.33% 43.07%, 166.67% 43.07%, 175.00% 50.00%, 183.33% 56.93%, 191.67% 56.93%, 200.00% 50.00%, 200% 100%);
-            animation: onepieceWaveFarDrift 20s linear infinite;
-        }
-        body.theme-onepiece .mu-op-waves::after {
-            content: "";
-            position: absolute;
-            top: 0; left: 0;
-            width: 200%; height: 100%;
-            background: linear-gradient(180deg, rgba(80, 200, 220, .18) 0%, rgba(4, 80, 120, .88) 55%, rgba(1, 40, 62, .96) 100%);
-            clip-path: polygon(0% 100%, 0.00% 53.61%, 4.17% 53.61%, 8.33% 64.00%, 12.50% 74.39%, 16.67% 74.39%, 20.83% 64.00%, 25.00% 53.61%, 29.17% 53.61%, 33.33% 64.00%, 37.50% 74.39%, 41.67% 74.39%, 45.83% 64.00%, 50.00% 53.61%, 54.17% 53.61%, 58.33% 64.00%, 62.50% 74.39%, 66.67% 74.39%, 70.83% 64.00%, 75.00% 53.61%, 79.17% 53.61%, 83.33% 64.00%, 87.50% 74.39%, 91.67% 74.39%, 95.83% 64.00%, 100.00% 53.61%, 104.17% 53.61%, 108.33% 64.00%, 112.50% 74.39%, 116.67% 74.39%, 120.83% 64.00%, 125.00% 53.61%, 129.17% 53.61%, 133.33% 64.00%, 137.50% 74.39%, 141.67% 74.39%, 145.83% 64.00%, 150.00% 53.61%, 154.17% 53.61%, 158.33% 64.00%, 162.50% 74.39%, 166.67% 74.39%, 170.83% 64.00%, 175.00% 53.61%, 179.17% 53.61%, 183.33% 64.00%, 187.50% 74.39%, 191.67% 74.39%, 195.83% 64.00%, 200.00% 53.61%, 200% 100%);
-            animation: onepieceWaveNearDrift 12s linear infinite reverse;
-        }
-        @keyframes onepieceWaveFarDrift {
-            from { transform: translate3d(0, 0, 0); }
-            to   { transform: translate3d(-50%, 0, 0); }
-        }
-        @keyframes onepieceWaveNearDrift {
-            from { transform: translate3d(0, 0, 0); }
-            to   { transform: translate3d(-50%, 0, 0); }
-        }
-        /* A small pirate ship sailing slowly across the horizon: a wooden
-           hull, a single wind-filled sail, and its own Jolly Roger — a
-           plain skull-and-crossbones under a straw hat, hand-drawn from
-           circles/lines the same way the Death Star and TIE fighter are
-           built above, not any reproduced artwork. The outer element
-           carries the slow left-to-right drift (fading in/out at the
-           edges like the TIE fighter); a separate inner wrapper carries a
-           faster up/down "riding the waves" bob so the two motions don't
-           fight over the same transform. */
-        .mu-op-ship { display: none; }
-        body.theme-onepiece .mu-op-ship {
-            display: block;
-            position: fixed;
-            /* Anchored from the viewport's bottom edge in vh (not a top:%
-               offset) so the hull stays sitting right on the wave line —
-               low, over the water — and holds that exact spot however tall
-               the viewport is, including the small viewport-height shifts
-               mobile browsers make as their address bar shows/hides while
-               scrolling. Being position:fixed, it was already immune to
-               the page's own scroll; anchoring from the bottom is what
-               keeps it visually glued to the water through those browser-
-               chrome resizes too. */
-            bottom: calc(3.5vh - 6px);
-            left: -200px;
-            width: 190px;
-            height: 140px;
-            pointer-events: none;
-            z-index: -1;
-            contain: paint;
-            animation: onepieceShipDrift 100s linear infinite;
-        }
-        @keyframes onepieceShipDrift {
-            /* No vertical drift here anymore — the ship holds its bottom-
-               anchored height and only travels left to right, so it reads
-               as gliding along the water rather than climbing the sky. */
-            0%   { transform: translate3d(0, 0, 0);   opacity: 0; }
-            5%   { opacity: .95; }
-            95%  { opacity: .95; }
-            100% { transform: translate3d(calc(100vw + 230px), 0, 0); opacity: 0; }
-        }
-        /* The ship is one hand-drawn inline SVG (hull with planking and gun
-           ports, three masts, billowing sails, the straw-hat Jolly Roger and a
-           waving flag), with the water drawn over its lower hull so it sits
-           in the sea. */
-        body.theme-onepiece .mu-op-bob {
-            display: block;
-            position: absolute;
-            inset: 0;
-            transform-origin: 50% 85%;
-            animation: onepieceShipBob 3.2s ease-in-out infinite;
-        }
-        @keyframes onepieceShipBob {
-            0%, 100% { transform: translateY(0) rotate(0deg); }
-            50%      { transform: translateY(-4px) rotate(-1.2deg); }
-        }
-        body.theme-onepiece .mu-op-ship-svg { display: block; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 3px 5px rgba(0, 20, 40, .35)); }
-        body.theme-onepiece .mu-op-flag {
-            transform-box: fill-box;
-            transform-origin: 0% 50%;
-            animation: onepieceFlagWave 2.6s ease-in-out infinite;
-        }
-        @keyframes onepieceFlagWave {
-            0%, 100% { transform: skewY(0deg) scaleX(1); }
-            50%      { transform: skewY(-6deg) scaleX(.93); }
-        }
-        /* A handful of distant gulls, each a simple two-stroke "M" shape,
-           drifting across the sky on their own independent, staggered
-           timings. */
-        .mu-op-gulls { display: none; }
-        body.theme-onepiece .mu-op-gulls {
-            display: block;
-            position: fixed;
-            inset: 0;
-            pointer-events: none;
-            z-index: -1;
-            contain: paint;
-        }
-        body.theme-onepiece .mu-op-gulls span {
-            position: absolute;
-            width: 16px;
-            height: 6px;
-            opacity: .55;
-        }
-        body.theme-onepiece .mu-op-gulls span::before,
-        body.theme-onepiece .mu-op-gulls span::after {
-            content: "";
-            position: absolute;
-            top: 0;
-            width: 9px; height: 2px;
-            background: rgba(15, 25, 30, .55);
-            border-radius: 2px;
-        }
-        body.theme-onepiece .mu-op-gulls span::before { left: 0; transform: rotate(25deg); transform-origin: right center; }
-        body.theme-onepiece .mu-op-gulls span::after { right: 0; transform: rotate(-25deg); transform-origin: left center; }
-        body.theme-onepiece .mu-op-gulls span:nth-child(1) { top: 24%; left: -5%; animation: onepieceGullFly 38s linear infinite; }
-        body.theme-onepiece .mu-op-gulls span:nth-child(2) { top: 30%; left: -5%; animation: onepieceGullFly 46s linear infinite 6s; }
-        body.theme-onepiece .mu-op-gulls span:nth-child(3) { top: 20%; left: -5%; animation: onepieceGullFly 52s linear infinite 14s; }
-        @keyframes onepieceGullFly {
-            0%   { transform: translate3d(0, 0, 0);        opacity: 0; }
-            8%   { opacity: .6; }
-            50%  { transform: translate3d(55vw, -3vh, 0); }
-            92%  { opacity: .6; }
-            100% { transform: translate3d(115vw, -6vh, 0); opacity: 0; }
         }
         /* Warm parchment-and-gold chrome for the app's own title, brand
            mark and section headings, plus a deep-sea-and-gold treatment
@@ -3420,17 +2691,7 @@ setTimeout(finish,MAX)})();</script>
             color: #ffdd8a !important;
             text-shadow: 0 0 10px rgba(255, 200, 90, .5), 0 1px 3px rgba(0, 20, 30, .8) !important;
         }
-        body.theme-onepiece .btn-main {
-            font-family: 'Quicksand', sans-serif !important;
-            background: linear-gradient(180deg, rgba(10, 60, 90, .9) 0%, rgba(3, 30, 48, .96) 100%) !important;
-            border: 1px solid rgba(255, 205, 110, .4) !important;
-            color: #ffedc2 !important;
-            box-shadow: 0 0 0 1px rgba(255, 205, 110, .1) inset, 0 2px 8px rgba(0, 0, 0, .35) !important;
-        }
-        body.theme-onepiece .btn-main:hover {
-            border-color: rgba(255, 210, 120, .8) !important;
-            box-shadow: 0 0 10px rgba(255, 200, 90, .3), 0 0 0 1px rgba(255, 205, 110, .18) inset !important;
-        }
+        body.theme-onepiece .btn-main { font-family: 'Quicksand', sans-serif !important; color: #ffedc2 !important; }
 
         /* =====================================================================
            HUGO THEME
@@ -3471,6 +2732,7 @@ setTimeout(finish,MAX)})();</script>
         /* Fine dust motes, caught and glinting in the light the way they do
            inside an old station wall. */
         body.theme-hugo::after {
+            display: none; /* stars removed on request */
             content: "";
             position: fixed;
             inset: 0;
@@ -3502,17 +2764,7 @@ setTimeout(finish,MAX)})();</script>
             color: #f0dba3 !important;
             text-shadow: 0 0 10px rgba(220, 175, 90, .4), 0 1px 3px rgba(0, 0, 0, .8) !important;
         }
-        body.theme-hugo .btn-main {
-            font-family: 'Quicksand', sans-serif !important;
-            background: linear-gradient(180deg, rgba(40, 32, 20, .9) 0%, rgba(16, 12, 8, .95) 100%) !important;
-            border: 1px solid rgba(205, 165, 90, .4) !important;
-            color: #ecdcb8 !important;
-            box-shadow: 0 0 0 1px rgba(205, 165, 90, .12) inset, 0 2px 8px rgba(0, 0, 0, .4) !important;
-        }
-        body.theme-hugo .btn-main:hover {
-            border-color: rgba(220, 180, 100, .85) !important;
-            box-shadow: 0 0 10px rgba(210, 165, 80, .3), 0 0 0 1px rgba(205, 165, 90, .2) inset !important;
-        }
+        body.theme-hugo .btn-main { font-family: 'Quicksand', sans-serif !important; color: #ecdcb8 !important; }
 
         /* Anime — a soft night-sakura scene: a dusky pink-and-lavender sky,
            gentle sparkle twinkle, a sakura branch draped in from the corner,
@@ -3570,17 +2822,7 @@ setTimeout(finish,MAX)})();</script>
             color: #ffe3f0 !important;
             text-shadow: 0 0 10px rgba(255, 150, 200, .5), 0 1px 3px rgba(20, 5, 20, .8) !important;
         }
-        body.theme-anime .btn-main {
-            font-family: 'Quicksand', sans-serif !important;
-            background: linear-gradient(180deg, rgba(75, 30, 62, .85) 0%, rgba(35, 14, 35, .9) 100%) !important;
-            border: 1px solid rgba(255, 175, 210, .35) !important;
-            color: #ffe3f0 !important;
-            box-shadow: 0 0 0 1px rgba(255, 175, 210, .12) inset, 0 2px 8px rgba(0, 0, 0, .4) !important;
-        }
-        body.theme-anime .btn-main:hover {
-            border-color: rgba(255, 190, 220, .8) !important;
-            box-shadow: 0 0 10px rgba(255, 160, 205, .35), 0 0 0 1px rgba(255, 175, 210, .2) inset !important;
-        }
+        body.theme-anime .btn-main { font-family: 'Quicksand', sans-serif !important; color: #ffe3f0 !important; }
 
         /* Static dark fallback so the very first paint (before any JS runs)
            never shows the browser's default white. Real browsers repaint
@@ -6946,7 +6188,6 @@ html.mu-lite *, html.mu-lite *::before, html.mu-lite *::after {
   will-change: auto !important;
 }
 html.mu-lite body > [class^="mu-"][aria-hidden="true"] { display: none !important; }
-html.mu-lite body.theme-oceanic::after { display: none !important; }
 html.mu-lite body.theme-oceanic::before { filter: none !important; animation: none !important; transform: none !important; }
 html.mu-lite body, html.mu-lite body * { text-shadow: none !important; }
 html.mu-lite .control-panel, html.mu-lite .header-nav, html.mu-lite .toolbar-section-box,
@@ -7047,6 +6288,16 @@ window.mu_syncHtmlBg = function(){
             });
             localStorage.setItem('app_theme_order_v4', '1');
         }
+        // One-time migration: the Cyberpunk theme was removed, so any saved theme index is
+        // remapped to the same theme in the new order (Cyberpunk falls back to the first theme).
+        if (!localStorage.getItem('app_theme_order_v5')) {
+            var oldO5 = ['yourname', 'oceanic', 'anime', 'hugo', 'darkweb', 'terminal', 'interstellar', 'onepiece', 'hogwarts', 'homealone', 'strangerthings', 'vampire', 'phantom', 'halloween', 'dreamy', 'spider', 'redhorizon', 'midnightblue', 'aurora', 'aurora-phantom', 'love', 'cyberpunk', 'anonymous'], newO5 = oldO5.filter(function(t){ return t !== 'cyberpunk'; });
+            ['app_theme_index_v14','app_lite_prev_theme_v1'].forEach(function(k){
+                var v = parseInt(localStorage.getItem(k), 10);
+                if (Number.isFinite(v) && v >= 0 && v < oldO5.length) { var ni = newO5.indexOf(oldO5[v]); localStorage.setItem(k, String(ni < 0 ? 0 : ni)); }
+            });
+            localStorage.setItem('app_theme_order_v5', '1');
+        }
         var saved = localStorage.getItem('app_theme_index_v14');
         if (saved === null) return;
         var idx = parseInt(saved, 10);
@@ -7055,7 +6306,7 @@ window.mu_syncHtmlBg = function(){
         // this early copy only exists so the very first paint (before that
         // script block runs) can already show the right theme instead of
         // flashing the default and then snapping over.
-        var classes = ['theme-yourname','theme-oceanic','theme-anime','theme-hugo','theme-darkweb','theme-terminal','theme-interstellar','theme-onepiece','theme-hogwarts','theme-homealone','theme-strangerthings','theme-vampire','theme-phantom','theme-halloween','theme-dreamy','theme-spider','theme-redhorizon','theme-midnightblue','theme-aurora','theme-aurora-phantom','theme-love','theme-cyberpunk','theme-anonymous'];
+        var classes = ['theme-yourname','theme-oceanic','theme-anime','theme-hugo','theme-darkweb','theme-terminal','theme-interstellar','theme-onepiece','theme-hogwarts','theme-homealone','theme-strangerthings','theme-vampire','theme-phantom','theme-halloween','theme-dreamy','theme-spider','theme-redhorizon','theme-midnightblue','theme-aurora','theme-aurora-phantom','theme-love','theme-anonymous'];
         var cls = classes[idx];
         if (cls && cls !== 'theme-yourname') {
             document.body.classList.remove('theme-yourname');
@@ -7068,7 +6319,6 @@ window.mu_syncHtmlBg = function(){
     <div class="mu-redhorizon-mountains" aria-hidden="true"></div>
     <div class="mu-redhorizon-stars" aria-hidden="true"></div>
     <div class="mu-spider-web" aria-hidden="true"></div>
-    <div class="mu-spider" aria-hidden="true"></div>
     <div class="mu-vampire-branches" aria-hidden="true"></div>
     <div class="mu-halloween-pumpkin" aria-hidden="true">
         <span class="mu-hwp-eye mu-hwp-eye-l"></span>
@@ -7078,7 +6328,6 @@ window.mu_syncHtmlBg = function(){
     </div>
     <div class="mu-halloween-fog" aria-hidden="true"></div>
     <div class="mu-halloween-branches" aria-hidden="true"></div>
-    <div class="mu-interstellar-ring" aria-hidden="true"><svg viewBox="-18 -18 236 236" xmlns="http://www.w3.org/2000/svg" focusable="false"><defs><radialGradient id="muIrGlow" cx="100" cy="100" r="118" gradientUnits="userSpaceOnUse"><stop offset=".70" stop-color="#ffc882" stop-opacity="0"/><stop offset=".84" stop-color="#ffc882" stop-opacity=".3"/><stop offset="1" stop-color="#ffc882" stop-opacity="0"/></radialGradient></defs><circle cx="100" cy="100" r="118" fill="url(#muIrGlow)"/><path d="M30 30A99 99 0 0 1 170 30" fill="none" stroke="#ffe1aa" stroke-opacity=".8" stroke-width="2"/><path d="M30 170A99 99 0 0 0 170 170" fill="none" stroke="#ffbe78" stroke-opacity=".5" stroke-width="2"/></svg></div>
     <div class="mu-interstellar-hole" aria-hidden="true"><svg viewBox="-18 -18 236 236" xmlns="http://www.w3.org/2000/svg" focusable="false"><defs><radialGradient id="muIhHalo" cx="100" cy="100" r="100" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ffe9b6" stop-opacity=".55"/><stop offset=".28" stop-color="#ffc373" stop-opacity=".34"/><stop offset=".52" stop-color="#ff963c" stop-opacity=".18"/><stop offset=".76" stop-color="#78370f" stop-opacity=".08"/><stop offset="1" stop-color="#78370f" stop-opacity="0"/></radialGradient><radialGradient id="muIhDisk" cx="100" cy="100" r="78" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#000" stop-opacity="1"/><stop offset=".88" stop-color="#000" stop-opacity="1"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient></defs><circle cx="100" cy="100" r="100" fill="url(#muIhHalo)"/><circle cx="100" cy="100" r="78" fill="url(#muIhDisk)"/></svg></div>
     <div class="mu-terminal-cursor" aria-hidden="true"></div>
     <div class="mu-darkweb-rain" aria-hidden="true">
@@ -7101,73 +6350,11 @@ window.mu_syncHtmlBg = function(){
         <span class="mu-hc-tower mu-hc-round mu-hc-t5"></span>
         <span class="mu-hc-tower mu-hc-round mu-hc-t6"></span>
     </div>
-    <div class="mu-hogwarts-lake" aria-hidden="true"></div>
-    <div class="mu-st-forest" aria-hidden="true"></div>
     <div class="mu-st-portal" aria-hidden="true"></div>
-    <div class="mu-st-bike" aria-hidden="true">
-        <span class="mu-st-bike-frame"></span>
-        <span class="mu-st-bike-rider"></span>
-    </div>
     <div class="mu-st-static" aria-hidden="true"></div>
     <div class="mu-ha-street" aria-hidden="true"></div>
     <div class="mu-ha-paintcan" aria-hidden="true"></div>
     <div class="mu-ha-footprints" aria-hidden="true"></div>
-    <div class="mu-op-waves" aria-hidden="true"></div>
-    <div class="mu-op-gulls" aria-hidden="true"><span></span><span></span><span></span></div>
-    <div class="mu-op-ship" aria-hidden="true">
-        <span class="mu-op-bob">
-<svg class="mu-op-ship-svg" viewBox="0 0 190 140" width="190" height="140" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
-<defs>
-<linearGradient id="opShipHull" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b57a38"/><stop offset=".55" stop-color="#8a5423"/><stop offset="1" stop-color="#4f2f0c"/></linearGradient>
-<linearGradient id="opShipSail" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#e8d8ae"/><stop offset=".5" stop-color="#fdf6e3"/><stop offset="1" stop-color="#efe2bd"/></linearGradient>
-<linearGradient id="opShipWV" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0b6c9c" stop-opacity=".62"/><stop offset="1" stop-color="#0b6c9c" stop-opacity="0"/></linearGradient><linearGradient id="opShipWH" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".14" stop-color="#fff"/><stop offset=".86" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient><mask id="opShipWM" maskUnits="userSpaceOnUse" x="0" y="100" width="190" height="40"><rect x="0" y="100" width="190" height="40" fill="url(#opShipWH)"/></mask><linearGradient id="opShipJib" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fdf6e3"/><stop offset="1" stop-color="#e3d3a5"/></linearGradient>
-</defs>
-<g stroke-linecap="round" stroke-linejoin="round">
-<!-- rigging -->
-<g stroke="#2a1a0a" stroke-opacity=".55" stroke-width=".8" fill="none"><path d="M88 11L50 82M88 11L124 88M88 11L66 88M132 28L150 88M132 28L112 88M32 40L12 82"/></g>
-<!-- masts, bowsprit -->
-<g stroke="#5a3a18" fill="none"><path d="M88 10V90" stroke-width="3.4"/><path d="M132 28V90" stroke-width="3"/><path d="M32 40V84" stroke-width="2.6"/><path d="M158 82L189 67" stroke-width="3"/></g>
-<!-- jib -->
-<path d="M135 32L186 66L140 72Z" fill="url(#opShipJib)" stroke="#b79a5a" stroke-width=".8"/>
-<!-- mizzen -->
-<path d="M30 44V78H8Q22 66 30 44Z" fill="url(#opShipSail)" stroke="#b79a5a" stroke-width=".8"/>
-<!-- fore sail -->
-<path d="M118 37H148Q156 54 146 69Q132 74 120 69Q113 54 118 37Z" fill="url(#opShipSail)" stroke="#b79a5a" stroke-width=".9"/>
-<path d="M133 37Q131 54 133 72" stroke="#a88a4a" stroke-opacity=".45" stroke-width=".8" fill="none"/>
-<!-- main sail -->
-<path d="M62 25H114Q124 48 113 71Q88 77 63 71Q54 48 62 25Z" fill="url(#opShipSail)" stroke="#b79a5a" stroke-width="1"/>
-<path d="M75 25Q72 50 75 74M101 25Q104 50 101 74" stroke="#a88a4a" stroke-opacity=".45" stroke-width=".8" fill="none"/>
-<!-- yards -->
-<path d="M56 24.5H120M113 36.5H153M24 43.5H38" stroke="#4a3016" stroke-width="2.4" fill="none"/>
-<!-- Jolly Roger: skull, straw hat, crossbones -->
-<g>
-<path d="M78 58L98 69M98 58L78 69" stroke="#1b1f24" stroke-width="2.4" fill="none"/>
-<circle cx="77.5" cy="57.5" r="1.7" fill="#1b1f24"/><circle cx="98.5" cy="57.5" r="1.7" fill="#1b1f24"/><circle cx="77.5" cy="69.5" r="1.7" fill="#1b1f24"/><circle cx="98.5" cy="69.5" r="1.7" fill="#1b1f24"/>
-<path d="M81 50a7 7 0 1 1 14 0v3.2q0 2-2 2h-1v3h-8v-3h-1q-2 0-2-2z" fill="#1b1f24"/>
-<circle cx="85.2" cy="50.5" r="1.9" fill="#fdf6e3"/><circle cx="90.8" cy="50.5" r="1.9" fill="#fdf6e3"/>
-<path d="M88 52.5l-1 1.8h2z" fill="#fdf6e3"/>
-<path d="M82.5 41.5Q88 32 93.500 41.500Z" fill="#e6bd6e"/>
-<path d="M82.800 40.800H93.200" stroke="#c9302c" stroke-width="1.6" fill="none"/>
-<ellipse cx="88" cy="42.200" rx="12.500" ry="3.100" fill="#e0b463" stroke="#b88a3a" stroke-width=".6"/>
-</g>
-<!-- hull -->
-<path d="M12 80H50V90H136Q152 90 166 76L172 79Q168 108 142 120H38Q18 116 12 80Z" fill="url(#opShipHull)"/>
-<path d="M15 96H146Q158 93 167 84" stroke="#e0b463" stroke-width="2.2" fill="none"/>
-<path d="M20 106H138Q152 104 162 96M27 113H136" stroke="#000" stroke-opacity=".22" stroke-width="1" fill="none"/>
-<path d="M12 80H50M50 90H136" stroke="#d8ad6a" stroke-width="2.4" fill="none"/>
-<g fill="#2a1708"><rect x="46" y="99" width="7" height="5" rx="1"/><rect x="66" y="99" width="7" height="5" rx="1"/><rect x="86" y="99" width="7" height="5" rx="1"/><rect x="106" y="99" width="7" height="5" rx="1"/><rect x="126" y="99" width="7" height="5" rx="1"/></g>
-<rect x="19" y="84" width="5" height="4.500" rx="1" fill="#ffd37a"/><rect x="29" y="84" width="5" height="4.500" rx="1" fill="#ffd37a"/><rect x="39" y="84" width="5" height="4.500" rx="1" fill="#ffd37a"/>
-<!-- lantern -->
-<circle cx="14" cy="76" r="5" fill="#ffd37a" fill-opacity=".28"/><circle cx="14" cy="76" r="2" fill="#ffd37a"/>
-<!-- flag -->
-<g class="mu-op-flag"><path d="M88 3H112Q108 8 112 13H88Z" fill="#12181c"/><circle cx="97" cy="8" r="2.2" fill="#f4ead0"/></g>
-<!-- water over the hull + foam -->
-<g mask="url(#opShipWM)"><path d="M0 118Q18 113 36 118T68 118T100 118T132 118T164 118T190 117V132H0Z" fill="url(#opShipWV)"/>
-<path d="M0 118Q18 113 36 118T68 118T100 118T132 118T164 118T190 117" stroke="#fff" stroke-opacity=".75" stroke-width="1.6" fill="none"/></g>
-</g>
-</svg>
-        </span>
-    </div>
     <div class="mu-phantom-graveyard" aria-hidden="true"></div>
     <div class="mu-anon-beam" aria-hidden="true"></div>
 
@@ -7365,9 +6552,9 @@ window.mu_syncHtmlBg = function(){
         const MU_TG_HEADER_COLORS = {
             'yourname':'#221a5a','oceanic':'#01476e','anime':'#221335','hugo':'#0b131e','darkweb':'#090000',
             'terminal':'#000201','interstellar':'#000000','onepiece':'#195d83','hogwarts':'#120d30','homealone':'#02050c',
-            'strangerthings':'#190505','vampire':'#27010c','phantom':'#230f42','halloween':'#030104','dreamy':'#20103b',
+            'strangerthings':'#0e2032','vampire':'#27010c','phantom':'#230f42','halloween':'#030104','dreamy':'#20103b',
             'spider':'#07000a','redhorizon':'#3b1308','midnightblue':'#071430','aurora':'#031018','aurora-phantom':'#27174d',
-            'love':'#3f1020','cyberpunk':'#05000d','anonymous':'#0e0e0e'
+            'love':'#3f1020','anonymous':'#0e0e0e'
         };
         let __muTgHdrApplied = '';
         function mu_syncTgHeaderColor(){
@@ -9749,11 +8936,10 @@ window.mu_syncHtmlBg = function(){
                 { id: 'dreamy', emoji: '', nameFa: 'رویایی', nameEn: 'Dreamy', class: 'theme-dreamy' },
                 { id: 'spider', emoji: '', nameFa: 'عنکبوتی', nameEn: 'Spider', class: 'theme-spider' },
                 { id: 'redhorizon', emoji: '', nameFa: 'افق سرخ', nameEn: 'Red Horizon', class: 'theme-redhorizon' },
-                { id: 'midnightblue', emoji: '', nameFa: 'میدنایت بلو', nameEn: 'Midnight Blue', class: 'theme-midnightblue' },
+                { id: 'midnightblue', emoji: '', nameFa: 'آبی نیمه‌شب', nameEn: 'Midnight Blue', class: 'theme-midnightblue' },
                 { id: 'aurora', emoji: '', nameFa: 'شفق قطبی', nameEn: 'Aurora', class: 'theme-aurora' },
                 { id: 'aurora-phantom', emoji: '', nameFa: 'شفق فانتومی', nameEn: 'Aurora Phantom', class: 'theme-aurora-phantom' },
                 { id: 'love', emoji: '', nameFa: 'لاو', nameEn: 'Love', class: 'theme-love' },
-                { id: 'cyberpunk', emoji: '', nameFa: 'سایبرپانک', nameEn: 'Cyberpunk', class: 'theme-cyberpunk' },
                 { id: 'anonymous', emoji: '', nameFa: 'انانیموس', nameEn: 'Anonymous', class: 'theme-anonymous' }
             ];
 
@@ -9852,10 +9038,10 @@ window.mu_syncHtmlBg = function(){
             interstellar: { bg: "radial-gradient(ellipse 130% 90% at 50% 108%, #0a0d16 0%, #04060b 45%, #000000 100%)", text: "#f4d9a8", border: "rgba(255, 205, 140, 0.22)" },
             anime: { bg: "radial-gradient(ellipse 65% 38% at 50% 100%, rgba(255, 150, 195, 0.10) 0%, transparent 65%), linear-gradient(165deg, #1a1030 0%, #34193f 26%, #5c2650 52%, #8a3a5a 74%, #c56a80 100%)", text: "#ffd6ea", border: "rgba(255, 175, 205, 0.30)" },
             oceanic: { bg: "linear-gradient(165deg, #014f79 0%, #01324f 30%, #012036 60%, #00121f 100%)", text: "#ade8f4", border: "rgba(144, 224, 239, 0.22)" },
-            onepiece: { bg: "radial-gradient(ellipse 60% 40% at 18% 80%, rgba(255, 196, 62, .16) 0%, transparent 65%), linear-gradient(180deg, #1a5f85 0%, #14507a 20%, #0c3f63 40%, #072f4e 60%, #03223a 80%, #011627 100%)", text: "#ffedc2", border: "rgba(255, 205, 90, 0.28)" },
+            onepiece: { bg: "linear-gradient(180deg, #1a5f85 0%, #14507a 20%, #0c3f63 40%, #072f4e 60%, #03223a 80%, #011627 100%)", text: "#ffedc2", border: "rgba(255, 205, 90, 0.28)" },
             hogwarts: { bg: "radial-gradient(ellipse 100% 60% at 50% -6%, #1c1440 0%, #140f34 24%, #0b0824 50%, #060518 76%, #020103 100%)", text: "#e7d7a4", border: "rgba(197, 158, 76, 0.28)" },
             homealone: { bg: "radial-gradient(ellipse 90% 60% at 50% 100%, #1a2f52 0%, #101f3d 32%, #0a1428 56%, #050a16 80%, #02050c 100%)", text: "#f3e6cf", border: "rgba(214, 168, 92, .28)" },
-            strangerthings: { bg: "radial-gradient(ellipse 92% 55% at 50% -4%, #2c0808 0%, #1e0706 20%, #130404 42%, #0a0303 68%, #030101 100%)", text: "#ecdfce", border: "rgba(210, 50, 35, .32)" },
+            strangerthings: { bg: "radial-gradient(ellipse 95% 55% at 50% -6%, #12283c 0%, #0c1b2c 20%, #08131f 42%, #050b13 68%, #020407 100%)", text: "#f6eadf", border: "rgba(255, 82, 66, .46)" },
             vampire: { bg: "radial-gradient(ellipse 100% 60% at 50% -8%, #4a000f 0%, #2b0009 26%, #150410 52%, #060209 78%, #020103 100%)", text: "#f0d5cf", border: "rgba(200, 30, 45, 0.3)" },
             phantom: { bg: "radial-gradient(circle at 50% 8%, #2b1250 0%, #140a28 40%, #05020a 75%, #000 100%)", text: "#d8b4fe", border: "rgba(192, 132, 252, 0.25)" },
             halloween: { bg: "radial-gradient(ellipse 100% 60% at 50% 108%, #241033 0%, #180b28 30%, #0d0616 58%, #060309 82%, #030104 100%)", text: "#ffb347", border: "rgba(168, 85, 247, 0.25)" },
@@ -9868,7 +9054,6 @@ window.mu_syncHtmlBg = function(){
             aurora: { bg: "linear-gradient(160deg, #030d14 0%, #051826 40%, #030d12 75%, #01080d 100%)", text: "#8dffd8", border: "rgba(120, 255, 214, 0.22)" },
             "aurora-phantom": { bg: "radial-gradient(ellipse 90% 42% at 50% 0%, rgba(123, 74, 226, 0.32) 0%, transparent 62%), radial-gradient(ellipse 70% 38% at 18% 100%, rgba(30, 80, 90, 0.2) 0%, transparent 65%), linear-gradient(175deg, #170a2e 0%, #0e1a30 34%, #081722 62%, #04090f 84%, #000 100%)", text: "#c3ddef", border: "rgba(156, 193, 233, 0.24)" },
             love: { bg: "radial-gradient(ellipse 85% 65% at 50% 20%, #6b1830 0%, #3a0f1e 45%, #12040a 100%)", text: "#ffc9d6", border: "rgba(255, 158, 181, 0.28)" },
-            cyberpunk: { bg: "radial-gradient(ellipse 90% 60% at 50% 100%, #3a0a5c 0%, #1c0838 30%, #10041f 55%, #05000d 100%)", text: "#4ff5ff", border: "rgba(255, 0, 200, 0.22)" },
             anonymous: { bg: "radial-gradient(circle at 50% 32%, #161616 0%, #0c0c0c 55%, #000000 100%)", text: "#f2f2f2", border: "rgba(255, 255, 255, 0.1)" }
         };
 
@@ -21155,8 +20340,8 @@ async function markhinDash_renderCloudPanelBody(keepInput){
         `<p style="opacity:.7;margin:0 0 6px">${cloudIsLinked() ? (fa?'🔗 سینک خودکار بین دستگاه‌ها روی این دستگاه فعال است.':'🔗 Auto sync between devices is active on this device.') : (fa?'⚪️ سینک خودکار هنوز روی این دستگاه فعال نشده — این دستگاه منتظر بکاپ/بازیابی دستی می‌ماند.':'⚪️ Auto sync has not been enabled on this device yet — it will wait for a manual backup/restore.')}</p>` +
         autoSectionHtml + '<div id="cloudAutoProg"></div>' +
         `<div style="margin:0 0 10px"><button id="cloudFixAutoSyncBtn" type="button" class="btn-main" style="width:100%" onclick="markhinDash_cloudFixAutoSync()">🔄 ${fa?'فعال‌سازی / تعمیر سینک خودکار':'Enable / fix auto sync'}</button></div>` +
-        mkHealthHtml() +
         `<div class="mk-warn-box" role="note" style="display:flex;align-items:flex-start;gap:10px;margin:0 0 10px;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,193,7,.35);background:rgba(255,193,7,.10);font-size:12px;line-height:1.8"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffc107" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;margin-top:3px"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><div dir="auto" style="min-width:0">${fa?'این دکمه از یادداشت‌های همین دستگاه همین الان بکاپ می‌گیرد و سینک خودکار را روشن می‌کند. اگر یادداشت‌های این دستگاه کامل یا به‌روز نیست، اول بکاپ ابری را بازیابی کن.':'This button backs up this device\u2019s notes right now and turns auto sync on. If this device\u2019s notes are incomplete or out of date, restore the cloud backup first.'}</div></div>` +
+        mkHealthHtml() +
         mu_cloudKeyUsageHtml('auto', __realKeys, manualEntries.length) +
         `</div><div id="cloudPaneManual" style="display:${__tab==='manual'?'block':'none'}">` +
         mu_cloudSettingsHtml(manualEntries.length) +
@@ -21610,7 +20795,7 @@ window.markhinDash_cloudDeleteClick = markhinDash_cloudDeleteClick;
 // flow where the confirm dialog only ever said a single total note count
 // with no indication of what would really change (and had to stay under
 // Telegram's 256-character confirm-dialog limit, which left no room for
-// specifics anyway). `force` mirrors "🔓 Restore and undo deletions": when
+// specifics anyway). `force` mirrors "?? Restore and undo deletions": when
 // true, tombstoned notes are counted as coming back instead of skipped, and
 // the screen carries the same warning the old confirm dialog used to.
 // Fetched backup kept only while the person flips between the two restore modes on the
@@ -22043,22 +21228,26 @@ const MS = (function(){
     }
 
     /* ---- bounded Damerau-Levenshtein ---- */
+    let _dlA = new Int32Array(96), _dlB = new Int32Array(96), _dlC = new Int32Array(96);
     function dl(a, b, max){
         const al = a.length, bl = b.length;
         if(Math.abs(al - bl) > max) return max + 1;
         if(a === b) return 0;
-        let p2 = null, p1 = new Array(bl + 1);
+        if(bl + 1 > _dlA.length){ const sz = bl + 33; _dlA = new Int32Array(sz); _dlB = new Int32Array(sz); _dlC = new Int32Array(sz); }
+        let p2 = _dlC, p1 = _dlA, cur = _dlB;
         for(let j = 0; j <= bl; j++) p1[j] = j;
         for(let i = 1; i <= al; i++){
-            const cur = new Array(bl + 1); cur[0] = i; let rowMin = i;
+            cur[0] = i; let rowMin = i;
+            const ca = a.charCodeAt(i - 1), cp = i > 1 ? a.charCodeAt(i - 2) : -1;
             for(let j = 1; j <= bl; j++){
-                const cost = a[i-1] === b[j-1] ? 0 : 1;
-                let v = Math.min(p1[j] + 1, cur[j-1] + 1, p1[j-1] + cost);
-                if(p2 && i > 1 && j > 1 && a[i-1] === b[j-2] && a[i-2] === b[j-1]) v = Math.min(v, p2[j-2] + 1);
+                const cb = b.charCodeAt(j - 1);
+                let v = p1[j] + 1; const x = cur[j - 1] + 1; if(x < v) v = x;
+                const y = p1[j - 1] + (ca === cb ? 0 : 1); if(y < v) v = y;
+                if(i > 1 && j > 1 && ca === b.charCodeAt(j - 2) && cp === cb){ const z = p2[j - 2] + 1; if(z < v) v = z; }
                 cur[j] = v; if(v < rowMin) rowMin = v;
             }
             if(rowMin > max) return max + 1;
-            p2 = p1; p1 = cur;
+            const t = p2; p2 = p1; p1 = cur; cur = t;
         }
         return p1[bl];
     }
@@ -22191,45 +21380,101 @@ const MS = (function(){
     const altHit = (x, W) => W === x || (x.length >= 3 && W.startsWith(x) && W.length - x.length <= 3);
 
     /* ---- inverted index over all notes (rebuilt only when something changed) ---- */
-    let notes = [], postings = new Map(), vocab = new Map(), sig = '', ver = 0, runCache = null;
+    let postings = new Map(), vocab = new Map(), sig = '', ver = 0, runCache = null;
+    const byUid = new Map(), byId = new Map();     // uid -> entry, note id -> entry
+    let uidSeq = 0;
+    const infoCache = new Map();                   // word -> {sk, fa}; survives re-indexing
+    const MAX_BODY = 2000000, MAX_WORD = 60;       // very long "words" (base64 blobs etc.) are junk
     const lockedOf = c => { try { return !!(typeof isNoteLocked === 'function' && isNoteLocked(c)); } catch(e){ return false; } };
     const folderStr = c => { try { return (window.mu_noteFolders ? window.mu_noteFolders(c) : [c.folder || '']).join(' '); } catch(e){ return String(c.folder || ''); } };
-    function rebuild(cats){
-        notes = []; postings = new Map(); vocab = new Map();
-        cats.forEach((c, idx) => {
-            const locked = lockedOf(c);
-            const nameN = norm(c.name || ''), tagsN = norm((c.tags || []).join(' ')), folN = norm(folderStr(c));
-            let raw = '';
-            if(!locked){
-                raw = c.text || '';
-                if(!raw && c.html) raw = String(c.html).replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&');
-                if(raw.length > 300000) raw = raw.slice(0, 300000);
-            }
-            const bodyN = norm(raw), bag = new Map();
-            const add = (str, w, isBody) => {
-                if(!str) return;
-                for(const word of str.split(' ')){
-                    if(!word || (word.length < 2 && !/\d/.test(word))) continue;
-                    let p = postings.get(word);
-                    if(!p){ p = new Map(); postings.set(word, p); vocab.set(word, { sk: skel(word), fa: isFa(word) }); }
-                    const e = p.get(idx);
-                    if(!e) p.set(idx, [w, 1]); else { if(w > e[0]) e[0] = w; e[1]++; }
-                    bag.set(word, (bag.get(word) || 0) + (isBody ? 1 : 3));
-                }
-            };
-            add(nameN, 6, false); add(tagsN, 4, false); add(folN, 2, false); add(bodyN, 1, true);
-            notes.push({ id: c.id, nameN, tagsN, bodyN, bag, item: c });
-        });
-    }
-    function ensure(){
-        let s = '';
-        for(const c of categories){
-            s += c.id + '|' + (c.lastEdited || '') + '|' + (c.name || '') + '|' + ((c.text || '').length) + '|' + ((c.html || '').length) + '|' +
-                 (Array.isArray(c.tags) ? c.tags.join(',') : '') + '|' + folderStr(c) + '|' + (lockedOf(c) ? 1 : 0) + '\n';
+    const wordInfo = w => {
+        let I = infoCache.get(w);
+        if(!I){ if(infoCache.size > 300000) infoCache.clear(); I = { sk: skel(w), fa: isFa(w) }; infoCache.set(w, I); }
+        return I;
+    };
+    /* cheap content fingerprint: length + a few sampled characters (catches same-length edits) */
+    const fp = s => {
+        s = s || ''; const n = s.length;
+        if(n < 64) return s;
+        let o = n + ':';
+        for(let k = 1; k <= 8; k++) o += s.charCodeAt(Math.floor(n * k / 9)) + ',';
+        return o + s.charCodeAt(n - 1);
+    };
+    const noteSig = c => c.id + '|' + (c.lastEdited || '') + '|' + (c.name || '') + '|' + fp(c.text) + '|' + fp(c.html) + '|' +
+        (Array.isArray(c.tags) ? c.tags.join(',') : '') + '|' + folderStr(c) + '|' + (lockedOf(c) ? 1 : 0);
+
+    /* tokenise ONE note (the expensive part) — done only when that note changed */
+    function indexNote(c, sg){
+        const locked = lockedOf(c);
+        const nameN = norm(c.name || ''), tagsN = norm((c.tags || []).join(' ')), folN = norm(folderStr(c));
+        let raw = '';
+        if(!locked){
+            raw = c.text || '';
+            if(!raw && c.html) raw = String(c.html).replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&');
+            if(raw.length > MAX_BODY) raw = raw.slice(0, MAX_BODY);
         }
-        if(s === sig) return;
-        sig = s; ver++; runCache = null; rebuild(categories);
+        const bodyN = norm(raw), terms = new Map();
+        const add = (str, w) => {
+            if(!str) return;
+            for(const word of str.split(' ')){
+                if(!word || word.length > MAX_WORD || (word.length < 2 && !/\d/.test(word))) continue;
+                const e = terms.get(word);
+                if(!e) terms.set(word, [w, 1]); else { if(w > e[0]) e[0] = w; e[1]++; }
+            }
+        };
+        add(nameN, 6); add(tagsN, 4); add(folN, 2); add(bodyN, 1);
+        return { id: c.id, sig: sg, nameN, tagsN, folN, bodyN, terms, item: c, uid: 0, _bag: null };
     }
+    /* word-frequency bag (title/tags weigh 3x) — only needed for the few top hits, so built lazily */
+    function bagOf(n){
+        if(n._bag) return n._bag;
+        const bag = new Map();
+        const add = (str, isBody) => {
+            if(!str) return;
+            for(const word of str.split(' ')){
+                if(!word || word.length > MAX_WORD || (word.length < 2 && !/\d/.test(word))) continue;
+                bag.set(word, (bag.get(word) || 0) + (isBody ? 1 : 3));
+            }
+        };
+        add(n.nameN, false); add(n.tagsN, false); add(n.folN, false); add(n.bodyN, true);
+        return (n._bag = bag);
+    }
+    function addToIndex(n){
+        n.uid = ++uidSeq;
+        for(const [word, e] of n.terms){
+            let p = postings.get(word);
+            if(!p){ p = new Map(); postings.set(word, p); vocab.set(word, wordInfo(word)); }
+            p.set(n.uid, e);
+        }
+        byUid.set(n.uid, n); byId.set(n.id, n);
+    }
+    function unindex(n){
+        for(const word of n.terms.keys()){
+            const p = postings.get(word); if(!p) continue;
+            p.delete(n.uid);
+            if(!p.size){ postings.delete(word); vocab.delete(word); }
+        }
+        byUid.delete(n.uid); byId.delete(n.id);
+    }
+    /* only notes whose fingerprint changed are re-tokenised; unchanged notes are reused as-is */
+    function ensure(){
+        const cats = categories, cnt = cats.length, sigs = new Array(cnt);
+        let s = '';
+        for(let i = 0; i < cnt; i++){ const g = noteSig(cats[i]); sigs[i] = g; s += g + '\n'; }
+        if(s === sig) return;
+        sig = s; ver++; runCache = null;
+        const seen = new Set();
+        for(let i = 0; i < cnt; i++){
+            const c = cats[i], g = sigs[i];
+            seen.add(c.id);
+            const old = byId.get(c.id);
+            if(old && old.sig === g){ old.item = c; continue; }
+            if(old) unindex(old);
+            addToIndex(indexNote(c, g));
+        }
+        if(byId.size !== seen.size){ for(const n of Array.from(byId.values())) if(!seen.has(n.id)) unindex(n); }
+    }
+    function warm(){ try { ensure(); } catch(e){} }
 
     const EXOTIC = ['finglish','fuzzy','synonym','semantic','keyboard','phonetic'];
 
@@ -22239,7 +21484,7 @@ const MS = (function(){
         const phr = terms.phrases || [], neg = terms.negs || [], raws = terms.raw || [];
         const key = ver + '|' + terms.join('\u0002') + '|' + raws.join('\u0002') + '|' + phr.join('\u0002') + '|' + neg.join('\u0002');
         if(runCache && runCache.key === key) return runCache;
-        const N = notes.length;
+        const N = byUid.size;
         const idxs = terms.map((t, i) => i).filter(i => terms[i]);
         const ns = idxs.filter(i => !STOP.has(terms[i]));
         const use = (ns.length && ns.length < idxs.length) ? ns : idxs;
@@ -22284,15 +21529,15 @@ const MS = (function(){
         const need = nT <= 2 ? 1 : Math.ceil(nT / 2);
         const qN = use.map(i => terms[i]).join(' ');
         const hasText = nT > 0;
-        const candidates = hasText ? [...acc.keys()] : notes.map((n, i) => i);
+        const candidates = hasText ? [...acc.keys()] : [...byUid.keys()];
         const negIdx = new Set();
         neg.forEach(nw => { for(const [W, p] of postings) if(W === nw || (nw.length >= 2 && W.startsWith(nw))) for(const i of p.keys()) negIdx.add(i); });
 
         candidates.forEach(idx => {
-            const n = notes[idx]; if(!n || negIdx.has(idx)) return;
+            const n = byUid.get(idx); if(!n || negIdx.has(idx)) return;
             const a = acc.get(idx) || { sum: 1, matched: 0, kinds: [] };
             if(hasText && a.matched < need) return;
-            if(phr.length){ const hay = n.nameN + ' ' + n.tagsN + ' ' + n.bodyN; if(!phr.every(p => hay.includes(p))) return; }
+            if(phr.length && !phr.every(p => n.nameN.includes(p) || n.tagsN.includes(p) || n.bodyN.includes(p))) return;
             let score = a.sum;
             if(hasText && nT > 1 && a.matched === nT) score *= 1.35;
             if(hasText && nT > 1 && qN.length > 2){ if(n.nameN.includes(qN)) score += 40; else if(n.bodyN.includes(qN)) score += 15; }
@@ -22308,11 +21553,11 @@ const MS = (function(){
            then boost / surface notes that share them (pseudo-relevance feedback) */
         if(hasText && N >= 6 && objs.some(T => T.t.length >= 3)){
             const byScore = [...res.scores.entries()].sort((a, b) => b[1] - a[1]);
-            const top = byScore.slice(0, 5).map(e => notes.findIndex(n => n.id === e[0])).filter(i => i >= 0);
+            const top = byScore.slice(0, 5).map(e => { const en = byId.get(e[0]); return en ? en.uid : -1; }).filter(i => i >= 0);
             if(top.length >= 2){
                 const cand = new Map();
                 top.forEach(i => {
-                    for(const [w, tf] of notes[i].bag){
+                    for(const [w, tf] of bagOf(byUid.get(i))){
                         if(w.length < 3 || STOP.has(w) || /^\d+$/.test(w) || allHit.has(w)) continue;
                         const df = postings.get(w).size;
                         if(df < 2 || (N >= 8 && df / N > 0.4)) continue;
@@ -22324,7 +21569,7 @@ const MS = (function(){
                 exp.forEach(([w, wt]) => { for(const i of postings.get(w).keys()){ sem.set(i, (sem.get(i) || 0) + wt); cnt.set(i, (cnt.get(i) || 0) + 1); } });
                 const lowest = byScore.length ? byScore[byScore.length - 1][1] : 1;
                 sem.forEach((sv, i) => {
-                    const n = notes[i]; if(!n || negIdx.has(i)) return;
+                    const n = byUid.get(i); if(!n || negIdx.has(i)) return;
                     if(res.scores.has(n.id)){ const cur = res.scores.get(n.id); res.scores.set(n.id, cur + Math.min(0.3 * sv, cur * 0.4)); }
                     else if(cnt.get(i) >= 3 && sv >= 4 && !phr.length){ res.scores.set(n.id, Math.min(0.25 * sv, lowest * 0.9)); res.kinds.set(n.id, 'semantic'); }
                 });
@@ -22370,7 +21615,7 @@ const MS = (function(){
         return false;
     }
 
-    return { norm, skel, dl, mkTerm, run, suggest, suggestQuery, hit, STOP };
+    return { norm, skel, dl, mkTerm, run, suggest, suggestQuery, hit, STOP, warm, size: () => vocab.size };
 })();
 function mu_norm(s){ return MS.norm(s); }
 
@@ -22431,13 +21676,16 @@ function mu_highlightInNode(root, terms){
     const isHit = w => { let v = memo.get(w); if(v === undefined){ v = MS.hit(objs, w); memo.set(w, v); } return v; };
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
     const nodes=[]; let n; while((n=walker.nextNode())) nodes.push(n);
-    let firstMark=null;
+    let firstMark=null, markCount=0;
+    const MAX_MARKS = 1500;   // a huge note can match thousands of words; capping keeps the DOM light
     nodes.forEach(node=>{
+        if(markCount >= MAX_MARKS) return;
         const text = node.nodeValue; if(!text) return;
         const re = new RegExp(MU_WORD_RE, 'gu');
         let frag=null, last=0, m;
-        while((m=re.exec(text))){
+        while(markCount < MAX_MARKS && (m=re.exec(text))){
             if(!isHit(m[0])) continue;
+            markCount++;
             if(!frag) frag = document.createDocumentFragment();
             if(m.index>last) frag.appendChild(document.createTextNode(text.slice(last,m.index)));
             const mark=document.createElement('mark'); mark.className='markhin-hit'; mark.textContent=m[0];
@@ -22716,8 +21964,14 @@ function mu_notePreviewLinesArr(item){
     if (isNoteLocked(item) && !noteSessionKeys.has(item.id)) return [];
     const src = item.html || item.text || '';
     if (!src) return [];
+    const pvc = (window.__mu_pvCache = window.__mu_pvCache || new Map());
+    const pvHit = pvc.get(item.id);
+    if (pvHit && pvHit.src === src) return pvHit.out.slice();
     const tmp = document.createElement('div');
-    tmp.innerHTML = sanitizeHtml(src);
+    // only the first few lines are shown, so strip heavy attributes (data: images) and cap what gets parsed
+    let pvSrc = src.length > 20000 ? src.replace(/\s(?:src|href|style)=(?:"[^"]*"|'[^']*')/g, '') : src;
+    if (pvSrc.length > 120000) pvSrc = pvSrc.slice(0, 120000);
+    tmp.innerHTML = sanitizeHtml(pvSrc);
     tmp.querySelectorAll('.img-toolbar, .audio-wrapper, img, audio').forEach(el => el.remove());
     tmp.querySelectorAll('br').forEach(el => el.insertAdjacentText('afterend', '\n'));
     tmp.querySelectorAll('div, p, li, h1, h2, h3, h4, h5, h6, blockquote, pre, tr').forEach(el => {
@@ -22732,7 +21986,9 @@ function mu_notePreviewLinesArr(item){
         out.push(Array.from(t).slice(0, 400).join(''));
         if (out.length >= 8) break;          // fitter trims to the chosen count
     }
-    return out;
+    if (pvc.size > categories.length + 64) { const live = new Set(categories.map(c => c && c.id)); pvc.forEach((_v, k) => { if (!live.has(k)) pvc.delete(k); }); }
+    pvc.set(item.id, { src, out });
+    return out.slice();
 }
 // Ellipsis with a space before it ("word …"): the browser's own CSS ellipsis
 // can't be given a space, so the preview is fitted here. Full lines are kept in
@@ -24569,9 +23825,11 @@ document.addEventListener('click', function(e){
 let mu_searchDebounceTimer = null;
 window.onSearchChange = function(){
     clearTimeout(mu_searchDebounceTimer);
+    let d = 90;
+    try { const vs = MS.size(), n = categories.length; d = (vs > 120000 || n > 600) ? 300 : (vs > 40000 || n > 250) ? 200 : (vs > 12000 || n > 100) ? 140 : 90; } catch(e){}
     mu_searchDebounceTimer = setTimeout(function(){
         renderApp(activeOpenId);
-    }, 90);
+    }, d);
 };
 
 function mu_jumpToTopMatch(){
@@ -24582,6 +23840,14 @@ function mu_jumpToTopMatch(){
     if(target){ mu_openAndHighlight(target.id, mu_queryTerms(raw)); }
 }
 window.mu_jumpToTopMatch = mu_jumpToTopMatch;
+
+(function mu_warmSearchIndex(){
+    const idle = fn => (window.requestIdleCallback ? window.requestIdleCallback(fn, { timeout: 1500 }) : setTimeout(fn, 300));
+    const warm = () => { try { MS.warm(); } catch(e){} };
+    const si = document.getElementById('searchInput');
+    if(si) ['focus', 'pointerdown', 'touchstart'].forEach(ev => si.addEventListener(ev, () => idle(warm), { passive: true }));
+    setTimeout(() => idle(warm), 2500);
+})();
 
 (function mu_bindSearchEnter(){
     const si = document.getElementById('searchInput');
@@ -29736,7 +29002,7 @@ const MU_AI = (function(){
                 return MU_Theme.list.length + ' total): ' + MU_Theme.list.map(function(t){ return t.id + ' = ' + t.nameEn + ' / ' + t.nameFa; }).join('; ') + '. Use the id when possible';
             }
         }catch(e){}
-        return '23 total): yourname, oceanic, anime, hugo, darkweb, terminal, interstellar, onepiece, hogwarts, homealone, strangerthings, vampire, phantom, halloween, dreamy, spider, redhorizon, midnightblue, aurora, aurora-phantom, love, cyberpunk, anonymous';
+        return '22 total): yourname, oceanic, anime, hugo, darkweb, terminal, interstellar, onepiece, hogwarts, homealone, strangerthings, vampire, phantom, halloween, dreamy, spider, redhorizon, midnightblue, aurora, aurora-phantom, love, anonymous';
     })();
 
     const MAI_TOOLS = [
@@ -38407,6 +37673,8 @@ html .preview-box * {
 html .text-box:not(.masked):empty:before { color: #ffffff !important; }
 </style>
 <style id="muStructureButtons">
+/* Option buttons (.btn-main) now use the same translucent glass fill/border as the default "Your Name" theme
+   in every theme — the per-theme opaque gradient fills, tinted borders and glow shadows were removed. */
 /* Add note / Add folder / Delete buttons keep their own look in every theme
    (these themes force one shared border on all .btn-main, which hid it). */
 body.theme-anime .structure-controls .structure-add,
@@ -39241,5 +38509,22 @@ html.mu-eco-deep .note-btn-wrap { content-visibility: auto; contain-intrinsic-si
   if(document.body) start(); else document.addEventListener('DOMContentLoaded',start);
 })();
 </script>
+<style id="mu-uniform-ui-font">
+/* One UI font in every theme — identical to the default "Your Name" theme.
+   Several themes (Anonymous, Dark Web, Phantom, Hogwarts, Stranger Things, Home Alone,
+   One Piece, Hugo, Anime) swapped the font of the app title, section headings and buttons
+   (Share Tech Mono / Cinzel / Quicksand / VT323 / Creepster / Poller One). Those faces have
+   very different glyph sizes, so the same px size looked bigger or smaller per theme.
+   This block resets only family + letter-spacing (the px sizes were already shared) and
+   leaves the MARKHIN logo rule (its own fixed font/size) untouched. */
+html body[class*="theme-"] #uiTitle,
+html body[class*="theme-"] .toolbar-section-title,
+html body[class*="theme-"] .btn-main {
+    font-family: Arial, Helvetica, sans-serif !important;
+    letter-spacing: normal !important;
+    font-style: normal !important;
+    text-transform: none !important;
+}
+</style>
 </body>
 </html>
