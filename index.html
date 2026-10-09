@@ -8282,6 +8282,8 @@ window.mu_syncHtmlBg = function(){
                 text = fa
                     ? `💾 در حال ذخیره‌ی ${nm}${s.notes ? ` (${s.notes} یادداشت)` : ''}… قطعه‌ی ${s.done} از ${s.total} (${pct}٪)`
                     : `💾 Saving ${nm}${s.notes ? ` (${s.notes} notes)` : ''}… chunk ${s.done} of ${s.total} (${pct}%)`;
+            } else if (s.phase === 'verifying') {
+                text = fa ? `🔍 بررسی صحت ${nm}…` : `🔍 Verifying ${nm}…`;
             } else if (s.phase === 'finalizing') {
                 pct = 100;
                 text = fa ? `⏳ نهایی‌سازی ${nm}…` : `⏳ Finalizing ${nm}…`;
@@ -8332,6 +8334,7 @@ window.mu_syncHtmlBg = function(){
             // the panel is re-rendered (which recreates it) when the auto backup inside it ends.
             const fb = document.getElementById('cloudFixAutoSyncBtn');
             if (fb && fb.disabled !== fixBusy) { fb.disabled = fixBusy; fb.style.opacity = fixBusy ? '.5' : ''; }
+            mkSyncStatusPaint(); mkHealthPaint();
             mkBkPaintOne('cloudAutoProg', a, false);
             mkBkPaintOne('cloudManualProg', m, true);
         }
@@ -8401,8 +8404,20 @@ window.mu_syncHtmlBg = function(){
         // cloudFlushBackup() by hand" pattern that a few call sites used to
         // repeat — now centralized here so every sensitive action goes
         // through one obvious, self-documenting call.
+        // Fix (backup bar kept refilling forever): merging the Cloud copy into local state
+        // (inside an auto backup, or the ~45 s pull-merge) calls the normal save functions,
+        // and those call scheduleCloudBackup() — so every backup scheduled the next one,
+        // which merged again, saved again, and so on without end. Saves that only apply
+        // data that CAME FROM Cloud run inside cloudQuiet() and never schedule a backup
+        // (an auto backup already pushes the merged state in the same run).
+        window.__mkNoSchedule = 0;
+        function cloudQuiet(fn) {
+            window.__mkNoSchedule++;
+            try { return fn(); } finally { window.__mkNoSchedule--; }
+        }
         function scheduleCloudBackup(urgent) {
             if (!IS_TELEGRAM || !hasCloudStorage) return;
+            if (window.__mkNoSchedule > 0) return;
             __cloudBackupPending = true;
             clearTimeout(__cloudBackupTimer);
             if (urgent) { cloudFlushBackup(); return; }
@@ -8505,19 +8520,274 @@ window.mu_syncHtmlBg = function(){
         // 'unavailable' | 'manual-disabled' | 'no-space' | 'too-large' | 'write-failed' | 'protected'.
         function cloudBackupNow(kind, label, password, hint) {
             const isManual = (kind === 'manual');
+            // Fix: an auto backup that is already waiting in the queue will build its payload
+            // from the latest state when it starts, so a second one is never queued behind it.
+            if (!isManual && window.__mkAutoQueued) return window.__mkAutoQueued;
             if (isManual) mkManualBkSet({ active: true, phase: 'prepare', done: 0, total: 0, msg: '', run: window.__mkManualBk.run + 1 });
-            return cloudSerial(async () => {
-                if (!isManual) mkAutoBkSet({ active: true, phase: 'prepare', done: 0, total: 0, run: window.__mkAutoBk.run + 1 });
+            const __p = cloudSerial(async () => {
+                if (!isManual) { window.__mkAutoQueued = null; mkSyncRetryCancel(); mkAutoBkSet({ active: true, phase: 'prepare', done: 0, total: 0, run: window.__mkAutoBk.run + 1 }); }
                 let res;
                 try { res = await cloudBackupNowImpl(kind, label, password, hint); }
                 catch (e) {
                     console.warn('Cloud backup error', e);
                     res = { ok: false, reason: (e && e.message === 'cloud-read-failed') ? 'unavailable' : 'write-failed' };
                 }
+                if (!isManual) mkSyncNote(res);
                 if (isManual) mkManualBkEnd(res); else mkAutoBkEnd(res);
                 return res;
             });
+            if (!isManual) window.__mkAutoQueued = __p;
+            return __p;
         }
+        // ======================================================================
+        //  Sync status + automatic retry + backup health check
+        // ======================================================================
+        const MK_RETRY_DELAYS = [5000, 30000, 120000, 300000];   // 5 s, 30 s, 2 min, 5 min
+        const MK_LAST_OK_KEY = 'mk_cloud_last_ok_v1';
+        window.__mkSync = { lastOk: 0, failCount: 0, retryAt: 0, retryTimer: null, hardFail: '', lastReason: '', cloudTs: 0 };
+        try { window.__mkSync.lastOk = Number(localStorage.getItem(MK_LAST_OK_KEY)) || 0; } catch (_) {}
+        window.__mkHealth = { running: false, msg: '', items: null, orphans: 0, ts: 0, err: '' };
+
+        function mkEsc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+        function mkAgo(ts) {
+            const fa = currentLang === 'fa';
+            if (!ts) return '—';
+            const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
+            if (s < 10) return fa ? 'همین الان' : 'just now';
+            if (s < 60) return fa ? `${s} ثانیه پیش` : `${s}s ago`;
+            const m = Math.round(s / 60);
+            if (m < 60) return fa ? `${m} دقیقه پیش` : `${m} min ago`;
+            const h = Math.round(m / 60);
+            if (h < 48) return fa ? `${h} ساعت پیش` : `${h} h ago`;
+            const d = Math.round(h / 24);
+            return fa ? `${d} روز پیش` : `${d} days ago`;
+        }
+
+        // ---- Automatic retry --------------------------------------------------
+        // A failed auto backup (network hiccup, slow Cloud call, failed verification) used
+        // to just stay failed until the next edit. Now it is retried on its own with growing
+        // gaps, and immediately when the connection comes back. A new backup attempt of any
+        // kind cancels the pending timer. Reasons a retry cannot fix (no space, too large,
+        // protected) are NOT retried — they are shown in the panel instead.
+        function mkSyncRetryCancel() {
+            const S = window.__mkSync;
+            if (S.retryTimer) { clearTimeout(S.retryTimer); S.retryTimer = null; }
+            S.retryAt = 0;
+        }
+        function mkSyncRetryFire() {
+            const S = window.__mkSync;
+            S.retryTimer = null; S.retryAt = 0;
+            if (!IS_TELEGRAM || !hasCloudStorage) return;
+            if (typeof navigator !== 'undefined' && navigator.onLine === false) { mkSyncStatusPaint(); return; } // 'online' event retries
+            scheduleCloudBackup(true);
+            mkSyncStatusPaint();
+        }
+        function mkSyncNote(res) {
+            const S = window.__mkSync;
+            if (res && res.ok) {
+                S.lastOk = Date.now(); S.failCount = 0; S.hardFail = ''; S.lastReason = '';
+                try { localStorage.setItem(MK_LAST_OK_KEY, String(S.lastOk)); } catch (_) {}
+                mkSyncRetryCancel();
+            } else if (res && res.reason === 'protected') {
+                S.lastReason = 'protected'; S.failCount = 0; S.hardFail = '';
+                mkSyncRetryCancel();
+            } else if (res && (res.reason === 'write-failed' || res.reason === 'unavailable' || res.reason === 'verify-failed')) {
+                S.failCount++; S.lastReason = res.reason; S.hardFail = '';
+                mkSyncRetryCancel();
+                if (S.failCount <= MK_RETRY_DELAYS.length) {
+                    const delay = MK_RETRY_DELAYS[S.failCount - 1];
+                    S.retryAt = Date.now() + delay;
+                    S.retryTimer = setTimeout(mkSyncRetryFire, delay);
+                }
+            } else {
+                S.failCount = 0; S.lastReason = (res && res.reason) || ''; S.hardFail = S.lastReason;
+                mkSyncRetryCancel();
+            }
+            mkSyncStatusPaint();
+        }
+        window.addEventListener('online', () => {
+            const S = window.__mkSync;
+            if (S.failCount > 0 && !S.retryTimer && !(window.__mkAutoBk && window.__mkAutoBk.active)) scheduleCloudBackup(true);
+        });
+        document.addEventListener('visibilitychange', () => {
+            const S = window.__mkSync;
+            if (document.visibilityState === 'visible' && S.failCount > 0 && !S.retryTimer && !(window.__mkAutoBk && window.__mkAutoBk.active)) scheduleCloudBackup();
+        });
+        function markhinDash_cloudRetryNow() {
+            mkSyncRetryCancel();
+            scheduleCloudBackup(true);
+            mkSyncStatusPaint();
+        }
+        window.markhinDash_cloudRetryNow = markhinDash_cloudRetryNow;
+
+        // ---- Status card (lives INSIDE the Telegram Cloud Backup panel, auto tab) ----
+        function mkSyncStatusInner() {
+            const fa = currentLang === 'fa';
+            const S = window.__mkSync, a = window.__mkAutoBk, H = window.__mkHealth;
+            let ico, line;
+            const retryBtn = `<div style="margin-top:6px"><button type="button" class="btn-main" style="width:100%" onclick="markhinDash_cloudRetryNow()">?? ${fa ? 'تلاش دوباره‌ی همین الان' : 'Retry now'}</button></div>`;
+            let extra = '';
+            if (a && a.active) { ico = '⏳'; line = fa ? 'در حال ذخیره‌ی بکاپ خودکار…' : 'Saving the auto backup…'; }
+            else if (S.failCount > 0 && S.retryAt) {
+                const secs = Math.max(0, Math.ceil((S.retryAt - Date.now()) / 1000));
+                ico = '🟠';
+                line = fa ? `ذخیره ناموفق بود؛ تلاش مجدد خودکار تا ${secs} ثانیه دیگر (تلاش ${S.failCount} از ${MK_RETRY_DELAYS.length}).`
+                          : `Save failed; retrying automatically in ${secs}s (attempt ${S.failCount} of ${MK_RETRY_DELAYS.length}).`;
+                extra = retryBtn;
+            }
+            else if (S.failCount > 0) {
+                ico = '🔴';
+                line = fa ? 'چند بار پشت‌سر‌هم ناموفق بود و تلاش خودکار متوقف شد. اینترنت را بررسی کن و دوباره امتحان کن.'
+                          : 'Failed several times in a row; automatic retries stopped. Check your connection and retry.';
+                extra = retryBtn;
+            }
+            else if (S.hardFail) { ico = '🔴'; line = mu_cloudReasonMsg(S.hardFail, fa).replace(/^⚠️\s*/, ''); }
+            else if (S.lastReason === 'protected') { ico = '🛡'; line = fa ? 'بکاپ خودکار برای حفظ بکاپ بزرگ‌تر Cloud رویش نوشته نمی‌شود.' : 'Auto backup will not overwrite the larger backup in Cloud.'; }
+            else if (typeof navigator !== 'undefined' && navigator.onLine === false) { ico = '📴'; line = fa ? 'آفلاین هستی؛ با وصل شدن اینترنت بکاپ خودکار ادامه پیدا می‌کند.' : 'You are offline; backup resumes when the connection returns.'; }
+            else if (typeof __cloudBackupPending !== 'undefined' && __cloudBackupPending) { ico = '🕒'; line = fa ? 'تغییرات تازه منتظر بکاپ هستند (چند ثانیه‌ی دیگر).' : 'New changes are waiting to be backed up (a few seconds).'; }
+            else if (S.lastOk || S.cloudTs) { ico = '🟢'; line = fa ? 'همه‌چیز بکاپ شده است.' : 'Everything is backed up.'; }
+            else { ico = '⚪️'; line = fa ? 'هنوز بکاپ خودکاری ثبت نشده.' : 'No auto backup recorded yet.'; }
+            const rows = [];
+            if (S.lastOk) rows.push(fa ? `آخرین بکاپ موفق از این دستگاه: ${mkAgo(S.lastOk)}` : `Last successful backup from this device: ${mkAgo(S.lastOk)}`);
+            if (S.cloudTs) rows.push(fa ? `آخرین بکاپ خودکار در Cloud: ${mkAgo(S.cloudTs)}` : `Latest auto backup in Cloud: ${mkAgo(S.cloudTs)}`);
+            if (H.ts && !H.running) {
+                const bad = H.items ? H.items.filter(x => !x.ok).length : 0;
+                rows.push(fa ? `آخرین بررسی سلامت: ${mkAgo(H.ts)} ${H.err ? '⚠️' : (bad ? '❌' : '✅')}` : `Last health check: ${mkAgo(H.ts)} ${H.err ? '⚠️' : (bad ? '❌' : '✅')}`);
+            }
+            return `<div style="font-size:13px;font-weight:bold;margin-bottom:4px">${ico} ${mkEsc(line)}</div>` +
+                   (rows.length ? `<div style="opacity:.75;font-size:11.5px;line-height:1.8">${rows.map(mkEsc).join('<br>')}</div>` : '') + extra;
+        }
+        function mkSyncStatusHtml(autoEntry) {
+            window.__mkSync.cloudTs = (autoEntry && autoEntry.ts) || 0;
+            return `<div id="cloudSyncStatus" dir="auto" style="margin:0 0 12px;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05)">${mkSyncStatusInner()}</div>`;
+        }
+        function mkSyncStatusPaint() {
+            const el = document.getElementById('cloudSyncStatus');
+            if (el) el.innerHTML = mkSyncStatusInner();
+        }
+        setInterval(mkSyncStatusPaint, 5000);
+
+        // ---- Backup health check ------------------------------------------------
+        // Reads every stored backup back from Cloud and checks it end to end: every chunk
+        // present, total length matches the index, and (for unencrypted ones) that it
+        // decompresses, parses and holds the expected number of notes. Read-only: it never
+        // changes or deletes anything. Runs in the serial queue so it can't race a write.
+        function mkHealthInner() {
+            const fa = currentLang === 'fa', H = window.__mkHealth;
+            if (H.running) return '⏳ ' + mkEsc(H.msg || (fa ? 'در حال بررسی…' : 'Checking…'));
+            if (H.err) return '⚠️ ' + mkEsc(H.err);
+            if (!H.items) return '';
+            const lines = H.items.map(x => {
+                const nm = x.kind === 'auto' ? (fa ? 'خودکار' : 'Auto') : ((fa ? 'دستی' : 'Manual') + (x.label ? ` «${x.label}»` : ''));
+                const notes = fa ? `${x.notes} یادداشت` : `${x.notes} notes`;
+                const state = x.ok ? (x.warn ? '⚠️ ' + x.warn : (fa ? 'سالم' : 'healthy')) : '❌ ' + x.why;
+                return `${x.ok ? (x.warn ? '🟡' : '✅') : '❌'} <b>${mkEsc(nm)}</b> — ${mkEsc(notes)} — ${mkEsc(state)}`;
+            });
+            if (!H.items.length) lines.push(fa ? 'هیچ بکاپی در Cloud پیدا نشد.' : 'No backups found in Cloud.');
+            if (H.orphans) lines.push('ℹ️ ' + mkEsc(fa ? `${H.orphans} کلید اضافه در Cloud هست که به هیچ بکاپی وصل نیست (ممکن است موقتی باشد؛ چیزی حذف نشد).`
+                                                         : `${H.orphans} stray key(s) in Cloud aren't linked to any backup (may be temporary; nothing was deleted).`));
+            const autoBad = H.items.some(x => x.kind === 'auto' && !x.ok);
+            const fixBtn = autoBad ? `<div style="margin-top:6px"><button type="button" class="btn-main" style="width:100%" onclick="markhinDash_cloudRetryNow()">💾 ${fa ? 'ساخت دوباره‌ی بکاپ خودکار' : 'Rebuild the auto backup'}</button></div>` : '';
+            return lines.join('<br>') + fixBtn;
+        }
+        function mkHealthHtml() {
+            const fa = currentLang === 'fa';
+            return `<div style="margin:0 0 10px"><button id="cloudHealthBtn" type="button" class="btn-main" style="width:100%" onclick="mkCloudHealthCheck()">🩺 ${fa ? 'بررسی سلامت بکاپ‌ها' : 'Check backup health'}</button>` +
+                   `<div id="cloudHealthResult" dir="auto" style="font-size:12px;line-height:1.9;margin-top:6px">${mkHealthInner()}</div></div>`;
+        }
+        function mkHealthPaint() {
+            const el = document.getElementById('cloudHealthResult');
+            if (el) el.innerHTML = mkHealthInner();
+            const b = document.getElementById('cloudHealthBtn');
+            if (b) {
+                const off = !!(window.__mkHealth.running || (window.__mkAutoBk && window.__mkAutoBk.active) || (window.__mkManualBk && window.__mkManualBk.active));
+                if (b.disabled !== off) { b.disabled = off; b.style.opacity = off ? '.5' : ''; }
+            }
+        }
+        async function mkHealthImpl(H) {
+            const fa = currentLang === 'fa';
+            const idx = await cloudReadIndex();
+            const sorted = idx.slice().sort((x, y) => (x.kind === 'auto' ? -1 : 0) - (y.kind === 'auto' ? -1 : 0) || (y.ts || 0) - (x.ts || 0));
+            const items = [];
+            for (let i = 0; i < sorted.length; i++) {
+                const e = sorted[i];
+                H.msg = fa ? `بررسی بکاپ ${i + 1} از ${sorted.length}…` : `Checking backup ${i + 1} of ${sorted.length}…`;
+                mkHealthPaint();
+                const it = { id: e.id, kind: e.kind, label: e.label || '', notes: e.notes || 0, ok: false, warn: '', why: '' };
+                try {
+                    const keys = cloudEntryKeys(e);
+                    if (!keys.length) { it.why = fa ? 'هیچ قطعه‌ای ثبت نشده' : 'no chunks recorded'; items.push(it); continue; }
+                    const parts = await cloudGetItems(keys);
+                    const missing = keys.filter(k => !parts[k]).length;
+                    if (missing) { it.why = fa ? `${missing} قطعه از ${keys.length} قابل خواندن نیست` : `${missing} of ${keys.length} chunks unreadable`; items.push(it); continue; }
+                    const raw = keys.map(k => parts[k]).join('');
+                    if (e.len && raw.length !== e.len) { it.why = fa ? 'اندازه‌ی داده با فهرست نمی‌خواند' : 'size does not match the index'; items.push(it); continue; }
+                    if (e.enc) {
+                        const env = safeParseJSON(raw, null);
+                        if (!env) { it.why = fa ? 'ساختار رمزگذاری خراب است' : 'encryption envelope is damaged'; items.push(it); continue; }
+                        it.ok = true; it.warn = fa ? 'رمزدار؛ محتوا بدون رمز بررسی نمی‌شود' : 'password-protected; content not checked without the password';
+                        items.push(it); continue;
+                    }
+                    const json = e.c ? await cloudDecompress(raw) : raw;
+                    const data = json == null ? null : safeParseJSON(json, null);
+                    if (!data || !Array.isArray(data.notes)) { it.why = fa ? 'محتوا قابل خواندن نیست' : 'content cannot be read'; items.push(it); continue; }
+                    it.ok = true;
+                    if (typeof e.notes === 'number' && data.notes.length !== e.notes) it.warn = fa ? `تعداد یادداشت‌ها با فهرست نمی‌خواند (${data.notes.length} به‌جای ${e.notes})` : `note count differs from the index (${data.notes.length} vs ${e.notes})`;
+                    it.notes = data.notes.length;
+                } catch (err) { it.ok = false; it.why = fa ? 'خطا هنگام خواندن' : 'error while reading'; }
+                items.push(it);
+            }
+            let orphans = 0;
+            try {
+                const all = await cloudGetKeys();
+                if (all) {
+                    const ref = new Set();
+                    idx.forEach(e => cloudEntryKeys(e).forEach(k => ref.add(k)));
+                    orphans = all.filter(k => k.indexOf(CLOUD_BACKUP_PREFIX) === 0 && !ref.has(k)).length;
+                }
+            } catch (_) {}
+            return { items, orphans };
+        }
+        async function mkCloudHealthCheck() {
+            const H = window.__mkHealth, fa = currentLang === 'fa';
+            if (H.running) return;
+            if (!IS_TELEGRAM || !hasCloudStorage) { H.err = fa ? 'Cloud تلگرام در دسترس نیست.' : 'Telegram Cloud is not available.'; mkHealthPaint(); return; }
+            H.running = true; H.err = ''; H.items = null; H.msg = fa ? 'در حال بررسی…' : 'Checking…';
+            mkHealthPaint(); mkSyncStatusPaint();
+            try {
+                await cloudSerial(async () => {
+                    window.__mkSyncBusy = true;
+                    try {
+                        const r = await mkHealthImpl(H);
+                        H.items = r.items; H.orphans = r.orphans;
+                    } catch (e) {
+                        H.err = fa ? 'خواندن اطلاعات از Cloud ناموفق بود؛ دوباره امتحان کن.' : 'Could not read from Cloud; try again.';
+                    } finally {
+                        H.running = false; H.ts = Date.now();
+                        mkSyncEnd();
+                    }
+                });
+            } catch (_) { H.running = false; if (!H.err) H.err = fa ? 'بررسی ناموفق بود.' : 'Check failed.'; }
+            mkHealthPaint(); mkSyncStatusPaint();
+        }
+        window.mkCloudHealthCheck = mkCloudHealthCheck;
+
+        // Read-back check after a write: re-reads what was just written and compares it with
+        // what was sent. Small backups are checked chunk by chunk; for very large ones the
+        // first, last and ten evenly spaced chunks are compared (reading ~950 keys back after
+        // every backup would double the traffic).
+        async function cloudVerifyWritten(keys, chunks, full) {
+            let pick;
+            if (full || keys.length <= 60) pick = keys.map((_, i) => i);
+            else {
+                const set = new Set([0, keys.length - 1]);
+                for (let j = 1; j <= 10; j++) set.add(Math.floor(j * (keys.length - 1) / 11));
+                pick = Array.from(set);
+            }
+            const got = await cloudGetItems(pick.map(i => keys[i]));
+            return pick.every(i => got[keys[i]] === chunks[i]);
+        }
+
         // Removes leftover chunk keys of one key-namespace at/after `keep` (from an older,
         // larger version that a failed cleanup left behind) so they never eat the key budget.
         async function cloudRemoveStrayTail(pfx, keep) {
@@ -8563,11 +8833,13 @@ window.mu_syncHtmlBg = function(){
                 try {
                     const remote = await cloudRestoreBackup(prevEntry.id);
                     if (remote && remote.data) {
-                        const merged = cloudApplyMergeData(remote.data);
-                        if (merged.updated || merged.added || merged.retired) {
-                            saveToLocalStorage(); saveFoldersToLocalStorage();
-                            try { renderApp(); } catch (_) {}
-                        }
+                        cloudQuiet(() => {
+                            const merged = cloudApplyMergeData(remote.data);
+                            if (merged.updated || merged.added || merged.retired) {
+                                saveToLocalStorage(); saveFoldersToLocalStorage();
+                                try { renderApp(); } catch (_) {}
+                            }
+                        });
                     }
                 } catch (_) { /* best effort — push this device's own state either way */ }
             }
@@ -8661,6 +8933,15 @@ window.mu_syncHtmlBg = function(){
                     return { ok: false, reason: 'write-failed' };
                 }
                 mkBkSetFor(kind, { done: i + 1 });
+            }
+            // Read-back check BEFORE the index switches to the new copy: a copy that did not
+            // land intact is rolled back and reported as a failure (the auto retry then runs).
+            mkBkSetFor(kind, { phase: 'verifying' });
+            let verified = false;
+            try { verified = await cloudVerifyWritten(keys, chunks, kind === 'manual'); } catch (_) { verified = false; }
+            if (!verified) {
+                await rollback(keys.length);
+                return { ok: false, reason: 'verify-failed' };
             }
             mkBkSetFor(kind, { phase: 'finalizing' });
 
@@ -8773,7 +9054,7 @@ window.mu_syncHtmlBg = function(){
                     // are compared and applied separately, so both changes can survive
                     // a single merge.
                     const cloudTextNewer = (Date.parse(cloudItem.lastEdited) || 0) > (Date.parse(local.lastEdited) || 0);
-                    const cloudMetaNewer = (Date.parse(cloudItem.metaEditedAt) || 0) > (Date.parse(local.metaEditedAt) || 0);
+                    const cloudMetaNewer = (Date.parse(cloudItem.metaEditedAt) || 0) > (Date.parse(local.metaEditedAt) || Date.parse(local.lastEdited) || 0);
                     if (cloudTextNewer) {
                         local.name = cloudItem.name;
                         if (cloudItem.order != null) local.order = Number(cloudItem.order) || 0;
@@ -8924,7 +9205,7 @@ window.mu_syncHtmlBg = function(){
                     // counts as an "update" for preview purposes, even if only the
                     // metadata (pin/favorite/archive/tags/folder) would actually change.
                     const cloudTextNewer = (Date.parse(cloudItem.lastEdited) || 0) > (Date.parse(local.lastEdited) || 0);
-                    const cloudMetaNewer = (Date.parse(cloudItem.metaEditedAt) || 0) > (Date.parse(local.metaEditedAt) || 0);
+                    const cloudMetaNewer = (Date.parse(cloudItem.metaEditedAt) || 0) > (Date.parse(local.metaEditedAt) || Date.parse(local.lastEdited) || 0);
                     if (cloudTextNewer || cloudMetaNewer) {
                         updated.push(cloudItem.name || local.name || '');
                     } else {
@@ -9000,15 +9281,19 @@ window.mu_syncHtmlBg = function(){
                 // startup and each ~45s poll, closing the exact gap that let a
                 // deleted note "come back" on another device.
                 if (!cloudIsLinked()) {
-                    const retired = cloudMergeTombstones(result.data.tombstones);
-                    if (retired) { saveToLocalStorage(); saveFoldersToLocalStorage(); try { renderApp(); } catch (_) {} }
+                    cloudQuiet(() => {
+                        const retired = cloudMergeTombstones(result.data.tombstones);
+                        if (retired) { saveToLocalStorage(); saveFoldersToLocalStorage(); try { renderApp(); } catch (_) {} }
+                    });
                     return;
                 }
-                const { updated, added, retired } = cloudApplyMergeData(result.data);
-                if (updated || added || retired) {
-                    saveToLocalStorage(); saveFoldersToLocalStorage();
-                    try { renderApp(); } catch (_) {}
-                }
+                cloudQuiet(() => {
+                    const { updated, added, retired } = cloudApplyMergeData(result.data);
+                    if (updated || added || retired) {
+                        saveToLocalStorage(); saveFoldersToLocalStorage();
+                        try { renderApp(); } catch (_) {}
+                    }
+                });
             } catch (_) { /* best-effort background sync; must never interrupt startup */ }
         }
 
@@ -20291,6 +20576,8 @@ function mu_cloudReasonMsg(reason, fa){
             return fa ? '⚠️ حجم یادداشت‌ها از سقف یک بکاپ بیشتر است. تعداد بکاپ‌های دستی را کمتر کن تا سقف هر بکاپ بزرگ‌تر شود.' : '⚠️ Your notes are larger than one backup can hold. Lower the number of manual backups so each backup gets more space.';
         case 'protected':
             return fa ? '🛡 بکاپ خودکار روی بکاپ بزرگ‌ترِ موجود در Cloud نوشته نمی‌شود؛ اول آن را بازیابی کن.' : '🛡 Auto-backup will not overwrite the larger backup already in the Cloud; restore it first.';
+        case 'verify-failed':
+            return fa ? '⚠️ بکاپ نوشته شد ولی هنگام بررسی بعد از نوشتن سالم نبود و کنار گذاشته شد؛ بکاپ قبلی دست‌نخورده ماند.' : '⚠️ The backup was written but failed the read-back check and was discarded; the previous backup is untouched.';
         case 'invalid':
             return fa ? '⚠️ مقدار نامعتبر است.' : '⚠️ Invalid value.';
         default:
@@ -20638,6 +20925,7 @@ async function markhinDash_renderCloudPanelBody(keepInput){
         __warnHtml(fa?'فقط متن و اطلاعات یادداشت‌ها بکاپ می‌شود؛ تصاویر فقط روی همین دستگاه می‌مانند و در بکاپ نیستند. این بکاپ بین همه‌ی دستگاه‌هایی که همین ربات را در تلگرام باز کنی مشترک است.':'Only note text/metadata is backed up here — images stay on this device and are not included. This backup is shared across every device where you open this bot in Telegram.') +
         __tabsHtml +
         `<div id="cloudPaneAuto" style="display:${__tab==='auto'?'block':'none'}">` +
+        mkSyncStatusHtml(autoEntry) +
         (autoBlocked
             ? `<p style="margin:0 0 10px;padding:8px;border-radius:8px;background:rgba(255,193,7,.12)">${fa?`🛡 در Cloud بکاپی با ${autoEntry.notes} یادداشت هست ولی روی این دستگاه ${categories.length} یادداشت است؛ برای حفظ بکاپ، بکاپ خودکار رویش نوشته نمی‌شود. یکی از بکاپ‌ها را بازیابی کن (یا «ذخیره‌ی یک بکاپ جدید» را بزن).`:`🛡 The Cloud holds a backup of ${autoEntry.notes} notes but this device has ${categories.length}; auto-backup won't overwrite it. Restore one of the backups (or press "Save a new backup").`}</p>`
             : '') +
@@ -20645,6 +20933,7 @@ async function markhinDash_renderCloudPanelBody(keepInput){
         `<p style="opacity:.7;margin:0 0 6px">${cloudIsLinked() ? (fa?'🔗 سینک خودکار بین دستگاه‌ها روی این دستگاه فعال است.':'🔗 Auto sync between devices is active on this device.') : (fa?'⚪️ سینک خودکار هنوز روی این دستگاه فعال نشده — این دستگاه منتظر بکاپ/بازیابی دستی می‌ماند.':'⚪️ Auto sync has not been enabled on this device yet — it will wait for a manual backup/restore.')}</p>` +
         autoSectionHtml + '<div id="cloudAutoProg"></div>' +
         `<div style="margin:0 0 10px"><button id="cloudFixAutoSyncBtn" type="button" class="btn-main" style="width:100%" onclick="markhinDash_cloudFixAutoSync()">🔄 ${fa?'فعال‌سازی / تعمیر سینک خودکار':'Enable / fix auto sync'}</button></div>` +
+        mkHealthHtml() +
         `<div class="mk-warn-box" role="note" style="display:flex;align-items:flex-start;gap:10px;margin:0 0 10px;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,193,7,.35);background:rgba(255,193,7,.10);font-size:12px;line-height:1.8"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffc107" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;margin-top:3px"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><div dir="auto" style="min-width:0">${fa?'این دکمه از یادداشت‌های همین دستگاه همین الان بکاپ می‌گیرد و سینک خودکار را روشن می‌کند. اگر یادداشت‌های این دستگاه کامل یا به‌روز نیست، اول بکاپ ابری را بازیابی کن.':'This button backs up this device\u2019s notes right now and turns auto sync on. If this device\u2019s notes are incomplete or out of date, restore the cloud backup first.'}</div></div>` +
         mu_cloudKeyUsageHtml('auto', __realKeys, manualEntries.length) +
         `</div><div id="cloudPaneManual" style="display:${__tab==='manual'?'block':'none'}">` +
