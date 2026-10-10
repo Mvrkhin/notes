@@ -48,7 +48,90 @@
 @keyframes mkTOut{to{opacity:0}}
 @keyframes mkOut{0%{opacity:1}35%{opacity:1}100%{opacity:0;visibility:hidden}}
 @keyframes mkFail{to{opacity:0;visibility:hidden}}
-@media (prefers-reduced-motion:reduce){#mkSplash .mkw i,#mkSplash .mkv{animation:none}#mkSplash .mkf{animation:none;transform:none}#mkSplash.out .mkw,#mkSplash.out .mkt{animation:none}}</style>
+@media (prefers-reduced-motion:reduce){#mkSplash .mkw i,#mkSplash .mkv{animation:none}#mkSplash .mkf{animation:none;transform:none}#mkSplash.out .mkw,#mkSplash.out .mkt{animation:none}}
+        /* ===== MARKHIN List (لیست) ===== */
+        /* all options in structure management share the "add note" size */
+        .structure-controls .structure-store .btn-main { padding: 7px 6px; font-size: 10.5px; line-height: 1.35; min-height: 30px; }
+        .structure-controls .structure-store .mkl-open-btn { gap: 4px; box-sizing: border-box; width: 100%; height: 100%; }
+        /* icon no taller than the text line, so the List frame is exactly the Archive frame size */
+        .structure-controls .structure-store .mkl-open-btn .mkl-ico { width: 13px; height: 13px; display: block; }
+        .structure-controls .structure-store .mkl-open-btn span { line-height: 1.35; }
+        /* List button edge: visible but softer than the add-note edge (the Archive base edge is transparent, so copying it hides the edge) */
+        .structure-controls .structure-store .mkl-open-btn { border-width: 1px; border-style: solid; border-color: rgba(255,255,255,.5); border-color: color-mix(in srgb, var(--text-color) 68%, transparent); }
+        .structure-controls .structure-store .btn-folder-del.structure-del-wide { grid-column: 1 / -1; justify-self: center; width: calc(50% - 3px); }
+        .mkl-ico { flex: 0 0 auto; }
+        @keyframes mklFade { from { opacity: 0; } to { opacity: .6; } }
+        .mkl-text { flex: 1; min-width: 0; font-size: 14px; line-height: 1.7; text-align: start; overflow-wrap: anywhere; white-space: pre-wrap; text-decoration-line: line-through; text-decoration-thickness: 1.5px; text-decoration-color: transparent; transition: text-decoration-color .3s ease, opacity .3s ease; }
+        /* ===== List modal — light warm paper, square corners. Scoped with :has(.mkl-wrap) so every other modal keeps its own look. ===== */
+        html body .advanced-modal:has(.mkl-wrap) { background: rgba(35, 28, 20, .5); }
+        html body .advanced-card:has(.mkl-wrap) {
+            --mk-paper: #FBF8F2; --mk-surface: #FFFFFF; --mk-ink: #000000; --mk-soft: #4A443B;
+            --mk-line: #E3DCCD; --mk-hover: #F6F1E6; --mk-accent: #B45309; --mk-done: #2E7D4F; --mk-donebg: #EEF6EA; --mk-danger: #C0392B;
+            width: min(460px, 100%); max-height: 88vh; padding: 0 !important; overflow: auto;
+            background: var(--mk-paper) !important; color: var(--mk-ink) !important;
+            border: 1px solid #000 !important;
+            border-radius: 0 !important; box-shadow: 5px 5px 0 rgba(40, 30, 20, .16) !important;
+        }
+        .mkl-wrap { display: flex; flex-direction: column; gap: 14px; padding: 18px 18px 14px; font-family: inherit; color: var(--mk-ink); }
+        .mkl-wrap, .mkl-wrap * { border-radius: 0 !important; box-sizing: border-box; text-shadow: none !important; }
+        .mkl-wrap svg { filter: none !important; }
+        /* the app has a global `span, div, h3 … { color: var(--text-color) }` rule: make these inherit the modal's black instead */
+        .mkl-wrap span, .mkl-wrap div, .mkl-wrap h3 { color: inherit; }
+        .mkl-wrap .mkl-progress-top, .mkl-wrap .mkl-progress-top span { color: #000 !important; }
+
+        .mkl-wrap .mkl-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0; padding-bottom: 12px; border-bottom: 1px solid var(--mk-line); }
+        .mkl-wrap .mkl-head h3 { margin: 0; display: flex; align-items: center; gap: 9px; font-size: 1.1rem; font-weight: 800; color: var(--mk-ink); }
+        .mkl-wrap .mkl-head h3 svg { color: var(--mk-accent); filter: none; }
+        .mkl-wrap .mkl-close { flex: 0 0 auto; width: 34px; height: 34px; display: grid; place-items: center; padding: 0; border: 1px solid var(--mk-line); background: var(--mk-surface); color: var(--mk-ink); cursor: pointer; transition: background .15s; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+        .mkl-wrap .mkl-close:hover, .mkl-wrap .mkl-close:active { background: var(--mk-hover); }
+
+        .mkl-wrap .mkl-progress { display: flex; flex-direction: column; gap: 7px; }
+        .mkl-wrap .mkl-progress-top { display: flex; justify-content: space-between; font-size: 12.5px; font-weight: 600; color: #000; opacity: 1; font-variant-numeric: tabular-nums; min-height: 17px; }
+        .mkl-wrap .mkl-bar { height: 6px; background: var(--mk-line); overflow: hidden; }
+        .mkl-wrap .mkl-bar > i { display: block; height: 100%; width: 0; background: var(--mk-accent); transition: width .45s cubic-bezier(.2,.8,.2,1); }
+
+        /* input + button form one joined rectangle; 16px text on purpose (smaller makes iOS/Telegram zoom the page on focus) */
+        .mkl-wrap .mkl-add { display: flex; align-items: stretch; gap: 0; border: 1px solid var(--mk-ink); background: var(--mk-surface); }
+        .mkl-wrap .mkl-add:focus-within { box-shadow: 0 0 0 3px rgba(180,83,9,.2); }
+        .mkl-wrap .mkl-add input { flex: 1; min-width: 0; padding: 11px 12px; border: 0 !important; background: transparent !important; color: var(--mk-ink) !important; font: inherit; font-size: 16px; text-align: start; outline: none; box-shadow: none !important; }
+        .mkl-wrap .mkl-add input::placeholder { color: #000; opacity: 1; font-size: 14px; }
+        .mkl-wrap .mkl-add-btn { flex: 0 0 auto; width: 46px; height: auto; min-height: 44px; display: grid; place-items: center; border: 0; background: #E3DCCD; color: #6B6459; cursor: pointer; opacity: 1; transition: background .2s, color .2s; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+        .mkl-wrap .mkl-add-btn.on { background: var(--mk-accent); color: #fff; }
+        .mkl-wrap .mkl-add-btn:active { filter: brightness(.9); }
+
+        .mkl-wrap .mkl-items { min-height: 150px; max-height: min(46vh, 360px); overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 0; border: 1px solid var(--mk-line); background: var(--mk-surface); scrollbar-width: thin; scrollbar-color: #CFC6B4 transparent; }
+        .mkl-wrap .mkl-item { display: flex; align-items: center; gap: 12px; padding: 11px 12px; margin: 0; background: transparent; border: 0; border-bottom: 1px solid var(--mk-line); transition: height .28s cubic-bezier(.2,.8,.2,1), opacity .25s ease, padding .28s cubic-bezier(.2,.8,.2,1), background .15s; }
+        .mkl-wrap .mkl-item:last-child { border-bottom: 0; }
+        .mkl-wrap .mkl-item:hover { background: var(--mk-hover); }
+        .mkl-wrap .mkl-item.out { height: 0 !important; opacity: 0; margin: 0; padding-top: 0; padding-bottom: 0; border-width: 0; overflow: hidden; pointer-events: none; }
+        .mkl-wrap .mkl-item.done { border-color: var(--mk-line); background: var(--mk-donebg); }
+
+        .mkl-wrap .mkl-check { flex: 0 0 auto; width: 24px; height: 24px; padding: 0; border: none; background: none; cursor: pointer; color: var(--mk-ink); touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+        .mkl-wrap .mkl-check svg { width: 24px; height: 24px; display: block; overflow: visible; }
+        .mkl-wrap .mkl-check .ring { fill: var(--mk-surface); stroke: var(--mk-soft); stroke-width: 2; opacity: 1; transition: stroke .2s; }
+        .mkl-wrap .mkl-check .fill { fill: var(--mk-done); opacity: 0; transform: scale(.5); transform-origin: 12px 12px; transition: opacity .2s, transform .25s cubic-bezier(.3,1.5,.5,1); }
+        .mkl-wrap .mkl-check .tick { fill: none; stroke: #fff; stroke-width: 2.8; stroke-linecap: square; stroke-linejoin: miter; stroke-dasharray: 20; stroke-dashoffset: 20; transition: stroke-dashoffset .3s ease .06s; }
+        .mkl-wrap .mkl-item:not(.done) .mkl-check:hover .ring { stroke: var(--mk-accent); }
+        .mkl-wrap .mkl-item.done .mkl-check .ring { stroke: var(--mk-done); }
+        .mkl-wrap .mkl-item.done .mkl-check .fill { opacity: 1; transform: scale(1); }
+        .mkl-wrap .mkl-item.done .mkl-check .tick { stroke-dashoffset: 0; }
+
+        /* direction follows the text itself (dir="auto" on the row): Persian starts right-to-left, English left-to-right */
+        .mkl-wrap .mkl-item .mkl-text { color: var(--mk-ink); font-size: 15px; font-weight: 500; line-height: 1.8; opacity: 1; text-decoration-line: line-through; text-decoration-thickness: 1.5px; text-decoration-color: transparent; transition: text-decoration-color .25s ease; }
+        .mkl-wrap .mkl-item.done .mkl-text { color: var(--mk-ink); opacity: 1; text-decoration-color: rgba(0,0,0,.32); text-decoration-color: color-mix(in srgb, var(--mk-ink) 35%, transparent); text-decoration-thickness: 1px; }
+
+        .mkl-wrap .mkl-del { flex: 0 0 auto; width: 30px; height: 30px; display: grid; place-items: center; border: none; background: none; color: var(--mk-soft); opacity: 1; cursor: pointer; transition: color .15s, background .15s; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+        .mkl-wrap .mkl-del:hover, .mkl-wrap .mkl-del:active { opacity: 1; color: var(--mk-danger); background: rgba(179,65,46,.1); }
+
+        .mkl-wrap .mkl-empty { text-align: center; padding: 34px 8px; color: #000; opacity: 1; font-size: 13.5px; animation: none; }
+        .mkl-wrap .mkl-empty svg { display: block; margin: 0 auto 10px; color: var(--mk-line); opacity: 1; stroke: #CFC6B4; }
+
+        /* reserved space: showing/hiding the clear button never changes the card height */
+        .mkl-wrap .mkl-foot { display: flex; justify-content: center; height: 36px; }
+        .mkl-wrap .mkl-clear { font: inherit; font-size: 12.5px; padding: 7px 16px; border: 1px solid var(--mk-line); background: var(--mk-surface); color: var(--mk-ink); cursor: pointer; opacity: 0; visibility: hidden; transition: opacity .25s ease, visibility .25s, background .15s; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+        .mkl-wrap .mkl-clear.on { opacity: 1; visibility: visible; }
+        .mkl-wrap .mkl-clear:hover, .mkl-wrap .mkl-clear:active { background: var(--mk-hover); }
+    </style>
 <script id="mkHostCompat">
 /* ---------------------------------------------------------------------------
    Embedded-host compatibility layer (Claude preview, other sandboxed iframes).
@@ -6183,6 +6266,18 @@ html.mu-lite .mu-switch::after { box-shadow: none !important; }
 html[dir="ltr"] .mu-hdr-cloud-btn{direction:ltr;font-size:9.5px}
 @media(max-width:380px){.mu-hdr-cloud-btn{padding:3px 7px;font-size:9.5px}}
 </style>
+<style id="mdArchiveCss">
+.md-arch-bar{display:flex;margin:2px 0 10px}
+.md-arch-add{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:11px 14px!important;font-size:13px!important;font-weight:700;border-radius:12px!important;border:1px solid var(--text-color)!important;background:rgba(255,255,255,.07)!important}
+.md-arch-plus{font-size:17px;line-height:1;font-weight:400}
+.md-arch-search{width:100%;box-sizing:border-box;margin:0 0 10px;padding:10px 13px;border-radius:12px;border:1px solid var(--panel-border);background:rgba(0,0,0,.2);color:var(--text-color);font:inherit;font-size:14px;outline:none}
+.md-arch-search:focus{border-color:var(--text-color)}
+.md-arch-count{margin:2px 2px 10px;font-size:11.5px;opacity:.65}
+.md-arch-hint{margin:0 2px 10px;font-size:11.5px;line-height:1.9;opacity:.7}
+.md-arch-foot{display:flex;margin-top:12px}
+.md-arch-done{width:100%;padding:11px 14px!important;font-size:13px!important;border-radius:12px!important}
+.markhin-dash-row-action{flex:0 0 auto;padding:6px 12px!important;font-size:11.5px!important;border-radius:9px!important;white-space:nowrap}
+</style>
 </head>
 <body class="theme-yourname">
 <script>
@@ -6602,8 +6697,12 @@ window.mu_syncHtmlBg = function(){
                     <button class="btn-main structure-add" id="btnNewFolder" onclick="addNewFolder()">📁 افزودن پوشه</button>
                 </div>
                 <div class="structure-store">
-                    <button class="btn-main btn-folder-del" id="btnDeleteMenu" onclick="mu_openDeleteChooser()">🗑️ حذف</button>
+                    <button class="btn-main mkl-open-btn" id="btnListTool" type="button" onclick="mkListOpen()">
+                        <svg class="mkl-ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><path d="M8 12.4l2.9 2.9L16.2 9.4"/></svg>
+                        <span id="btnListToolLabel">لیست</span>
+                    </button>
                     <button class="btn-main" id="btnArchivedNotes" onclick="markhinDash_showList('archived')">📦 بایگانی</button>
+                    <button class="btn-main btn-folder-del structure-del-wide" id="btnDeleteMenu" onclick="mu_openDeleteChooser()">🗑️ حذف</button>
                 </div>
             </div>
         </div>
@@ -7499,7 +7598,7 @@ window.mu_syncHtmlBg = function(){
             // gone on other devices/syncs instead of resurrecting on the next pull.
             const folderTombstones = loadFolderTombstones();
             const pack = async (list) => {
-                const raw = JSON.stringify({ v: 1, ts: Date.now(), folders: customFolders, pinnedFolders: (window.MU_FolderPins ? window.MU_FolderPins.list() : []), pinnedFoldersTs: (window.MU_FolderPins && window.MU_FolderPins.ts ? window.MU_FolderPins.ts() : 0), notes: list, tombstones, folderTombstones });
+                const raw = JSON.stringify({ v: 1, ts: Date.now(), folders: customFolders, pinnedFolders: (window.MU_FolderPins ? window.MU_FolderPins.list() : []), pinnedFoldersTs: (window.MU_FolderPins && window.MU_FolderPins.ts ? window.MU_FolderPins.ts() : 0), notes: list, tombstones, folderTombstones, lists: (window.MK_List ? window.MK_List.snapshot() : undefined) });
                 return await cloudCompress(raw);
             };
             const fits = (p) => p.data.length <= budget;
@@ -8544,7 +8643,11 @@ window.mu_syncHtmlBg = function(){
             // and likewise for folders deleted elsewhere (see cloudMergeFolderTombstones).
             const retired = cloudMergeTombstones(data.tombstones);
             cloudMergeFolderTombstones(data.folderTombstones);
-            return { updated, added, skippedDeleted, retired };
+            // The List (MARKHIN List) rides along in every backup (manual and auto). It saves itself, so it
+            // is reported separately (`lists`) instead of being counted as "notes updated".
+            let lists = 0;
+            try { if (window.MK_List && data.lists) lists = window.MK_List.merge(data.lists, { force: !!force }) || 0; } catch (e) { console.warn('list merge failed', e); }
+            return { updated, added, skippedDeleted, retired, lists };
         }
 
         // Pure, read-only counterpart to cloudApplyMergeData() above: computes
@@ -8663,8 +8766,11 @@ window.mu_syncHtmlBg = function(){
                     if (a[0] !== b[0] || a[1] !== b[1]) { local.lastEdited = staleStr; local.metaEditedAt = staleStr; toStamp.push(String(local.id)); }
                 });
                 // Backup's own tombstones for notes that ARE in the backup must not retire them again.
-                const mergeData = Object.assign({}, data, { tombstones: (Array.isArray(data.tombstones) ? data.tombstones : []).filter(t => t && !ids.has(String(t.id))) });
+                const mergeData = Object.assign({}, data, { tombstones: (Array.isArray(data.tombstones) ? data.tombstones : []).filter(t => t && !ids.has(String(t.id))), lists: undefined });
                 const res = cloudApplyMergeData(mergeData, true);
+                // Full replace: the List mirrors the backup exactly too (older backups without a list leave it alone).
+                let listChanged = 0;
+                try { if (window.MK_List && data.lists) listChanged = window.MK_List.replace(data.lists) || 0; } catch (e) { console.warn('list replace failed', e); }
                 toStamp.forEach(id => {
                     const local = categories.find(c => String(c.id) === id);
                     if (local) { local.lastEdited = nowStr; local.metaEditedAt = nowStr; }
@@ -8684,7 +8790,7 @@ window.mu_syncHtmlBg = function(){
                     folders = folders.filter(f => !g.has(f));
                     if (currentFolder && g.has(currentFolder)) currentFolder = DEFAULT_FOLDER;
                 }
-                return { added: res.added, updated: toStamp.length, removed: removed.length, removedFolders: goneFolders.length };
+                return { added: res.added, updated: toStamp.length, removed: removed.length, removedFolders: goneFolders.length, lists: listChanged };
             } catch (e) {
                 categories = before; folders = beforeFolders; currentFolder = beforeCurrent;
                 removedIds.forEach(id => { try { clearTombstone(id); } catch (_) {} });
@@ -8940,7 +9046,7 @@ window.mu_syncHtmlBg = function(){
                 noTextToTranslate: "متنی برای ترجمه وجود ندارد!",
                 translationError: "خطا در دریافت ترجمه.",
                 serverError: "ارتباط با سرور ترجمه برقرار نشد.",
-                promptNewFolder: "نام پوشه جدید:",
+                promptNewFolder: "نام پوشه جدید:\u200F",
                 promptNewCategory: "نام یادداشت جدید:",
                 promptPassLock: "رمز جدید را وارد کنید:",
                 promptHint: "راهنمای رمز را وارد کنید:",
@@ -10573,6 +10679,7 @@ window.mu_syncHtmlBg = function(){
             document.getElementById('btnNewFolder').innerText = t.addFolder;
             if(document.getElementById('btnDeleteMenu')) document.getElementById('btnDeleteMenu').innerText = t.deleteMenu;
             if(document.getElementById('btnArchivedNotes')) document.getElementById('btnArchivedNotes').innerText=currentLang==='fa'?'📦 بایگانی':'📦 Archive';
+            if (window.mkListRefreshLabel) window.mkListRefreshLabel();
             
             const btnExportTxt = document.getElementById('btnExportTxt');
             if (btnExportTxt) btnExportTxt.innerText = t.exportTxt;
@@ -13558,7 +13665,7 @@ window.mu_syncHtmlBg = function(){
                 const resolved = unlockedItems.length ? await mu_resolveItemsMediaForExport(unlockedItems) : [];
                 const byId = new Map(resolved.map(r => [String(r.id), r]));
                 const ordered = all.map(i => isNoteLocked(i) ? i : (byId.get(String(i.id)) || i));
-                const blob = new Blob([buildStructuredExport('json', ordered, {allFolders:true})], {type:getStructuredMime('json')});
+                const blob = new Blob([buildStructuredExport('json', ordered, {allFolders:true, withList:true})], {type:getStructuredMime('json')});
                 await robustDownload(blob, `${chosenName}.json`, getStructuredMime('json'));
             } catch (e) {
                 console.error('JSON backup error:', e);
@@ -15501,7 +15608,7 @@ window.mu_syncHtmlBg = function(){
                 const entries = Object.keys(zip.files).filter(n => !zip.files[n].dir && /\.json$/i.test(n));
                 if (!entries.length) throw new Error('No JSON files in ZIP');
                 const existing = new Set(categories.map(c => String(c.id)));
-                let added = 0, skipped = 0, lockedAdded = 0, idx = 0;
+                let added = 0, skipped = 0, lockedAdded = 0, idx = 0, listAdded = 0;
                 const addNote = raw => {
                     const note = normalizeCategory(raw, categories.length + idx++);
                     // Always add, never skip: an id already in use (note still present, or
@@ -15553,6 +15660,7 @@ window.mu_syncHtmlBg = function(){
                         });
                     } else if (data && Array.isArray(data.categories)) {
                         data.categories.filter(x => x && typeof x === 'object').forEach(addNote);
+                        try { if (window.MK_List && data.lists) listAdded += window.MK_List.merge(data.lists, { force: true }) || 0; } catch (e) { console.warn('list import failed', e); }
                         (Array.isArray(data.folders) ? data.folders : []).forEach(f => {
                             if (typeof f === 'string' && f.trim() && f !== 'همه' && f !== 'All' && f !== DEFAULT_FOLDER && !folders.includes(f.trim())) folders.push(f.trim());
                         });
@@ -15585,6 +15693,7 @@ window.mu_syncHtmlBg = function(){
                 showToast(fa
                     ? `${added} یادداشت از ZIP وارد شد (${lockedAdded} قفل‌شده)${skipped ? `؛ ${skipped} مورد نامعتبر رد شد` : ''}.`
                     : `${added} notes imported from ZIP (${lockedAdded} locked)${skipped ? `; ${skipped} invalid entries skipped` : ''}.`, 4200);
+                if (listAdded) showToast(fa ? `📝 ${listAdded} مورد لیست هم وارد شد.` : `📝 ${listAdded} List item(s) imported too.`, 3200);
             } catch (err) {
                 console.error(err);
                 alert(fa ? 'خواندن فایل ZIP انجام نشد.' : 'Could not read the ZIP file.');
@@ -15730,12 +15839,16 @@ window.mu_syncHtmlBg = function(){
                         .forEach(f => { if (!folders.includes(f)) folders.push(f); clearFolderTombstone(f); });
                     try{ if(window.MU_FolderPins) window.MU_FolderPins.importList(data.pinnedFolders); }catch(e){}
                     categories.push(...incoming);
+                    // The List (MARKHIN List) travels inside full JSON backups: bring its items back too
+                    // (added next to the current ones; nothing is removed).
+                    let listAdded = 0;
+                    try { if (window.MK_List && data.lists) listAdded = window.MK_List.merge(data.lists, { force: true }) || 0; } catch (e) { console.warn('list import failed', e); }
                     saveToLocalStorage();
                     saveFoldersToLocalStorage();
                     await mu_flushStorage();
                     activeOpenId = null;
                     renderApp();
-                    showToast(currentLang === 'fa' ? `${incoming.length} یادداشت از بکاپ اضافه شد.` : `${incoming.length} note(s) added from backup.`);
+                    showToast((currentLang === 'fa' ? `${incoming.length} یادداشت از بکاپ اضافه شد.` : `${incoming.length} note(s) added from backup.`) + (listAdded ? (currentLang === 'fa' ? ` + ${listAdded} مورد لیست` : ` + ${listAdded} List item(s)`) : ''));
                 } catch(err) {
                     alert(currentLang === 'fa' ? 'فایل بکاپ معتبر نیست.' : 'Invalid backup file.');
                 } finally {
@@ -15845,7 +15958,7 @@ window.mu_syncHtmlBg = function(){
                     delete c.password;
                     return c;
                 });
-                return JSON.stringify({ categories: jsonItems, folders: (opts && opts.allFolders) ? [...new Set([DEFAULT_FOLDER, ...folders, ...folderSet])] : [DEFAULT_FOLDER, ...folderSet.filter(f => f !== DEFAULT_FOLDER)], pinnedFolders: (window.MU_FolderPins ? window.MU_FolderPins.list() : []) }, null, 2);
+                return JSON.stringify({ categories: jsonItems, lists: (opts && opts.withList && window.MK_List) ? window.MK_List.snapshot() : undefined, folders: (opts && opts.allFolders) ? [...new Set([DEFAULT_FOLDER, ...folders, ...folderSet])] : [DEFAULT_FOLDER, ...folderSet.filter(f => f !== DEFAULT_FOLDER)], pinnedFolders: (window.MU_FolderPins ? window.MU_FolderPins.list() : []) }, null, 2);
             }
             if (type === 'md') {
                 const out = safeItems.map((item, index) => {
@@ -16156,7 +16269,7 @@ ${body}
                     const name = mu_uniqueZipName(usedNames, 'NOTES', sanitizeFilename(item.name || `note_${index + 1}`), 'json');
                     return {name, data: new Blob([single], {type: getStructuredMime('json')})};
                 });
-                files.push({name: 'markhin_backup.json', data: new Blob([buildStructuredExport('json', ordered, {allFolders: true})], {type: getStructuredMime('json')})});
+                files.push({name: 'markhin_backup.json', data: new Blob([buildStructuredExport('json', ordered, {allFolders: true, withList: true})], {type: getStructuredMime('json')})});
 
                 const zip = await buildZipRobust(files);
                 await robustDownload(zip, `${chosenName}.zip`, 'application/zip');
@@ -16527,7 +16640,7 @@ ${body}
                     return jsonOrderedItems;
                 };
                 if(selected.json && (plainItems.length || lockedItems.length)) {
-                    await addExport('markhin_backup.json', async () => buildStructuredExport('json', await getJsonOrderedItems(), {allFolders:true}));
+                    await addExport('markhin_backup.json', async () => buildStructuredExport('json', await getJsonOrderedItems(), {allFolders:true, withList:true}));
                     // Same per-note files as "JSON export → All notes → Individual files",
                     // folded into the bundle too, so selecting JSON here gives both the
                     // combined backup and one JSON file per note.
@@ -16618,7 +16731,7 @@ ${body}
                 ordered.forEach((item, index) => {
                     files.push({name: mu_uniqueZipName(usedNames, 'NOTES', sanitizeFilename(item.name || `note_${index + 1}`), 'json'), data: new Blob([buildStructuredExport('json', [item], {allFolders: true})], {type: getStructuredMime('json')})});
                 });
-                files.push({name: 'markhin_backup.json', data: new Blob([buildStructuredExport('json', ordered, {allFolders: true})], {type: getStructuredMime('json')})});
+                files.push({name: 'markhin_backup.json', data: new Blob([buildStructuredExport('json', ordered, {allFolders: true, withList: true})], {type: getStructuredMime('json')})});
             } else if (kind === 'html') {
                 const ordered = await mu_getMdOrderedItems();
                 ordered.forEach((item, index) => {
@@ -17358,6 +17471,16 @@ ${body}
                         localStorage.setItem('app_categories_v13', ${categoriesJson});
                         localStorage.setItem('app_folders_v13', ${foldersJson});
                         localStorage.setItem('app_pinned_folders_v1', ${jsLiteral(JSON.stringify(window.MU_FolderPins ? window.MU_FolderPins.list() : []))});`;
+                // The List (MARKHIN List) is part of the app data too: seed it, then tell the (already loaded) List module to re-read it.
+                try {
+                    if (window.MK_List) {
+                        const ls = window.MK_List.snapshot();
+                        seedLines += `
+                        localStorage.setItem('markhin_lists_v1', ${jsLiteral(JSON.stringify(ls.items))});
+                        localStorage.setItem('markhin_lists_tomb_v1', ${jsLiteral(JSON.stringify(ls.tombs))});
+                        try { if (window.MK_List && window.MK_List.reload) window.MK_List.reload(); } catch (e) {}`;
+                    }
+                } catch (_) {}
             }
             if (mode === 'everything') {
                 // Only this mode carries the AI provider settings (including the API key)
@@ -19965,7 +20088,8 @@ function markhinDash_showList(kind, value){
     const isArchiveView=(kind==='archived');
     const rowOpts=isArchiveView?{actionLabel:(fa?'↩ بازگرداندن':'↩ Restore')}:{};
     const archiveActionsHtml=isArchiveView
-        ? `<div style="margin:2px 0 10px"><button class="btn-main image-export-all-btn" type="button" onclick="markhinDash_pickNoteToArchive()">${fa?'➕ افزودن یادداشت به بایگانی':'➕ Add note to archive'}</button></div>`
+        ? `<div class="md-arch-bar"><button class="btn-main md-arch-add" type="button" onclick="markhinDash_pickNoteToArchive()"><span class="md-arch-plus" aria-hidden="true">＋</span><span>${fa?'افزودن یادداشت به بایگانی':'Add note to archive'}</span></button></div>`
+          +(list.length?`<input type="search" id="mdArchSearch" class="md-arch-search" autocomplete="off" placeholder="${fa?'جستجو در بایگانی…':'Search the archive…'}">`:'')
         : '';
 
     // Almost every menu option in the dashboard (pinned, favorites, locked,
@@ -19977,7 +20101,7 @@ function markhinDash_showList(kind, value){
     // Now the panel (title, count, archive button) shows immediately, and
     // the actual row list — the expensive part — is built and inserted a
     // frame later.
-    showAdvanced(markhinDash_headHtml(title, !isArchiveView)+archiveActionsHtml+`<div style="margin:2px 0 10px;font-size:11px;opacity:.6">${fa?'تعداد':'Count'}: ${list.length}</div><div id="mdShowListBody"></div>`);
+    showAdvanced(markhinDash_headHtml(title, !isArchiveView)+archiveActionsHtml+`<div class="md-arch-count">${fa?'تعداد':'Count'}: <span id="mdShowCountN">${list.length}</span></div><div id="mdShowListBody"></div>`);
     document.getElementById('advancedCard')?.classList.add('kg-wide');
     requestAnimationFrame(()=>{
         const bodyEl=document.getElementById('mdShowListBody');
@@ -19989,9 +20113,25 @@ function markhinDash_showList(kind, value){
             onRowAction:(id)=>{ toggleArchiveNote(id); markhinDash_showList('archived'); },
             onRowClick:(id)=>{ toggleArchiveNote(id); markhinDash_openNote(id); }
         } : {});
+        if(isArchiveView) markhinDash_bindListFilter('mdArchSearch','mdShowListBody','mdShowCountN');
     });
 }
 window.markhinDash_showList=markhinDash_showList;
+
+/* Live filter for the Archive screens: hides rows that do not match the typed
+   text and keeps the visible-count number in sync. */
+function markhinDash_bindListFilter(inputId, bodyId, countId){
+    const inp=document.getElementById(inputId); if(!inp) return;
+    inp.oninput=()=>{
+        const body=document.getElementById(bodyId); if(!body) return;
+        const q=inp.value.trim().toLowerCase(); let n=0;
+        body.querySelectorAll('.markhin-smart-item').forEach(el=>{
+            const ok=!q||el.textContent.toLowerCase().includes(q);
+            el.style.display=ok?'':'none'; if(ok) n++;
+        });
+        const c=document.getElementById(countId); if(c) c.textContent=String(n);
+    };
+}
 
 /* Lets you add an existing (non-archived) note to the Archive directly from
    the Archive screen itself, not just from the note's own toolbar. */
@@ -19999,16 +20139,33 @@ function markhinDash_pickNoteToArchive(){
     const fa=currentLang==='fa';
     const pool=allItems().filter(x=>!isArchived(x)).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'fa'));
     if(!pool.length){ showToast(fa?'یادداشتی برای افزودن به بایگانی وجود ندارد.':'No notes available to archive.'); markhinDash_showList('archived'); return; }
-    showAdvanced(markhinDash_headHtml(fa?'➕ افزودن یادداشت به بایگانی':'➕ Add note to archive', true, "markhinDash_showList('archived')")+`<div class="markhin-smart-results" style="max-height:60vh" id="mdPickArchiveBody"></div>`);
+    showAdvanced(markhinDash_headHtml(fa?'📦 افزودن به بایگانی':'📦 Add to archive', true, "markhinDash_showList('archived')")
+        +`<div class="md-arch-hint">${fa?'روی «بایگانی» کنار هر یادداشت بزن؛ همان لحظه منتقل می‌شود و می‌توانی چند یادداشت پشت سر هم انتخاب کنی.':'Tap “Archive” next to a note — it moves instantly, so you can pick several in a row.'}</div>`
+        +`<input type="search" id="mdPickSearch" class="md-arch-search" autocomplete="off" placeholder="${fa?'جستجوی یادداشت…':'Search notes…'}">`
+        +`<div class="md-arch-count">${fa?'یادداشت‌های قابل بایگانی':'Notes you can archive'}: <span id="mdPickCountN">${pool.length}</span></div>`
+        +`<div class="markhin-smart-results" style="max-height:52vh" id="mdPickArchiveBody"></div>`
+        +`<div class="md-arch-foot"><button class="btn-main md-arch-done" type="button" onclick="markhinDash_showList('archived')">${fa?'✔ تمام، برگرد به بایگانی':'✔ Done — back to archive'}</button></div>`);
     document.getElementById('advancedCard')?.classList.add('kg-wide');
     requestAnimationFrame(()=>{
         const bodyEl=document.getElementById('mdPickArchiveBody');
         if(!bodyEl) return;
         bodyEl.innerHTML = pool.map(x=>markhinDash_noteRowHtml(x,{actionLabel:fa?'📦 بایگانی':'📦 Archive'})).join('');
-        markhinDash_bindRows(document.getElementById('advancedCard'), {
-            onRowAction:(id)=>{ toggleArchiveNote(id); markhinDash_pickNoteToArchive(); },
-            onRowClick:(id)=>{ toggleArchiveNote(id); markhinDash_pickNoteToArchive(); }
-        });
+        const doArchive=(id)=>{
+            toggleArchiveNote(id);
+            // Remove just that row (keeps scroll position and the search text) instead of rebuilding the list.
+            const row=Array.from(bodyEl.querySelectorAll('.markhin-smart-item')).find(el=>el.dataset.id===String(id));
+            if(!row) return;
+            row.style.transition='opacity .18s ease, transform .18s ease'; row.style.opacity='0'; row.style.transform='scale(.97)';
+            setTimeout(()=>{
+                row.remove();
+                const left=Array.from(bodyEl.querySelectorAll('.markhin-smart-item')).filter(el=>el.style.display!=='none').length;
+                const c=document.getElementById('mdPickCountN'); if(c) c.textContent=String(left);
+                if(!bodyEl.querySelector('.markhin-smart-item')) markhinDash_showList('archived');
+            },190);
+        };
+        // Only the button archives here (tapping the row body does nothing), so a stray tap cannot archive a note.
+        markhinDash_bindRows(document.getElementById('advancedCard'), { onRowAction:doArchive, onRowClick:()=>{} });
+        markhinDash_bindListFilter('mdPickSearch','mdPickArchiveBody','mdPickCountN');
     });
 }
 window.markhinDash_pickNoteToArchive=markhinDash_pickNoteToArchive;
@@ -21022,6 +21179,11 @@ async function markhinDash_cloudRestorePreview(id, force, mode, reuse){
     if (mode === 'replace' && replaceBlock) mode = 'merge';
     const isReplace = mode === 'replace';
     const diff = isReplace ? cloudComputeReplaceDiff(result.data) : cloudComputeRestoreDiff(result.data, force);
+    let listDiff = { added: 0, updated: 0, removed: 0, total: 0 };
+    try { if (window.MK_List && result.data.lists) listDiff = window.MK_List.diff(result.data.lists, isReplace, force); } catch (_) {}
+    const listLine = listDiff.total
+        ? `<div style="margin:0 0 10px"><b>📝 ${fa?'لیست (MARKHIN List)':'List'}</b><div style="opacity:.8;margin-top:3px">${fa?`${listDiff.added} مورد جدید، ${listDiff.updated} به‌روزرسانی`+(listDiff.removed?`، ${listDiff.removed} حذف`:''):`${listDiff.added} new, ${listDiff.updated} updated`+(listDiff.removed?`, ${listDiff.removed} removed`:'')}</div></div>`
+        : '';
     const when = mu_fmtCloudDate(meta.ts);
     const shortLabel = meta.label ? String(meta.label).slice(0, 40) : '';
     const backupDesc = shortLabel ? (fa?`«${shortLabel}» (${when})`:`"${shortLabel}" (${when})`) : when;
@@ -21043,7 +21205,7 @@ async function markhinDash_cloudRestorePreview(id, force, mode, reuse){
 
     let bodyHtml;
     if (isReplace) {
-        const nothing = !diff.added.length && !diff.updated.length && !diff.removed.length && !diff.newFolders.length && !diff.removedFolders.length;
+        const nothing = !diff.added.length && !diff.updated.length && !diff.removed.length && !diff.newFolders.length && !diff.removedFolders.length && !listDiff.total;
         bodyHtml =
             `<p style="opacity:.75;margin:0 0 12px">${fa?`جایگزینی کامل با ${backupDesc}:`:`Full replace with ${backupDesc}:`}</p>` +
             (nothing
@@ -21051,6 +21213,7 @@ async function markhinDash_cloudRestorePreview(id, force, mode, reuse){
                 : (
                     listBlock(fa?'🆕 یادداشت‌های جدید':'🆕 New notes', diff.added) +
                     listBlock(fa?'♻️ با نسخه‌ی بکاپ جایگزین می‌شوند':'♻️ Replaced by the backup version', diff.updated) +
+                    listLine +
                     listBlock(fa?'🗑️ حذف می‌شوند (در بکاپ نیستند)':'🗑️ Deleted (not in the backup)', diff.removed) +
                     (diff.newFolders.length ? `<div style="margin:0 0 10px"><b>📁 ${fa?'پوشه‌های جدید':'New folders'} (${diff.newFolders.length})</b><div style="opacity:.8;margin-top:3px">${diff.newFolders.map(escapeHtml).join('، ')}</div></div>` : '') +
                     (diff.removedFolders.length ? `<div style="margin:0 0 10px"><b>📁 ${fa?'پوشه‌های حذف‌شونده':'Folders removed'} (${diff.removedFolders.length})</b><div style="opacity:.8;margin-top:3px">${diff.removedFolders.map(escapeHtml).join('، ')}</div></div>` : '') +
@@ -21061,7 +21224,7 @@ async function markhinDash_cloudRestorePreview(id, force, mode, reuse){
                 ? `<p style="margin:10px 0;padding:8px;border-radius:8px;background:rgba(255,107,122,.13);font-size:12px;line-height:1.8">⚠️ ${fa?'حذف و جایگزینی قابل بازگشت نیست و با سینک خودکار به دستگاه‌های دیگر هم می‌رسد. تصاویر یادداشت‌های حذف‌شده هم از بین می‌روند (تصاویر در بکاپ نیستند).':'Deleting and replacing cannot be undone and reaches your other devices through auto sync. Images of deleted notes are lost too (images are not part of backups).'}</p>`
                 : '');
     } else {
-        const nothingToChange = !diff.added.length && !diff.updated.length && !diff.willRetire && !diff.newFolders.length;
+        const nothingToChange = !diff.added.length && !diff.updated.length && !diff.willRetire && !diff.newFolders.length && !listDiff.total;
         bodyHtml =
             `<p style="opacity:.75;margin:0 0 12px">${fa?`بازیابی از ${backupDesc}:`:`Restoring from ${backupDesc}:`}</p>` +
             (nothingToChange
@@ -21069,6 +21232,7 @@ async function markhinDash_cloudRestorePreview(id, force, mode, reuse){
                 : (
                     listBlock(fa?'🆕 یادداشت‌های جدید':'🆕 New notes', diff.added) +
                     listBlock(fa?'✏️ به‌روزرسانی می‌شوند':'✏️ Will be updated', diff.updated) +
+                    listLine +
                     (diff.newFolders.length ? `<div style="margin:0 0 10px"><b>📁 ${fa?'پوشه‌های جدید':'New folders'} (${diff.newFolders.length})</b><div style="opacity:.8;margin-top:3px">${diff.newFolders.map(escapeHtml).join('، ')}</div></div>` : '') +
                     (diff.willRetire ? `<p style="opacity:.75">🗑️ ${fa?`${diff.willRetire} یادداشت که جای دیگری حذف شده، اینجا هم ${force?'ممکن است تحت تاثیر قرار بگیرد':'حذف می‌شود'}.`:`${diff.willRetire} note(s) deleted elsewhere will ${force?'be affected here too':'be deleted here too'}.`}</p>` : '') +
                     (diff.unchanged ? `<p style="opacity:.55">✓ ${fa?`${diff.unchanged} یادداشت بدون تغییر`:`${diff.unchanged} note(s) unchanged`}</p>` : '')
@@ -21123,23 +21287,24 @@ async function markhinDash_cloudRestoreConfirmed(id, force, mode){
         try { if (typeof mu_flushStorage === 'function') await mu_flushStorage(); } catch (_) {}
         try { if (typeof scheduleCloudBackup === 'function') scheduleCloudBackup(true); } catch (_) {}
         showToast(fa
-            ? `✅ جایگزینی کامل انجام شد — ${r.added} جدید، ${r.updated} جایگزین‌شده، ${r.removed} حذف‌شده.`
-            : `✅ Full replace done — ${r.added} new, ${r.updated} replaced, ${r.removed} deleted.`, 3800);
+            ? `✅ جایگزینی کامل انجام شد — ${r.added} جدید، ${r.updated} جایگزین‌شده، ${r.removed} حذف‌شده.` + (r.lists ? ` (+ ${r.lists} مورد لیست)` : '')
+            : `✅ Full replace done — ${r.added} new, ${r.updated} replaced, ${r.removed} deleted.` + (r.lists ? ` (+ ${r.lists} List item(s))` : ''), 3800);
         closeAdvancedModal();
         renderApp();
         return;
     }
 
-    const { updated, added, skippedDeleted, retired } = cloudApplyMergeData(result.data, force);
+    const { updated, added, skippedDeleted, retired, lists: listsChanged } = cloudApplyMergeData(result.data, force);
     cloudSetLinked();
     saveToLocalStorage(); saveFoldersToLocalStorage();
     const skippedNote = skippedDeleted ? (fa ? ` (${skippedDeleted} یادداشتِ حذف‌شده دوباره اضافه نشد)` : ` (${skippedDeleted} previously-deleted note(s) kept out)`) : '';
     const retiredNote = retired ? (fa ? ` (${retired} یادداشت که جای دیگری حذف شده بود، اینجا هم حذف شد)` : ` (${retired} note(s) deleted elsewhere were also deleted here)`) : '';
-    if (added || updated || retired) {
+    const listNote = listsChanged ? (fa ? ` + ${listsChanged} مورد لیست` : ` + ${listsChanged} List item(s)`) : '';
+    if (added || updated || retired || listsChanged) {
         showToast((force
             ? (fa ? `✅ بازیابی انجام شد — ${added} یادداشت جدید (حذف‌شده‌ها هم برگشتند)، ${updated} به‌روزرسانی شد.` : `✅ Restored — ${added} new (deletions undone), ${updated} updated.`)
             : (fa ? `✅ بازیابی انجام شد — ${added} یادداشت جدید، ${updated} یادداشت به‌روزرسانی شد.` : `✅ Restored — ${added} new, ${updated} updated.`)
-        ) + skippedNote + retiredNote, 3600);
+        ) + listNote + skippedNote + retiredNote, 3600);
     } else {
         showToast((fa ? 'ℹ️ تغییری لازم نبود؛ یادداشت‌های این دستگاه از بکاپ جدیدتر یا برابرند.' : 'ℹ️ Nothing to change; the notes on this device are already as new as this backup.') + skippedNote, 3600);
     }
@@ -22269,7 +22434,7 @@ mu_renderNotePreviewToggle();
 window.mu_renderWipeAllLabels = function(){
     const fa = currentLang === 'fa';
     const lbl = document.getElementById('btnWipeAllText');
-    if(lbl) lbl.textContent = fa ? 'حذف دائمی همه یادداشت‌ها و پوشه‌ها' : 'Permanently delete all notes and folders';
+    if(lbl) lbl.textContent = fa ? 'حذف دائمی همه یادداشت‌ها و پوشه‌ها و لیست‌ها' : 'Permanently delete all notes, folders and Lists';
 };
 mu_renderWipeAllLabels();
 // Simple styled Yes/No confirm dialog, built on the same showAdvanced modal
@@ -22439,7 +22604,7 @@ function mu_wipeAllPickDialog(){
         showAdvanced(`
             <div class="advanced-head image-export-picker-head">
                 <div>
-                    <h3 style="margin:0">🗑️ ${fa?'حذف دائمی همه یادداشت‌ها و پوشه‌ها':'Permanently delete all notes and folders'}</h3>
+                    <h3 style="margin:0">🗑️ ${fa?'حذف دائمی همه یادداشت‌ها و پوشه‌ها و لیست‌ها':'Permanently delete all notes, folders and Lists'}</h3>
                     <p class="markhin-filename-hint">${fa?'مشخص کن چه چیزی برای همیشه پاک شود.':'Choose what to erase for good.'}</p>
                 </div>
                 <button class="btn-main" type="button" id="${uid}_x">✕</button>
@@ -22447,12 +22612,13 @@ function mu_wipeAllPickDialog(){
             <div class="markhin-filename-actions">
                 <button class="btn-main markhin-move-menu-btn-danger" type="button" id="${uid}_notes">🗑️ ${fa?'یادداشت‌ها':'Notes'}</button>
                 <button class="btn-main markhin-move-menu-btn-danger" type="button" id="${uid}_folders">🗑️ ${fa?'پوشه‌ها':'Folders'}</button>
-                <button class="btn-main markhin-move-menu-btn-danger" type="button" id="${uid}_all">🗑️ ${fa?'یادداشت‌ها و پوشه‌ها':'Notes and folders'}</button>
+                <button class="btn-main markhin-move-menu-btn-danger" type="button" id="${uid}_list">🗑️ ${fa?'لیست‌ها':'Lists'}</button>
+                <button class="btn-main markhin-move-menu-btn-danger" type="button" id="${uid}_all">🗑️ ${fa?'یادداشت‌ها، پوشه‌ها و لیست‌ها':'Notes, folders and Lists'}</button>
             </div>
         `);
         const bind = (suffix, val) => { const el = document.getElementById(uid + suffix); if (el) el.onclick = () => finish(val); };
         bind('_cancel', null); bind('_x', null);
-        bind('_notes', 'notes'); bind('_folders', 'folders'); bind('_all', 'everything');
+        bind('_notes', 'notes'); bind('_folders', 'folders'); bind('_all', 'everything'); bind('_list', 'list');
     });
 }
 async function mu_wipeAllChoice(){
@@ -22460,6 +22626,7 @@ async function mu_wipeAllChoice(){
     if(pick === null) return false;
     if(pick === 'notes') return mu_deleteAllNotesPermanently();
     if(pick === 'folders') return mu_deleteAllFoldersPermanently();
+    if(pick === 'list') return mu_deleteListPermanently();
     return mu_deleteEverythingPermanently();
 }
 // Erases every note and every real folder in one action, behind a single
@@ -22469,15 +22636,16 @@ async function mu_deleteEverythingPermanently(){
     const noteCount = Array.isArray(categories) ? categories.length : 0;
     const realFolders = (Array.isArray(folders) ? folders : []).filter(f => f !== DEFAULT_FOLDER);
     const folderCount = realFolders.length;
-    if(!noteCount && !folderCount){
+    const listCount = window.MK_List ? window.MK_List.count() : 0;
+    if(!noteCount && !folderCount && !listCount){
         showToast(fa ? 'چیزی برای حذف وجود ندارد.' : 'There is nothing to delete.');
         return false;
     }
     const ok = await mu_confirmTypeOk({
-        title: fa ? '⚠️ حذف دائمی همه یادداشت‌ها و پوشه‌ها' : '⚠️ Permanently delete ALL notes and folders',
+        title: fa ? '⚠️ حذف دائمی همه یادداشت‌ها، پوشه‌ها و لیست' : '⚠️ Permanently delete ALL notes, folders and the List',
         message: fa
-            ? `${noteCount} یادداشت و ${folderCount} پوشه — همه برای همیشه پاک می‌شوند و دیگر هرگز قابل بازیابی نیستند. برای تایید، کلمه‌ی OK را تایپ کن (حروف بزرگ/کوچیک فرقی ندارد).`
-            : `${noteCount} note(s) and ${folderCount} folder(s) — everything will be erased for good and can never be recovered. Type OK to confirm (case does not matter).`
+            ? `${noteCount} یادداشت، ${folderCount} پوشه و ${listCount} مورد لیست — همه برای همیشه پاک می‌شوند و دیگر هرگز قابل بازیابی نیستند. برای تایید، کلمه‌ی OK را تایپ کن (حروف بزرگ/کوچیک فرقی ندارد).`
+            : `${noteCount} note(s), ${folderCount} folder(s) and ${listCount} List item(s) — everything will be erased for good and can never be recovered. Type OK to confirm (case does not matter).`
     });
     if(!ok){
         showToast(fa ? 'حذف لغو شد.' : 'Deletion cancelled.');
@@ -22489,13 +22657,33 @@ async function mu_deleteEverythingPermanently(){
     folders = [DEFAULT_FOLDER];
     currentFolder = DEFAULT_FOLDER;
     if(typeof activeOpenId !== 'undefined') activeOpenId = null;
+    // The List is erased for real too: its deletions are remembered (tombstones), so the next Cloud
+    // backup/sync removes the items on other devices as well instead of bringing them back.
+    try { if(window.MK_List) window.MK_List.clearAll(); } catch(e){ console.warn('list wipe failed', e); }
     saveToLocalStorage();
     saveFoldersToLocalStorage();
     scheduleCloudBackup(true);
     renderApp();
-    showToast(fa ? '🗑️ همه یادداشت‌ها و پوشه‌ها برای همیشه پاک شد' : '🗑️ All notes and folders permanently deleted');
+    showToast(fa ? '🗑️ همه یادداشت‌ها، پوشه‌ها و لیست برای همیشه پاک شد' : '🗑️ All notes, folders and the List permanently deleted');
     return true;
 }
+// Empties the MARKHIN List only (notes and folders are not touched), behind the same type-"OK" confirmation.
+async function mu_deleteListPermanently(){
+    const fa = currentLang === 'fa';
+    const n = window.MK_List ? window.MK_List.count() : 0;
+    if(!n){ showToast(fa ? 'لیست از قبل خالی است.' : 'The List is already empty.'); return false; }
+    const ok = await mu_confirmTypeOk({
+        title: fa ? '⚠️ حذف دائمی لیست' : '⚠️ Permanently delete the List',
+        message: fa
+            ? `همه‌ی ${n} موردِ لیست برای همیشه پاک می‌شود و دیگر قابل بازیابی نیست. برای تایید، کلمه‌ی OK را تایپ کن.`
+            : `${n} List item(s) will be erased for good and cannot be recovered. Type OK to confirm (case does not matter).`
+    });
+    if(!ok){ showToast(fa ? 'حذف لغو شد.' : 'Deletion cancelled.'); return false; }
+    window.MK_List.clearAll();
+    showToast(fa ? `🗑️ ${n} مورد لیست برای همیشه حذف شد` : `🗑️ ${n} List item(s) permanently deleted`);
+    return true;
+}
+window.mu_deleteListPermanently = mu_deleteListPermanently;
 window.mu_wipeAllChoice = mu_wipeAllChoice;
 window.mu_deleteEverythingPermanently = mu_deleteEverythingPermanently;
 
@@ -23796,7 +23984,7 @@ window.mu_openDeleteChooser = function(){
                 <span class="image-export-choice-action">${fa?'انتخاب و حذف پوشه‌ها':'Pick and delete folders'}</span>
             </button>
             <button type="button" class="image-export-choice" style="grid-column:1 / -1;min-height:0;align-items:center;text-align:center;border-color:rgba(239,68,68,.35)" onclick="mu_wipeAllChoice()">
-                <span class="image-export-choice-name" style="color:#ef4444">🗑️ ${fa?'حذف دائمی همه یادداشت‌ها و پوشه‌ها':'Permanently delete all notes and folders'}</span>
+                <span class="image-export-choice-name" style="color:#ef4444">🗑️ ${fa?'حذف دائمی همه یادداشت‌ها و پوشه‌ها و لیست‌ها':'Permanently delete all notes, folders and Lists'}</span>
             </button>
         </div>`);
 };
@@ -29305,7 +29493,8 @@ const MU_AI = (function(){
         { name:'list_folders', description:'List every folder that actually exists in the vault, including completely empty folders that contain zero notes. This is the only reliable way to see empty folders — get_dashboard_stats\' folderCounts is built only from notes that already have a folder, so a folder with no notes in it never appears there at all. Always call this before manage_folder with action "rename" or "delete" whenever you are not already certain (from something earlier in this conversation) that the folder you are about to act on really exists and is spelled the way the user means — this avoids silently failing on, or mismatching, a folder the user can see in the app but you cannot otherwise know about. Returns each folder\'s name along with its note count (0 for empty folders), how many of those notes are archived or locked, and previousNames (any name(s) this folder used to have before being renamed — you never need this to act on the folder, since the app already resolves an old name to the current one automatically everywhere a folder name is expected, but use it if the user asks what a folder used to be called).', parameters:{ type:'object', properties:{} } },
         { name:'delete_all_notes', description:'Permanently and irreversibly erase EVERY note currently in the app, in one single action. This is by far the most destructive tool available: only call it when the user has unmistakably and explicitly asked to delete ALL of their notes (e.g. "delete all my notes forever", "wipe every single note", "پاک کن همه یادداشت‌هام برای همیشه") — never as a shortcut for deleting one note, a few notes, or the notes in one folder (use delete_note or bulk_update_notes for those), and never on your own initiative just to be "helpful" or to "clean up". This always shows the user a real themed dialog where they themselves must type the exact word "OK" (case does not matter) to actually go through with it; if they type anything else, leave it blank, or cancel, nothing is deleted and the tool reports that the user did not confirm.', parameters:{ type:'object', properties:{}, required:[] } },
         { name:'delete_all_folders', description:'Permanently delete EVERY folder in the app, in one single action. Notes that were filed inside those folders are kept and never touched — they simply become unfiled, exactly like deleting a single folder with manage_folder, just applied to all folders at once. Only call this when the user has unmistakably and explicitly asked to delete ALL of their folders (e.g. "delete every folder", "wipe all my folders", "پاک کن همه پوشه‌هام برای همیشه") — never for deleting a single folder (use manage_folder\'s delete action for that), and never on your own initiative. This always shows the user a real themed dialog where they themselves must type the exact word "OK" (case does not matter) to actually go through with it; if they type anything else, leave it blank, or cancel, nothing is deleted and the tool reports that the user did not confirm.', parameters:{ type:'object', properties:{}, required:[] } },
-        { name:'delete_everything', description:'Permanently and irreversibly erase ALL of the user\'s notes, AND ALL of their folders, in one single action — the same as the "حذف دائمی همه یادداشت‌ها و پوشه‌ها" button\'s third option (یادداشت‌ها و پوشه‌ها). Only call this when the user has unmistakably and explicitly asked to wipe everything at once — notes and folders together (e.g. "delete everything forever", "همه چیز رو پاک کن، یادداشت‌ها و پوشه‌ها") — never when they only mention notes or only folders (use delete_all_notes or delete_all_folders for those), and never on your own initiative. This always shows the user a real themed dialog where they themselves must type the exact word "OK" (case does not matter) to actually go through with it; if they type anything else, leave it blank, or cancel, nothing is deleted and the tool reports that the user did not confirm.', parameters:{ type:'object', properties:{}, required:[] } },
+        { name:'delete_list', description:'Permanently and irreversibly erase EVERY item of the app\'s built-in checklist called List (the «لیست» button) — the same as the "لیست" option of the "حذف دائمی" button. Notes and folders are never touched. Call this when the user explicitly asks to empty / wipe / permanently delete the whole List (e.g. "لیست رو کامل پاک کن", "delete my whole list forever") — never for removing one or a few items (use manage_list for that) and never on your own initiative. This always shows the user a real themed dialog where they themselves must type the exact word "OK" (case does not matter) to actually go through with it; if they type anything else, leave it blank, or cancel, nothing is deleted and the tool reports that the user did not confirm.', parameters:{ type:'object', properties:{}, required:[] } },
+        { name:'delete_everything', description:'Permanently and irreversibly erase ALL of the user\'s notes, ALL of their folders, AND the whole List (the «لیست» checklist), in one single action — the same as the "حذف دائمی" button\'s option "یادداشت‌ها، پوشه‌ها و لیست". Only call this when the user has unmistakably and explicitly asked to wipe everything at once — notes, folders and the List together (e.g. "delete everything forever", "همه چیز رو پاک کن، یادداشت‌ها و پوشه‌ها و لیست") — never when they only mention notes, only folders or only the List (use delete_all_notes, delete_all_folders or delete_list for those), and never on your own initiative. This always shows the user a real themed dialog where they themselves must type the exact word "OK" (case does not matter) to actually go through with it; if they type anything else, leave it blank, or cancel, nothing is deleted and the tool reports that the user did not confirm.', parameters:{ type:'object', properties:{}, required:[] } },
         { name:'manage_folder', description:'Create a brand-new empty folder, rename an existing folder (every note inside moves with it), or delete a folder (its notes are kept but become unfiled, exactly like the app\'s own folder-delete button — nothing inside is lost). If you are not sure a folder exists (including an empty one), call list_folders first instead of guessing. The app remembers folder renames, so if the user later refers to a folder by a name it used to have before being renamed, any folder-name input anywhere (here or in create_note/move_note_to_folder/bulk_update_notes/etc.) still resolves to the right folder automatically — you do not need to track old names yourself.', parameters:{ type:'object', properties:{ action:{ type:'string', enum:['create','rename','delete'], description:'Which folder operation to perform.' }, folder:{ type:'string', description:'For create: the new folder\'s name. For rename/delete: the existing folder\'s current name.' }, new_name:{ type:'string', description:'The folder\'s new name. Required when action is "rename", ignored otherwise.' } }, required:['action','folder'] } },
         { name:'pin_folder', description:"Pin or unpin a FOLDER (one of the folder tabs above the notes list) - the same as long-pressing a folder, selecting it and tapping the pin button. Pinned folders are shown first in the folder row (right after \"All\") with a 📌 mark. Use whenever the user asks to pin / unpin a folder (پین کردن پوشه، پین پوشه رو بردار). This is for FOLDERS only - to pin a NOTE use set_pinned. The root \"All\" folder cannot be pinned. list_folders reports every folder's current pinned state, so call it first if you are unsure of the folder's exact name or current state.", parameters:{ type:'object', properties:{ folder:{ type:'string', description:'Name of the folder to pin or unpin.' }, pinned:{ type:'boolean', description:'true = pin the folder, false = unpin it.' } }, required:['folder','pinned'] } },
         { name:'set_note_style', description:'Change a single note\'s display font family and/or font size — a per-note cosmetic style, separate from the app\'s overall visual theme.', parameters:{ type:'object', properties:{ note:{ type:'string', description:'The id or title of the note.' }, font_family:{ type:'string', description:'A CSS font-family value to apply, e.g. "Georgia", "monospace", "Tahoma". Omit to leave unchanged.' }, font_size:{ type:'number', description:'Font size in pixels (roughly 10-32 is sensible). Omit to leave unchanged.' } }, required:['note'] } },
@@ -29330,7 +29519,8 @@ const MU_AI = (function(){
         { name:'semantic_search_notes', description:"Find notes by MEANING rather than exact words - e.g. \"the note where I wrote about missing my student days\" should be found even if it never contains the word \"missing\". You are the semantic engine: BEFORE calling, brainstorm 15-30 related_terms for what the user describes - synonyms, close concepts, and the typical words, situations, places, people and emotions that go with it (both Persian and English forms when notes might mix languages). The tool ranks the user's unlocked notes by those terms (title and tag hits count more, rarer terms count more) and returns the best notes with matched terms, the best-matching passage and the note opening. The ranking is only a term-based pre-filter: YOU then judge the passages by real meaning and present only the notes that truly fit, saying briefly why. If results are weak the response also includes overviewOfOtherNotes (title + preview of other notes) so you can still pick by meaning, or you can call again with different related_terms. Under the hood it runs the same smart engine as the in-app search (typo, Finglish, synonym and related-word tolerant) for every term and fuses it with passage ranking. For a plain exact-word lookup use find_notes instead.", parameters:{ type:'object', properties:{ query:{ type:'string', description:"The user's own description of what they are looking for, in their own words." }, related_terms:{ type:'array', items:{ type:'string' }, description:"15-30 related words or short phrases YOU generate: synonyms, related concepts, typical vocabulary of the situation, in Persian and/or English." }, folder:{ type:'string', description:"Optional: only search notes in this folder." }, include_archived:{ type:'boolean', description:"Also search archived notes (default false)." }, limit:{ type:'number', description:"Max results (default 8, max 15)." } }, required:['query','related_terms'] } },
         { name:'telegram_backup_create', description:"Create a REAL manual Telegram Cloud backup of the user's notes right now — the exact same engine as the Dashboard's ☁️ Cloud Backup panel's \"Save a new backup\" button (Telegram.WebApp.CloudStorage), NOT a downloaded file and NOT the app's export_notes tool. Call this whenever the user asks, in ANY language, spelling, misspelling, or Finglish, to back up their notes/telegram/the app — recognize all of these and similar: Persian 'بکاپ بگیر', 'یه بکاپ تلگرام بگیر', 'از یادداشتام بکاپ بگیر', 'بکاپ کن', 'بکاپ گیری کن', 'ذخیره کن تو کلود تلگرام', 'یه نسخه پشتیبان بگیر'; Finglish 'backup begir', 'baram backup begir', 'telegram backup begir', 'ye backup az yaddashtam begir'; English 'back up my notes', 'make/take a telegram backup', 'save a cloud backup', 'create a backup', 'backup my notes'. If the user gives an explicit name/label for this backup (e.g. \"با اسم/برچسب X\", \"به نام X\", \"named X\", \"label it X\", \"call it X\"), pass that exact text as label. If the user does NOT give a name, leave label empty/omitted — the tool automatically generates one itself in the format \"Backup <current date & time>\" (the date shown in whichever calendar matches the app's own current language — Jalali for Persian, Gregorian for English — and the exact time read from the user's own device clock); never invent or compute a date/time string yourself. This creates a genuinely separate, persistent manual snapshot kept until deleted — distinct from the automatic backup slot that silently overwrites itself after every edit. Only works while running inside Telegram with Telegram Cloud Storage available; if the tool returns ok:false for that reason, tell the user plainly instead of pretending it worked. Up to " + MAX_MANUAL_BACKUPS + " manual backups can exist at once — saving one more than that automatically removes the oldest, which the tool result reflects. A backup can optionally be password-protected: only set `password` if the user explicitly asked for a password-protected/locked backup AND you first warned them, in the same reply, that typing a password here puts it in this chat's own message history, and offered the alternative of setting it through the ☁️ Cloud Backup panel's own password field instead (which never leaves the device) — only proceed with a password here if they confirm they still want that after the warning. Restoring or viewing a password-protected backup can only be done from the ☁️ Cloud Backup panel itself (there is no AI tool for that); the panel will ask for the same password there.", parameters:{ type:'object', properties:{ label:{ type:'string', description:'Optional short label/name for this backup, using whatever wording the user gave. Leave empty to auto-generate a "Backup <date & time>" label.' }, password:{ type:'string', description:'Optional password to protect this one backup. Only set this if the user explicitly asked for a password-protected backup AND confirmed after being warned that typing it here puts it in this chat\'s history. Leave empty/omitted for a normal, unprotected backup.' }, hint:{ type:'string', description:'Optional password hint, only meaningful when `password` is set.' } } } },
         { name:'telegram_backup_list', description:"List the user's existing Telegram Cloud backups: the one automatic slot (always reflects the latest note state) plus up to the user's configured number (0-7, default 2) of manual snapshots, each with its id, label (if any), date/time, note count, lockedNotes / unlockedNotes counts (null = unknown because the whole backup is password-protected), and approximate size. Whenever you state how many notes a backup holds, ALWAYS add in the same sentence how many of them are locked and how many are not locked (from lockedNotes / unlockedNotes). Call this whenever the user asks what backups they have, in ANY language/spelling/Finglish — Persian 'لیست بکاپ‌ها', 'چه بکاپ‌هایی دارم', 'چند تا بکاپ دارم', 'بکاپ‌هام رو نشون بده'; Finglish 'backup list', 'chand ta backup daram'; English 'list my backups', 'show my telegram backups', 'what backups do I have'. Also call this when the user asks WHEN their last automatic or manual backup was, how long ago it was, or what their backups are called/named — Persian 'آخرین بکاپ خودکار کی بود', 'آخرین بکاپ دستی کی بود', 'اسم بکاپ‌هام چیه', 'کی بکاپ گرفتم'; English 'when was my last backup', 'what are my backups called'. The result also has lastAutoBackup, lastManualBackup and manualBackupNames ready to quote. Also call this FIRST whenever you need a manual backup's exact id before calling telegram_backup_delete and you don't already have it from context.", parameters:{ type:'object', properties:{} } },
-        { name:'telegram_backup_delete', description:"Permanently delete ONE manual Telegram Cloud backup — never the automatic slot, which cannot be deleted on its own since it isn't a real snapshot. This always shows the user a real confirmation dialog first and only deletes if they accept, so it is safe to call as soon as the user clearly asks to delete/remove a specific manual backup, in ANY language/spelling/Finglish — Persian 'بکاپ ... رو حذف کن', 'اون بکاپ رو پاک کن', 'بکاپ دستی رو حذف کن'; Finglish 'backup ro hazf kon', 'backup ro pak kon'; English 'delete that backup', 'remove the backup named X', 'delete my manual backup' — but never call it just to be helpful when deletion was not requested. Identify the backup either by its exact id (call telegram_backup_list first if you don't already know it) or by giving label_or_date with whatever text/date the user used to refer to it — if that text matches more than one backup, this returns the candidate list instead of deleting anything so you can ask the user which one they mean, and if it is empty/omitted along with id, mention every manual backup's label and id from a telegram_backup_list result yourself and ask the user which to delete.", parameters:{ type:'object', properties:{ id:{ type:'string', description:'The exact backup id, from telegram_backup_list.' }, label_or_date:{ type:'string', description:'Text to match against the backup label or shown date/time, when the exact id is not known.' } } } }
+        { name:'telegram_backup_delete', description:"Permanently delete ONE manual Telegram Cloud backup — never the automatic slot, which cannot be deleted on its own since it isn't a real snapshot. This always shows the user a real confirmation dialog first and only deletes if they accept, so it is safe to call as soon as the user clearly asks to delete/remove a specific manual backup, in ANY language/spelling/Finglish — Persian 'بکاپ ... رو حذف کن', 'اون بکاپ رو پاک کن', 'بکاپ دستی رو حذف کن'; Finglish 'backup ro hazf kon', 'backup ro pak kon'; English 'delete that backup', 'remove the backup named X', 'delete my manual backup' — but never call it just to be helpful when deletion was not requested. Identify the backup either by its exact id (call telegram_backup_list first if you don't already know it) or by giving label_or_date with whatever text/date the user used to refer to it — if that text matches more than one backup, this returns the candidate list instead of deleting anything so you can ask the user which one they mean, and if it is empty/omitted along with id, mention every manual backup's label and id from a telegram_backup_list result yourself and ask the user which to delete.", parameters:{ type:'object', properties:{ id:{ type:'string', description:'The exact backup id, from telegram_backup_list.' }, label_or_date:{ type:'string', description:'Text to match against the backup label or shown date/time, when the exact id is not known.' } } } },
+        { name:'manage_list', description:"Full read/write access to the app's built-in checklist called List (the «لیست» / List button under structure management: items with tick boxes and a progress bar). It is SEPARATE from notes — never create or edit a note for it. Call this whenever the user talks about their list / checklist / to-do list in this sense, in ANY language, spelling or Finglish — Persian 'لیستم رو نشون بده', 'تو لیست چی دارم', 'به لیستم X رو اضافه کن', 'X رو تو لیست بنویس', 'تیک X رو بزن', 'X انجام شد', 'تیکش رو بردار', 'X رو از لیست حذف کن', 'انجام‌شده‌ها رو پاک کن', 'لیست رو خالی کن', 'چند تا کار مونده'; English 'show my list', 'add X to my list', 'check off X', 'remove X from the list', 'clear completed'. Actions: 'get' (read every item: id, text, done; optional status 'all'|'open'|'done'), 'add' (items: array of texts, or text: one text; optional done:true to add them already ticked), 'set_done' (targets: array of item ids or text fragments; done: true to tick, false to untick; default true), 'edit' (target + new_text), 'delete' (targets), 'clear_done' (delete every ticked item), 'clear_all' (delete EVERYTHING — only when the user explicitly asks to empty the whole list; the app then shows the user a real dialog where they must type OK, so nothing is deleted unless they confirm; same as the delete_list tool). Items are matched by exact id, exact text, or a unique partial text; if several items match, the result lists them under ambiguous and you must ask the user which one (or pass the id). Call 'get' first whenever you need ids or the current state, and answer strictly from the tool result — never invent items, counts or progress. The change is applied instantly and persisted exactly like a manual change (the open List window refreshes by itself).", parameters:{ type:'object', properties:{ action:{ type:'string', enum:['get','add','set_done','edit','delete','clear_done','clear_all'], description:'What to do with the list.' }, items:{ type:'array', items:{ type:'string' }, description:'add: the item texts to add (max 100, each up to 300 characters). They appear at the top of the list in the order given.' }, text:{ type:'string', description:'add: a single item text (alternative to items).' }, targets:{ type:'array', items:{ type:'string' }, description:'set_done / delete: item ids or (unique partial) texts to act on.' }, target:{ type:'string', description:'edit (or a single set_done / delete): the item id or its text.' }, new_text:{ type:'string', description:'edit: the replacement text.' }, done:{ type:'boolean', description:'set_done: true = tick (default), false = untick. add: add the items already ticked.' }, status:{ type:'string', enum:['all','open','done'], description:'get: which items to return (default all).' }, confirm:{ type:'boolean', description:'clear_all only: optional; the user always has to confirm in the app dialog anyway.' } }, required:['action'] } },
     ];
 
     /* Resolves a model-supplied note reference (an id, an exact title, or a
@@ -30997,11 +31187,21 @@ const MU_AI = (function(){
                     if(typeof mu_deleteEverythingPermanently !== 'function') return { ok:false, error: 'This action is unavailable right now.' };
                     const noteCountBefore = Array.isArray(categories) ? categories.length : 0;
                     const folderCountBefore = (Array.isArray(folders) ? folders : []).filter(f => f !== DEFAULT_FOLDER).length;
-                    if(!noteCountBefore && !folderCountBefore) return { ok:false, error: fa ? 'چیزی برای حذف وجود ندارد.' : 'There is nothing to delete.' };
+                    const listCountBefore = window.MK_List ? window.MK_List.count() : 0;
+                    if(!noteCountBefore && !folderCountBefore && !listCountBefore) return { ok:false, error: fa ? 'چیزی برای حذف وجود ندارد.' : 'There is nothing to delete.' };
                     // Same type-"OK"-to-confirm dialog the button uses — the AI can never skip it.
                     const didDelete = await mu_deleteEverythingPermanently();
                     if(!didDelete) return { ok:false, cancelled:true, error: fa ? 'کاربر حذف را تایید نکرد (کلمه OK را درست تایپ نکرد یا انصراف داد).' : 'The user did not confirm the deletion (did not type OK correctly, or cancelled).' };
-                    return { ok:true, data:{ deleted_notes: noteCountBefore, deleted_folders: folderCountBefore } };
+                    return { ok:true, data:{ deleted_notes: noteCountBefore, deleted_folders: folderCountBefore, deleted_list_items: listCountBefore } };
+                }
+                case 'delete_list': {
+                    if(typeof mu_deleteListPermanently !== 'function' || !window.MK_List) return { ok:false, error: 'This action is unavailable right now.' };
+                    const listCountBefore = window.MK_List.count();
+                    if(!listCountBefore) return { ok:false, error: fa ? 'لیست از قبل خالی است.' : 'The List is already empty.' };
+                    // Same type-"OK"-to-confirm dialog the button uses — the AI can never skip it.
+                    const didDelete = await mu_deleteListPermanently();
+                    if(!didDelete) return { ok:false, cancelled:true, error: fa ? 'کاربر حذف را تایید نکرد (کلمه OK را درست تایپ نکرد یا انصراف داد).' : 'The user did not confirm the deletion (did not type OK correctly, or cancelled). Nothing was deleted.' };
+                    return { ok:true, data:{ deleted_list_items: listCountBefore } };
                 }
                 case 'delete_all_folders': {
                     if(typeof mu_deleteAllFoldersPermanently !== 'function') return { ok:false, error: 'This action is unavailable right now.' };
@@ -32342,6 +32542,28 @@ const MU_AI = (function(){
                     showToast(fa?'🗑 بکاپ حذف شد.':'🗑 Backup deleted.', 2000);
                     if(document.getElementById('cloudPanelBody')) markhinDash_renderCloudPanelBody();
                     return { ok:true, data:{ id: target.id, label: target.label || null, dateLabel: mu_fmtCloudDate(target.ts) } };
+                }
+                case 'manage_list': {
+                    const api = window.mkListAPI;
+                    if(!api || typeof api.run !== 'function'){
+                        return { ok:false, error: fa ? 'لیست الان در دسترس نیست.' : 'The List is not available right now.' };
+                    }
+                    // Emptying the WHOLE list is a permanent delete: it goes through the same type-"OK" dialog as the
+                    // "حذف دائمی" button, so the model can never wipe it just by passing confirm:true.
+                    if(String(input.action || '') === 'clear_all'){
+                        if(typeof mu_deleteListPermanently !== 'function' || !window.MK_List) return { ok:false, error: fa ? 'لیست الان در دسترس نیست.' : 'The List is not available right now.' };
+                        const countBefore = window.MK_List.count();
+                        if(!countBefore) return { ok:false, error: fa ? 'لیست از قبل خالی است.' : 'The List is already empty.' };
+                        const didClear = await mu_deleteListPermanently();
+                        if(!didClear) return { ok:false, cancelled:true, error: fa ? 'کاربر حذف را تایید نکرد (کلمه OK را درست تایپ نکرد یا انصراف داد).' : 'The user did not confirm the deletion (did not type OK correctly, or cancelled). Nothing was deleted.' };
+                        return { ok:true, data:{ deleted_list_items: countBefore, summary:{ total:0, done:0, open:0, percent:0 }, items:[] } };
+                    }
+                    const res = api.run(String(input.action || 'get'), input, fa);
+                    if(res && res.ok && res.mutated){
+                        try{ showToast(fa ? '✅ لیست به‌روز شد' : '✅ List updated', 1800); }catch(_){}
+                    }
+                    if(res) delete res.mutated;
+                    return res;
                 }
                 default:
                     return { ok:false, error: 'Unknown tool: ' + toolName };
@@ -34462,7 +34684,7 @@ const MU_AI = (function(){
             : 'You are MARKHIN AI: a professional, precise, highly capable AI assistant embedded inside the Markhin note-taking app. You fill three roles at once:\n'
                 + '1) General assistant: you answer any question — whether or not it relates to the app — clearly and accurately using your general knowledge; by default you answer in whichever language the user wrote that message in, unless they\'ve explicitly asked for a different reply language (see the response-language rule below).\n'
                 + '2) Notes-management agent: you have direct access to the user\'s notes and folders and can actually perform (not just explain) the following: ' + toolsSummaryEn + '.\n'
-                + '3) App expert: you know the whole Markhin feature set and give precise, actionable guidance about any of it, even features you have no direct tool for: folders and tags, pinning and favoriting, archiving/restoring, the Knowledge Graph (a graph view of how notes connect), the Random Portal, importing from JSON/CSV/TXT/MD/DOCX/HTML (this one needs the user to actually pick a file on their device, so you can only guide them to it). The full-app HTML export (a complete backup of the app itself) you can create directly with export_notes format app_html (app_mode data = app plus all notes and folders without the API key, clean = blank app); the variant that also contains the API key can only be made by the user from the "Full, including API key" option of the HTML export menu, you have no tool for it. Also Telegram Cloud backup (the ☁️ panel): an "auto backup" saves the notes\' text to Telegram\'s own cloud a few seconds after every edit, silently, with nothing for the user to do (images aren\'t included, they stay on-device) — this always runs. Separately, automatically *pulling in* another device\'s changes (new notes, edits, or deletions) without the user manually tapping Restore only works on a device that has, at some point, tapped "Save a new backup" or "Restore" at least once; if the user says notes/deletions aren\'t syncing automatically between two of their devices, explain exactly this and tell them to open the ☁️ panel once, go to the "Auto backup" tab and tap "Enable / fix auto sync" — it turns that on immediately and also does one check-and-merge against the cloud backup right then; tapping it is never harmful. The panel has two tabs side by side: "Auto backup" (the default; sync status, the latest auto version and the enable/fix auto sync button) and "Manual backup" (the manual-backup count setting, label, save button and the list of saved backups). At the bottom of both tabs it shows the real number of Telegram Cloud keys in use: auto-backup keys, manual-backup keys, all keys of the bot out of 1024, and the app-defined limit (960 keys); if the user asks how much space is left, use these. In the Manual tab, beyond the auto backup there\'s also "Save a new backup" (up to 7 manual snapshots, with an optional label and password), "View" a backup\'s contents before restoring, "Restore" (newer notes from the backup are added/updated, deliberate deletions are never brought back), and "🔓 Restore and undo deletions" (for when the user explicitly wants a deleted note back from one specific backup, overriding the normal behavior) — all of these live only in the ☁️ panel; you have no tool to open, view the inside of, or restore a backup. HOWEVER you DO have telegram_backup_list, and it is the ONLY trustworthy source for backups: for ANY question about which backups exist, a backup name, label or date, or how many notes a backup holds, you MUST call telegram_backup_list FIRST and answer strictly from its result (label, dateLabel, notes, skipped, approxSizeKB, passwordProtected). NEVER guess or invent a backup name, date or note count, and NEVER convert or write a date yourself: quote label and dateLabel exactly as returned, or call convert_date. If the tool returns ok:false (for example the app is not running inside Telegram), tell the user that plainly instead of answering from imagination. Never output long meaningless strings of letters or digits; if you have no real data, say so in one short sentence. There\'s also an "⚙️ Backup settings" block at the top of that same panel, where the user can change how many manual backups are kept at once, from 0 to 7 (default 2); since Telegram gives each bot only 1024 storage keys, this number directly sets the size cap for every backup (auto and manual) — more manual backups means a smaller cap for each, and setting it to 0 turns manual backups off entirely so nearly all the space goes to the auto backup alone. Lowering the number below the current manual-backup count permanently deletes the oldest ones (after the user confirms). This setting, too, can only be changed from the ☁️ panel itself; you have no direct tool for it. Changing any app setting directly with a tool, not just explaining it: Lite version on/off (set_lite_mode - while it is on, theme changes are locked, so if the user asks for a theme change first tell them and offer to turn Lite off), Eco power-saving options (set_eco_option - all on by default: pause animations while typing / in note viewer / idle / background), the scroll-pause delay (set_scroll_pause_delay - how many milliseconds the heavy theme effects stay paused after scrolling stops, 0 to 1000, default 300; 0 = off), page zoom on/off (set_page_zoom - off by default; the Knowledge Graph always has its own zoom and does not depend on this setting), the background music (the app theme song) on/off and its volume (set_background_music), note viewer frame style (set_viewer_style), note previews and their line count (set_note_preview), the list display order (set_list_sort_mode), and reading the current state of all of them (get_app_settings - always call it instead of guessing a setting\'s state). Switching the visual theme, switching the language, actually exporting notes to a real file (JSON/CSV/MD/TXT/HTML/PDF/DOCX/PNG/JPG, the complete ZIP bundle, per-format individual-file ZIPs, the full-app HTML snapshot), opening the Knowledge Graph / Random Portal, and actually password-locking a note (with the lock_note tool — this opens the app\'s own real, secure encryption dialog, where the user types the password and an optional hint directly, never through this chat) are things you can do directly with a tool, not just explain. When asked how to do something in the app, say exactly which button or section to tap. You also know these other parts of the app and guide users through them precisely: Search (the app-wide search; it also opens with Ctrl+K; it understands Persian, English and Finglish, supports the operators tag:, folder:, is:pinned, is:favorite, \"exact phrase\" and a leading - to exclude a word, and remembers recent searches); the Dashboard (overall stats: note, word, character, folder and tag counts, average words, plus the pinned, favorite, locked, decoy, archived, active Ghost and active Time Capsule lists); Note DNA (an analysis of one note: words, symbols, unique words, top keywords, estimated reading time, image and link counts); Share note (TXT, Markdown, HTML, PDF or image; a locked note is only ever shared as an encrypted file); multi-select (long-press a note or folder; for notes: pin, favorite, duplicate, move up/down and delete, for folders: bulk delete); and the tools inside a note itself: drawing (pen, eraser, rectangle, circle, color, size, undo, clear, download and insert into the text), voice recording, inserting and moving images, text undo/redo, the \"Show link\" button for link previews, and the duplicate-note button. You can open the dashboard, search, Note DNA and the share picker for the user with open_app_view; for the rest you have no direct tool and only guide.\n\n'
+                + '3) App expert: you know the whole Markhin feature set and give precise, actionable guidance about any of it, even features you have no direct tool for: folders and tags, pinning and favoriting, archiving/restoring, the Knowledge Graph (a graph view of how notes connect), the Random Portal, importing from JSON/CSV/TXT/MD/DOCX/HTML (this one needs the user to actually pick a file on their device, so you can only guide them to it). The full-app HTML export (a complete backup of the app itself) you can create directly with export_notes format app_html (app_mode data = app plus all notes and folders without the API key, clean = blank app); the variant that also contains the API key can only be made by the user from the "Full, including API key" option of the HTML export menu, you have no tool for it. Also Telegram Cloud backup (the ☁️ panel): an "auto backup" saves the notes\' text to Telegram\'s own cloud a few seconds after every edit, silently, with nothing for the user to do (images aren\'t included, they stay on-device) — this always runs. Separately, automatically *pulling in* another device\'s changes (new notes, edits, or deletions) without the user manually tapping Restore only works on a device that has, at some point, tapped "Save a new backup" or "Restore" at least once; if the user says notes/deletions aren\'t syncing automatically between two of their devices, explain exactly this and tell them to open the ☁️ panel once, go to the "Auto backup" tab and tap "Enable / fix auto sync" — it turns that on immediately and also does one check-and-merge against the cloud backup right then; tapping it is never harmful. The panel has two tabs side by side: "Auto backup" (the default; sync status, the latest auto version and the enable/fix auto sync button) and "Manual backup" (the manual-backup count setting, label, save button and the list of saved backups). At the bottom of both tabs it shows the real number of Telegram Cloud keys in use: auto-backup keys, manual-backup keys, all keys of the bot out of 1024, and the app-defined limit (960 keys); if the user asks how much space is left, use these. In the Manual tab, beyond the auto backup there\'s also "Save a new backup" (up to 7 manual snapshots, with an optional label and password), "View" a backup\'s contents before restoring, "Restore" (newer notes from the backup are added/updated, deliberate deletions are never brought back), and "🔓 Restore and undo deletions" (for when the user explicitly wants a deleted note back from one specific backup, overriding the normal behavior) — all of these live only in the ☁️ panel; you have no tool to open, view the inside of, or restore a backup. HOWEVER you DO have telegram_backup_list, and it is the ONLY trustworthy source for backups: for ANY question about which backups exist, a backup name, label or date, or how many notes a backup holds, you MUST call telegram_backup_list FIRST and answer strictly from its result (label, dateLabel, notes, skipped, approxSizeKB, passwordProtected). NEVER guess or invent a backup name, date or note count, and NEVER convert or write a date yourself: quote label and dateLabel exactly as returned, or call convert_date. If the tool returns ok:false (for example the app is not running inside Telegram), tell the user that plainly instead of answering from imagination. Never output long meaningless strings of letters or digits; if you have no real data, say so in one short sentence. There\'s also an "⚙️ Backup settings" block at the top of that same panel, where the user can change how many manual backups are kept at once, from 0 to 7 (default 2); since Telegram gives each bot only 1024 storage keys, this number directly sets the size cap for every backup (auto and manual) — more manual backups means a smaller cap for each, and setting it to 0 turns manual backups off entirely so nearly all the space goes to the auto backup alone. Lowering the number below the current manual-backup count permanently deletes the oldest ones (after the user confirms). This setting, too, can only be changed from the ☁️ panel itself; you have no direct tool for it. The app also has a built-in checklist called List (the «لیست» / List button under structure management, with tick boxes and a progress bar) that is completely separate from notes. You have FULL access to it through the manage_list tool: read it, add items, tick or untick items, edit or delete items, and clear the completed ones. Whenever the user talks about their list or checklist in this sense, or asks to add, check off, uncheck or remove something in it, call manage_list instead of guessing or creating a note; call action get first when you need the current items or an item id, and answer strictly from the tool result. Changing any app setting directly with a tool, not just explaining it: Lite version on/off (set_lite_mode - while it is on, theme changes are locked, so if the user asks for a theme change first tell them and offer to turn Lite off), Eco power-saving options (set_eco_option - all on by default: pause animations while typing / in note viewer / idle / background), the scroll-pause delay (set_scroll_pause_delay - how many milliseconds the heavy theme effects stay paused after scrolling stops, 0 to 1000, default 300; 0 = off), page zoom on/off (set_page_zoom - off by default; the Knowledge Graph always has its own zoom and does not depend on this setting), the background music (the app theme song) on/off and its volume (set_background_music), note viewer frame style (set_viewer_style), note previews and their line count (set_note_preview), the list display order (set_list_sort_mode), and reading the current state of all of them (get_app_settings - always call it instead of guessing a setting\'s state). Switching the visual theme, switching the language, actually exporting notes to a real file (JSON/CSV/MD/TXT/HTML/PDF/DOCX/PNG/JPG, the complete ZIP bundle, per-format individual-file ZIPs, the full-app HTML snapshot), opening the Knowledge Graph / Random Portal, and actually password-locking a note (with the lock_note tool — this opens the app\'s own real, secure encryption dialog, where the user types the password and an optional hint directly, never through this chat) are things you can do directly with a tool, not just explain. When asked how to do something in the app, say exactly which button or section to tap. You also know these other parts of the app and guide users through them precisely: Search (the app-wide search; it also opens with Ctrl+K; it understands Persian, English and Finglish, supports the operators tag:, folder:, is:pinned, is:favorite, \"exact phrase\" and a leading - to exclude a word, and remembers recent searches); the Dashboard (overall stats: note, word, character, folder and tag counts, average words, plus the pinned, favorite, locked, decoy, archived, active Ghost and active Time Capsule lists); Note DNA (an analysis of one note: words, symbols, unique words, top keywords, estimated reading time, image and link counts); Share note (TXT, Markdown, HTML, PDF or image; a locked note is only ever shared as an encrypted file); multi-select (long-press a note or folder; for notes: pin, favorite, duplicate, move up/down and delete, for folders: bulk delete); and the tools inside a note itself: drawing (pen, eraser, rectangle, circle, color, size, undo, clear, download and insert into the text), voice recording, inserting and moving images, text undo/redo, the \"Show link\" button for link previews, and the duplicate-note button. You can open the dashboard, search, Note DNA and the share picker for the user with open_app_view; for the rest you have no direct tool and only guide.\n\n'
                 + webSearchRoleEn
                 + mAiDateTimeEn
                 + (window.mAiBackupInfo ? window.mAiBackupInfo(false) : '')
@@ -34500,7 +34722,7 @@ const MU_AI = (function(){
                 + '- CRITICAL — last-edited dates: the lastEdited value returned by tools like get_note/get_notes/read_all_notes/compare_notes is already precisely converted to both calendars for you, formatted like "4 Shahrivar 1405 / September 26, 2026, 14:32" (Jalali day/month/year, then Gregorian month/day/year, then time). Never convert this date between Jalali and Gregorian yourself, or guess at the equivalent in the other calendar — always relay exactly the value the tool gave you (or just the part in the language you\'re replying in). Doing calendar conversion in your own reasoning is unreliable and produces wrong answers (e.g. reporting the wrong Jalali day); this value has always already been computed correctly by the app itself.\n'
                 + '- CRITICAL — any other date conversion: whenever the user gives a specific date and wants its equivalent in the other calendar, asks what weekday a specific date fell/falls on, or asks how many days until/since a specific date, always call the convert_date tool — never work this out yourself or estimate it, since that reproduces the exact same "4 Shahrivar instead of 13 Shahrivar" kind of mistake.\n'
                 + '- CRITICAL — the same rule applies to relative dates: when the user asks something like "what date is it in 17 days?", "what date will it be N days/weeks/months from now?", or "what date was it 3 weeks ago?", first work out the exact resulting Gregorian date yourself from "now" (given above) with simple day arithmetic, but never guess the Jalali equivalent of that resulting date yourself or build it by swapping in a Gregorian month name next to a Jalali year (e.g. writing "October" alongside a Jalali year) — pass that computed Gregorian date to the convert_date tool with calendar:"gregorian" and take the real Jalali equivalent from its result.\n'
-                + '- If the user asks to wipe EVERYTHING at once — all notes and all folders together — call delete_everything (one call, one OK dialog). If they only mention notes or folders separately, use delete_all_notes or delete_all_folders instead, never delete_everything. It always requires the user to type OK in a real dialog.\n'
+                + '- If the user asks to wipe EVERYTHING at once — all notes, all folders and the List together — call delete_everything (one call, one OK dialog). If they only mention notes, folders or the List separately, use delete_all_notes, delete_all_folders or delete_list (also what manage_list with action clear_all does) instead, never delete_everything. They always require the user to type OK in a real dialog.\n'
                 + '- For deletions, just call delete_note — it shows the user a real, cancellable confirmation dialog itself — but never call it unless the user has clearly asked to delete something. It works on a locked note too (deleting doesn\'t decrypt or expose its content, only removes the record). Every deletion in this app is permanent and cannot be undone.\n'
                 + '- CRITICAL — password security: when the user wants a note locked/password-protected, never ask them for the password (or even a password hint) here in chat, and never record a password they type into the chat — just call lock_note right away. The tool itself opens the app\'s own real, secure encryption dialog, where the user types the password, repeats it to confirm, and then adds an optional hint directly and safely into that dialog, not into the chat. If the result shows the user cancelled the dialog, just tell them plainly that the note wasn\'t locked, with no blame.\n'
                 + '- CRITICAL — folder vs. note disambiguation: whether a request is about a folder or about a note is decided by what the user actually said (the word "folder" vs. a note\'s title), never by which name happens to already exist elsewhere. If they say "create/rename/delete FOLDER X" (or are clearly talking about the container notes get filed into), that is always manage_folder — never create_note or delete_note — even if a note happens to share that exact name. If they instead name a specific note, use the note tools. When truly unsure which one is meant, ask a short clarifying question rather than guessing, since folder and note deletions are not interchangeable and one cannot substitute for the other.\n'
@@ -35647,6 +35869,7 @@ html body .brand-logo.typing{overflow:hidden;line-height:26px;padding:0 3px !imp
 .brand-logo .mkl-text{display:none}
 .brand-logo.typing .mkl-svg{display:none}
 .brand-logo.typing .mkl-text{display:inline}
+.brand-logo .mkl-text,.brand-logo.typing .mkl-text{flex:none;font-size:inherit !important;line-height:inherit !important;letter-spacing:inherit;white-space:nowrap !important;text-decoration:none !important;overflow-wrap:normal}
 </style>
 
 <style id="muFolderSearchIconCss">
@@ -38329,6 +38552,28 @@ body #btnDeleteMenu:hover {
     border-color: #ef4444 !important;
 }
 </style>
+<style id="muStructureUniform">
+/* Add note / Add folder / List / Archive: identical frame in every theme — same size, font, border colour and shadow as "Add note". */
+body #btnNewCategory, body #btnNewFolder, body #btnListTool, body #btnArchivedNotes {
+    box-sizing: border-box !important;
+    display: flex !important; align-items: center !important; justify-content: center !important; gap: 4px !important;
+    width: 100% !important; min-width: 0 !important; height: auto !important; min-height: 0 !important; margin: 0 !important;
+    padding: 8px 10px !important;
+    font-size: 11.5px !important; font-weight: 700 !important; line-height: 1.35 !important;
+    text-align: center !important; white-space: normal !important;
+    border-style: solid !important; border-width: 1px !important;
+    border-color: currentColor !important;
+    border-color: color-mix(in srgb, currentColor 70%, transparent) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,.3) !important;
+}
+body #btnListTool span { line-height: 1.35 !important; }
+body #btnListTool .mkl-ico { width: 13px !important; height: 13px !important; display: block !important; }
+body #btnNewCategory:hover, body #btnNewFolder:hover, body #btnListTool:hover, body #btnArchivedNotes:hover { border-color: currentColor !important; }
+@media (max-width: 380px) {
+    body #btnNewCategory, body #btnNewFolder, body #btnListTool, body #btnArchivedNotes { font-size: 10.5px !important; padding: 7px 6px !important; }
+}
+</style>
 <style id="muNoAnimModal">
 .advanced-modal.mu-no-anim, .advanced-modal.mu-no-anim .advanced-card { animation: none !important; }
 </style>
@@ -39148,6 +39393,396 @@ html body[class*="theme-"] .btn-main {
         : ('Telegram Cloud backup status (last known): last automatic backup: ' + autoTxt + '. Last manual backup: ' + manTxt + '. Manual backups (newest first) with their names: ' + names + '. If the user asks about the last backup or the backup names, answer directly and exactly from this; to be sure it is current, or for the note count of each backup, call telegram_backup_list.\n\n');
     } catch (e) { return ''; }
   };
+})();
+</script>
+
+<script>
+/* ===== MARKHIN List (لیست) — simple checklist: add, tick, delete. No editing. ===== */
+(function(){
+    var KEY = 'markhin_lists_v1', TKEY = 'markhin_lists_tomb_v1', tombs = {};
+    try { tombs = JSON.parse(localStorage.getItem(TKEY) || '{}') || {}; } catch(e) { tombs = {}; }
+    var items = [];
+    try { var raw = JSON.parse(localStorage.getItem(KEY) || '[]'); if (Array.isArray(raw)) items = raw.filter(function(x){ return x && typeof x.t === 'string'; }).map(function(x, i){ return { id: (x.id != null && x.id !== '') ? String(x.id) : (Date.now() - i) + '_m' + i, t: x.t, d: !!x.d, u: Number(x.u) || 0 }; }); } catch(e) {}
+
+    /* items are listed newest-created first; the creation time is the number at the start of the id (ticking an item changes `u`, which must NOT move it) */
+    function byCreated(a, b){ return (parseInt(b.id, 10) || b.u || 0) - (parseInt(a.id, 10) || a.u || 0); }
+    function lang(){ try { return (typeof currentLang !== 'undefined' && currentLang) ? currentLang : 'fa'; } catch(e){ return 'fa'; } }
+    function isFa(){ return lang() === 'fa'; }
+    function uiDir(){ return isFa() ? 'rtl' : 'ltr'; }
+    function num(n){ return String(n); }
+    function save(){
+        try { localStorage.setItem(KEY, JSON.stringify(items)); localStorage.setItem(TKEY, JSON.stringify(tombs)); } catch(e) {}
+        try { if (typeof scheduleCloudBackup === 'function') scheduleCloudBackup(); } catch(e) {}
+    }
+
+    var TICK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect class="ring" x="3" y="3" width="18" height="18"/><rect class="fill" x="3" y="3" width="18" height="18"/><path class="tick" d="M7.5 12.5l3.2 3.2 6-6.6"/></svg>';
+    var X_SVG = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square" stroke-linejoin="miter" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 12.5h9l1-12.5M10 11v5M14 11v5"/></svg>';
+    var HEAD_SVG = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="square" stroke-linejoin="miter" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17"/><path d="M8 12.4l2.9 2.9L16.2 9.4"/></svg>';
+    var PLUS_SVG = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="square" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+    var CLOSE_SVG = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="square" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg>';
+    var EMPTY_SVG = '<svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="square" stroke-linejoin="miter"><rect x="3.5" y="3.5" width="17" height="17"/><path d="M8 12.4l2.9 2.9L16.2 9.4"/></svg>';
+
+    function showModal(html){
+        if (typeof window.showAdvanced === 'function') { window.showAdvanced(html); return; }
+        var m = document.getElementById('advancedModal'), c = document.getElementById('advancedCard');
+        if (!m || !c) return;
+        c.innerHTML = html; m.classList.remove('mu-no-anim'); m.style.display = 'flex';
+    }
+    function closeModal(){
+        if (typeof window.closeAdvancedModal === 'function') { window.closeAdvancedModal(); return; }
+        var m = document.getElementById('advancedModal'); if (m) m.style.display = 'none';
+    }
+    window.mkListClose = closeModal;
+
+    function $(id){ return document.getElementById(id); }
+
+    /* ---- smooth DOM helpers: nothing rebuilds the list, so the scroll position never resets ---- */
+    function collapse(el, done){
+        el.style.height = el.offsetHeight + 'px';
+        void el.offsetHeight;
+        el.classList.add('out');
+        setTimeout(done, 290);
+    }
+    function expandIn(el, box){
+        box.insertBefore(el, box.firstChild);
+        var h = el.offsetHeight;
+        el.style.transition = 'none';
+        el.style.height = '0px'; el.style.opacity = '0'; el.style.marginBottom = '0'; el.style.paddingTop = '0'; el.style.paddingBottom = '0'; el.style.overflow = 'hidden';
+        void el.offsetHeight;
+        el.style.transition = '';
+        el.style.height = h + 'px'; el.style.opacity = '1'; el.style.marginBottom = ''; el.style.paddingTop = ''; el.style.paddingBottom = '';
+        setTimeout(function(){ el.style.height = ''; el.style.opacity = ''; el.style.overflow = ''; }, 320);
+    }
+    function emptyNode(){
+        var e = document.createElement('div');
+        e.className = 'mkl-empty';
+        e.innerHTML = EMPTY_SVG + (isFa() ? 'لیستت خالیه. اولین مورد رو بنویس.' : 'Your list is empty. Add your first item.');
+        return e;
+    }
+    function syncEmpty(){
+        var box = $('mklItems'); if (!box) return;
+        var has = box.querySelector('.mkl-item:not(.out)');
+        var emp = box.querySelector('.mkl-empty');
+        if (has && emp) emp.remove();
+        if (!has && !emp) box.appendChild(emptyNode());
+    }
+
+    function buildItem(it){
+        var el = document.createElement('div');
+        el.className = 'mkl-item' + (it.d ? ' done' : '');
+        el.setAttribute('dir', 'auto');
+        el.innerHTML = '<button type="button" class="mkl-check" aria-label="' + (isFa() ? 'انجام شد' : 'Done') + '">' + TICK_SVG + '</button>' +
+            '<div class="mkl-text"></div>' +
+            '<button type="button" class="mkl-del" aria-label="' + (isFa() ? 'حذف' : 'Delete') + '">' + X_SVG + '</button>';
+        el.querySelector('.mkl-text').textContent = it.t;
+        el.querySelector('.mkl-check').onclick = function(){
+            it.d = !it.d; it.u = Date.now();
+            el.classList.toggle('done', it.d); save(); updateMeta();
+        };
+        el.querySelector('.mkl-del').onclick = function(){
+            if (el.classList.contains('out')) return;
+            tombs[it.id] = Date.now();
+            items = items.filter(function(x){ return x.id !== it.id; });
+            save(); updateMeta();
+            collapse(el, function(){ el.remove(); syncEmpty(); });
+        };
+        return el;
+    }
+
+    function updateMeta(){
+        var total = items.length, done = items.filter(function(x){ return x.d; }).length;
+        var pct = total ? Math.round(done / total * 100) : 0;
+        var bar = $('mklBar'), cnt = $('mklCount'), pc = $('mklPct'), clr = $('mklClear');
+        if (bar) bar.style.width = pct + '%';
+        if (cnt) cnt.textContent = isFa() ? (num(done) + ' از ' + num(total) + ' انجام شد') : (done + ' of ' + total + ' done');
+        if (pc) pc.textContent = pct + '%';
+        if (clr) clr.classList.toggle('on', done > 0);
+    }
+
+    /* full rebuild: only on open and when a cloud merge arrives; scroll position is kept */
+    function render(){
+        var box = $('mklItems'); if (!box) return;
+        var st = box.scrollTop;
+        box.innerHTML = '';
+        items.forEach(function(it){ box.appendChild(buildItem(it)); });
+        syncEmpty();
+        box.scrollTop = st;
+        updateMeta();
+    }
+
+    function addItem(){
+        var inp = $('mklInput'); if (!inp) return;
+        var t = inp.value.trim(); if (!t) return;
+        var it = { id: Date.now() + '_' + Math.random().toString(36).slice(2, 6), t: t.slice(0, 300), d: false, u: Date.now() };
+        items.unshift(it); save();
+        var box = $('mklItems');
+        if (box) {
+            var emp = box.querySelector('.mkl-empty'); if (emp) emp.remove();
+            expandIn(buildItem(it), box);
+            if (box.scrollTop > 0) { try { box.scrollTo({ top: 0, behavior: 'smooth' }); } catch(e) { box.scrollTop = 0; } }
+        }
+        updateMeta();
+        inp.value = ''; inp.setAttribute('dir', uiDir());
+        var b = $('mklAddBtn'); if (b) b.classList.remove('on');
+        try { inp.focus({ preventScroll: true }); } catch(e) { inp.focus(); }
+    }
+
+    window.mkListOpen = function(){
+        var fa = isFa(), dir = uiDir();
+        showModal(
+            '<div class="mkl-wrap" dir="' + dir + '">' +
+              '<div class="mkl-head">' +
+                '<h3>' + HEAD_SVG + (fa ? 'لیست' : 'List') + '</h3>' +
+                '<button class="mkl-close" type="button" onclick="mkListClose()" aria-label="' + (fa ? 'بستن' : 'Close') + '">' + CLOSE_SVG + '</button>' +
+              '</div>' +
+              '<div class="mkl-progress">' +
+                '<div class="mkl-progress-top"><span id="mklCount"></span><span id="mklPct"></span></div>' +
+                '<div class="mkl-bar"><i id="mklBar"></i></div>' +
+              '</div>' +
+              '<div class="mkl-add">' +
+                '<input id="mklInput" type="text" maxlength="300" autocomplete="off" enterkeyhint="done" dir="' + dir + '" placeholder="' + (fa ? 'یه مورد جدید بنویس…' : 'Write a new item…') + '">' +
+                '<button type="button" class="mkl-add-btn" id="mklAddBtn" aria-label="' + (fa ? 'افزودن' : 'Add') + '">' + PLUS_SVG + '</button>' +
+              '</div>' +
+              '<div class="mkl-items" id="mklItems"></div>' +
+              '<div class="mkl-foot"><button type="button" class="mkl-clear" id="mklClear">' + (fa ? 'پاک کردن انجام‌شده‌ها' : 'Clear completed') + '</button></div>' +
+            '</div>');
+        var inp = $('mklInput'), btn = $('mklAddBtn'), clr = $('mklClear');
+        /* empty field: placeholder follows the app language; once you type, direction follows the text (like notes) */
+        inp.addEventListener('input', function(){
+            var has = inp.value.trim().length > 0;
+            inp.setAttribute('dir', has ? 'auto' : uiDir());
+            btn.classList.toggle('on', has);
+        });
+        inp.addEventListener('keydown', function(e){ if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); addItem(); } });
+        btn.addEventListener('pointerdown', function(e){ e.preventDefault(); });
+        btn.onclick = addItem;
+        clr.onclick = function(){
+            var box = $('mklItems'), now = Date.now();
+            items.forEach(function(x){ if (x.d) tombs[x.id] = now; });
+            items = items.filter(function(x){ return !x.d; });
+            save(); updateMeta();
+            if (box) box.querySelectorAll('.mkl-item.done').forEach(function(el){ collapse(el, function(){ el.remove(); syncEmpty(); }); });
+        };
+        render();
+    };
+
+    /* ---- Telegram Cloud sync (rides along with the notes backup) ---- */
+    function pruneTombs(){
+        var cut = Date.now() - 90 * 86400000;
+        Object.keys(tombs).forEach(function(k){ if ((tombs[k] || 0) < cut) delete tombs[k]; });
+    }
+    window.MK_List = {
+        snapshot: function(){ pruneTombs(); return { items: items.map(function(x){ return { id: x.id, t: x.t, d: !!x.d, u: x.u || 0 }; }), tombs: tombs }; },
+        merge: function(remote, opts){
+            if (!remote || typeof remote !== 'object') return 0;
+            var force = !!(opts && opts.force);
+            var changed = 0, byId = {};
+            var rt = remote.tombs && typeof remote.tombs === 'object' ? remote.tombs : {};
+            /* force ("restore and undo deletions"): items that exist in the backup come back even if this device
+               deleted them, so neither a local nor a backup tombstone for those ids may block them. */
+            var remoteIds = {};
+            if (force) (Array.isArray(remote.items) ? remote.items : []).forEach(function(r){ if (r && r.id) remoteIds[String(r.id)] = 1; });
+            Object.keys(rt).forEach(function(k){
+                if (force && remoteIds[k]) return;
+                var v = Number(rt[k]) || 0;
+                if (v > (tombs[k] || 0)) tombs[k] = v;
+            });
+            if (force) Object.keys(remoteIds).forEach(function(k){ delete tombs[k]; });
+            var before = items.length;
+            items = items.filter(function(x){ return !((tombs[x.id] || 0) >= (x.u || 0) && tombs[x.id]); });
+            if (items.length !== before) changed++;
+            items.forEach(function(x){ byId[x.id] = x; });
+            (Array.isArray(remote.items) ? remote.items : []).forEach(function(r){
+                if (!r || typeof r.t !== 'string' || !r.id) return;
+                var ru = Number(r.u) || 0;
+                if (tombs[r.id] && tombs[r.id] >= ru) return;
+                var l = byId[r.id];
+                if (!l) { var n = { id: String(r.id), t: r.t.slice(0, 300), d: !!r.d, u: ru }; items.push(n); byId[n.id] = n; changed++; }
+                else if (ru > (l.u || 0)) { l.d = !!r.d; l.t = r.t.slice(0, 300); l.u = ru; changed++; }
+            });
+            if (changed) {
+                items.sort(byCreated);
+                try { localStorage.setItem(KEY, JSON.stringify(items)); localStorage.setItem(TKEY, JSON.stringify(tombs)); } catch(e) {}
+                try { render(); } catch(e) {}
+            } else {
+                try { localStorage.setItem(TKEY, JSON.stringify(tombs)); } catch(e) {}
+            }
+            return changed;
+        },
+        /* Full replace restore: the list becomes exactly the backup's list (items added here since the
+           backup go away; items deleted here since the backup come back). Returns how many items changed. */
+        /* Re-read the saved list (used when a snapshot file seeds localStorage after this script already ran). */
+        reload: function(){
+            try { var r = JSON.parse(localStorage.getItem(KEY) || '[]'); items = Array.isArray(r) ? r.filter(function(x){ return x && typeof x.t === 'string'; }).map(function(x, i){ return { id: (x.id != null && x.id !== '') ? String(x.id) : (Date.now() - i) + '_m' + i, t: x.t, d: !!x.d, u: Number(x.u) || 0 }; }) : []; } catch(e) { items = []; }
+            try { tombs = JSON.parse(localStorage.getItem(TKEY) || '{}') || {}; } catch(e) { tombs = {}; }
+            try { render(); } catch(e) {}
+            try { if (window.mkListRefreshLabel) window.mkListRefreshLabel(); } catch(e) {}
+        },
+        count: function(){ return items.length; },
+        /* Permanently empties the list (deletions are remembered so other devices drop the items too). */
+        clearAll: function(){
+            var now = Date.now(), n = items.length;
+            items.forEach(function(x){ tombs[x.id] = now; });
+            items = [];
+            save();
+            try { render(); } catch(e) {}
+            return n;
+        },
+        replace: function(remote){
+            if (!remote || typeof remote !== 'object' || !Array.isArray(remote.items)) return 0;
+            var now = Date.now(), next = [], seen = {}, changed = 0;
+            remote.items.forEach(function(r){
+                if (!r || typeof r.t !== 'string' || !r.id || seen[String(r.id)]) return;
+                seen[String(r.id)] = 1;
+                next.push({ id: String(r.id), t: r.t.slice(0, 300), d: !!r.d, u: Number(r.u) || 0 });
+            });
+            var oldById = {}; items.forEach(function(x){ oldById[x.id] = x; });
+            next.forEach(function(n){ var o = oldById[n.id]; if (!o || o.t !== n.t || !!o.d !== !!n.d) changed++; });
+            items.forEach(function(x){ if (!seen[x.id]) { tombs[x.id] = now; changed++; } });
+            var rt = remote.tombs && typeof remote.tombs === 'object' ? remote.tombs : {};
+            Object.keys(rt).forEach(function(k){ if (seen[k]) return; var v = Number(rt[k]) || 0; if (v > (tombs[k] || 0)) tombs[k] = v; });
+            Object.keys(seen).forEach(function(k){ delete tombs[k]; });
+            items = next;
+            items.sort(byCreated);
+            try { localStorage.setItem(KEY, JSON.stringify(items)); localStorage.setItem(TKEY, JSON.stringify(tombs)); } catch(e) {}
+            try { render(); } catch(e) {}
+            return changed;
+        },
+        /* Read-only preview of what a restore would do to the list (used by the restore preview screen). */
+        diff: function(remote, replace, force){
+            var out = { added: 0, updated: 0, removed: 0, total: 0 };
+            if (!remote || typeof remote !== 'object' || !Array.isArray(remote.items)) return out;
+            var rItems = remote.items.filter(function(r){ return r && typeof r.t === 'string' && r.id; });
+            var byId = {}; items.forEach(function(x){ byId[x.id] = x; });
+            var rIds = {}; rItems.forEach(function(r){ rIds[String(r.id)] = 1; });
+            rItems.forEach(function(r){
+                var l = byId[String(r.id)], ru = Number(r.u) || 0;
+                if (replace) { if (!l) out.added++; else if (l.t !== r.t || !!l.d !== !!r.d) out.updated++; return; }
+                if (!force && tombs[r.id] && tombs[r.id] >= ru) return;
+                if (!l) out.added++; else if (ru > (l.u || 0) && (l.t !== r.t || !!l.d !== !!r.d)) out.updated++;
+            });
+            if (replace) items.forEach(function(x){ if (!rIds[x.id]) out.removed++; });
+            else if (!force) {
+                var rt = remote.tombs && typeof remote.tombs === 'object' ? remote.tombs : {};
+                items.forEach(function(x){ var v = Number(rt[x.id]) || 0; if (v && v >= (x.u || 0) && !rIds[x.id]) out.removed++; });
+            }
+            out.total = out.added + out.updated + out.removed;
+            return out;
+        }
+    };
+
+    /* ---- full access for MARKHIN AI (tool manage_list): read, add, tick/untick, edit, delete, clear ---- */
+    window.mkListAPI = {
+        run: function(action, inp, fa){
+            inp = inp || {};
+            function norm(s){ s = String(s == null ? '' : s).trim(); try { if (typeof normalizeText === 'function') return normalizeText(s); } catch(e) {} return s.toLowerCase(); }
+            function view(x){ return { id: x.id, text: x.t, done: !!x.d }; }
+            function counts(){ var d = items.filter(function(x){ return x.d; }).length; return { total: items.length, done: d, open: items.length - d, percent: items.length ? Math.round(d / items.length * 100) : 0 }; }
+            function resolve(ref){
+                var raw = String(ref == null ? '' : ref).trim();
+                if (!raw) return { err: 'empty' };
+                var byId = items.filter(function(x){ return x.id === raw; });
+                if (byId.length) return { it: byId[0] };
+                var n = norm(raw);
+                var eq = items.filter(function(x){ return norm(x.t) === n; });
+                if (eq.length === 1) return { it: eq[0] };
+                if (eq.length > 1) return { err: 'ambiguous', matches: eq.map(view) };
+                var part = items.filter(function(x){ return norm(x.t).indexOf(n) > -1; });
+                if (part.length === 1) return { it: part[0] };
+                if (part.length > 1) return { err: 'ambiguous', matches: part.map(view) };
+                return { err: 'not_found' };
+            }
+            function refsOf(){
+                var r = [];
+                if (Array.isArray(inp.targets)) r = r.concat(inp.targets);
+                if (inp.target != null && inp.target !== '') r.push(inp.target);
+                return r.map(function(x){ return String(x); }).filter(function(x){ return x.trim(); });
+            }
+            function done(extra, mutated){
+                if (mutated) { save(); updateMeta(); try { if ($('mklItems')) render(); } catch(e) {} }
+                var out = { ok: true, mutated: !!mutated, data: Object.assign({ summary: counts(), items: items.map(view) }, extra || {}) };
+                return out;
+            }
+            function msg(fa2, en){ return { ok: false, error: fa ? fa2 : en }; }
+
+            if (action === 'get') {
+                var st = String(inp.status || 'all').toLowerCase();
+                var list = items.filter(function(x){ return st === 'open' ? !x.d : st === 'done' ? !!x.d : true; }).map(view);
+                return { ok: true, data: { summary: counts(), items: list, note: 'Newest items are first.' } };
+            }
+            if (action === 'add') {
+                var texts = Array.isArray(inp.items) ? inp.items.slice() : [];
+                if (inp.text != null && String(inp.text).trim()) texts.push(inp.text);
+                texts = texts.map(function(x){ return String(x == null ? '' : x).trim().slice(0, 300); }).filter(Boolean).slice(0, 100);
+                if (!texts.length) return msg('متن موردی برای افزودن داده نشد.', 'No item text was given to add.');
+                var now = Date.now(), added = [];
+                for (var i = texts.length - 1; i >= 0; i--) {
+                    var it = { id: now + '_' + Math.random().toString(36).slice(2, 6) + i, t: texts[i], d: !!inp.done, u: now + (texts.length - i) };
+                    items.unshift(it); added.unshift(view(it));
+                }
+                return done({ added: added }, true);
+            }
+            if (action === 'set_done') {
+                var refs = refsOf();
+                if (!refs.length) return msg('هیچ موردی مشخص نشد (targets).', 'No item was specified (targets).');
+                var val = inp.done === false ? false : true, changed = [], missing = [], amb = [];
+                refs.forEach(function(r){
+                    var m = resolve(r);
+                    if (m.it) { m.it.d = val; m.it.u = Date.now(); changed.push(view(m.it)); }
+                    else if (m.err === 'ambiguous') amb.push({ ref: r, matches: m.matches });
+                    else missing.push(r);
+                });
+                var extra = { changed: changed }; if (missing.length) extra.notFound = missing; if (amb.length) extra.ambiguous = amb;
+                return done(extra, changed.length > 0);
+            }
+            if (action === 'edit') {
+                var ref = inp.target != null && inp.target !== '' ? inp.target : (Array.isArray(inp.targets) ? inp.targets[0] : '');
+                var nt = String(inp.new_text == null ? '' : inp.new_text).trim().slice(0, 300);
+                if (!ref || !nt) return msg('برای ویرایش، هم مورد (target) و هم متن جدید (new_text) لازم است.', 'Editing needs both target and new_text.');
+                var m2 = resolve(ref);
+                if (m2.err === 'ambiguous') return { ok: true, mutated: false, data: { ambiguous: [{ ref: String(ref), matches: m2.matches }], summary: counts() } };
+                if (!m2.it) return msg('موردی با این مشخصات در لیست پیدا نشد.', 'No matching item was found in the list.');
+                var before = m2.it.t; m2.it.t = nt; m2.it.u = Date.now();
+                return done({ changed: [view(m2.it)], previousText: before }, true);
+            }
+            if (action === 'delete') {
+                var refs2 = refsOf();
+                if (!refs2.length) return msg('هیچ موردی برای حذف مشخص نشد (targets).', 'No item was specified to delete (targets).');
+                var removed = [], missing2 = [], amb2 = [], ids = {};
+                refs2.forEach(function(r){
+                    var m = resolve(r);
+                    if (m.it) { if (!ids[m.it.id]) { ids[m.it.id] = 1; removed.push(view(m.it)); } }
+                    else if (m.err === 'ambiguous') amb2.push({ ref: r, matches: m.matches });
+                    else missing2.push(r);
+                });
+                var t0 = Date.now();
+                Object.keys(ids).forEach(function(id){ tombs[id] = t0; });
+                items = items.filter(function(x){ return !ids[x.id]; });
+                var ex2 = { removed: removed }; if (missing2.length) ex2.notFound = missing2; if (amb2.length) ex2.ambiguous = amb2;
+                return done(ex2, removed.length > 0);
+            }
+            if (action === 'clear_done') {
+                var t1 = Date.now(), gone = items.filter(function(x){ return x.d; }).map(view);
+                items.forEach(function(x){ if (x.d) tombs[x.id] = t1; });
+                items = items.filter(function(x){ return !x.d; });
+                return done({ removed: gone }, gone.length > 0);
+            }
+            if (action === 'clear_all') {
+                if (inp.confirm !== true) return msg('برای خالی کردن کل لیست باید confirm:true بفرستی، و فقط وقتی کاربر صریحاً خواسته.', 'Emptying the whole list requires confirm:true, and only when the user explicitly asked for it.');
+                var t2 = Date.now(), all = items.map(view);
+                items.forEach(function(x){ tombs[x.id] = t2; });
+                items = [];
+                return done({ removed: all }, all.length > 0);
+            }
+            return msg('عملیات ناشناخته: ' + action, 'Unknown action: ' + action);
+        }
+    };
+
+    window.mkListRefreshLabel = function(){
+        var l = $('btnListToolLabel');
+        if (l) l.textContent = isFa() ? 'لیست' : 'List';
+    };
+    window.mkListRefreshLabel();
 })();
 </script>
 </body>
