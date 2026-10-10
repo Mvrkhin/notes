@@ -223,7 +223,23 @@ s.innerHTML='<div class="mkw"><span aria-hidden="true">'+h+'</span></div><div cl
 +'<svg class="mkv mkv1" viewBox="0 0 1200 120" preserveAspectRatio="none" aria-hidden="true"><path d="'+P+'"/></svg>'
 +'<svg class="mkv mkv2" viewBox="0 0 1200 120" preserveAspectRatio="none" aria-hidden="true"><path d="'+P+'"/></svg>';
 d.appendChild(s)}catch(e){s=null}
-function finish(){if(done)return;done=true;d.classList.remove('mk-boot');window.__mkSplashDone=true;try{window.dispatchEvent(new Event('mk-splash-done'))}catch(e){}if(!s)return;
+/* Telegram header / background / bottom bar: while the Oceanic loading screen is up they are locked to its own colours
+   (sent right now, before the heavy page parses). The moment the loading screen finishes, finish() hands control back to
+   #muTgHeaderSync, which switches them to the active theme instantly. */
+if(s){try{
+var SC={top:'#014a72',bottom:'#001423'};window.__mkSplashColors=SC;
+var q=(location.hash||'').replace(/^#/,'')+'&'+(location.search||'').replace(/^\?/,''),mv=q.match(/(?:^|&)tgWebAppVersion=([\d.]+)/),tv=mv?mv[1]:'';
+if(!tv){try{var ip=sessionStorage.getItem('__telegram__initParams');if(ip){var io=JSON.parse(ip);if(io&&io.tgWebAppVersion)tv=String(io.tgWebAppVersion)}}catch(e){}}
+var byTg=/tgWebApp(Data|Version|Platform)=/.test((location.hash||'')+(location.search||''));
+function atl(v,t){var a=String(v).split('.'),b=String(t).split('.');for(var i=0;i<Math.max(a.length,b.length);i++){var x=parseInt(a[i]||'0',10),y=parseInt(b[i]||'0',10);if(x!==y)return x>y}return true}
+function tgp(ev,col){var data={color:col};
+try{var p=window.TelegramWebviewProxy;if(p&&typeof p.postEvent==='function'){p.postEvent(ev,JSON.stringify(data));return true}}catch(e){}
+try{if(window.external&&typeof window.external.notify==='function'){window.external.notify(JSON.stringify({eventType:ev,eventData:data}));return true}}catch(e){}
+try{if(window.parent&&window.parent!==window&&byTg){window.parent.postMessage(JSON.stringify({eventType:ev,eventData:data}),'*');return true}}catch(e){}
+return false}
+if(tv){if(atl(tv,'6.9'))tgp('web_app_set_header_color',SC.top);if(atl(tv,'6.1'))tgp('web_app_set_background_color',SC.bottom);if(atl(tv,'7.10'))tgp('web_app_set_bottom_bar_color',SC.bottom)}
+}catch(e){}}
+function finish(){if(done)return;done=true;d.classList.remove('mk-boot');window.__mkSplashDone=true;try{if(window.mu_tgHeaderSync)window.mu_tgHeaderSync(true)}catch(e){}try{window.dispatchEvent(new Event('mk-splash-done'))}catch(e){}if(!s)return;
 /* App is un-hidden first (splash is opaque, nothing shows); the fade starts only after two frames so the heavy first render never lands mid-fade. */
 var go=false;function out(){if(go)return;go=true;s.classList.add('out');setTimeout(function(){try{s.parentNode&&s.parentNode.removeChild(s)}catch(e){}},700)}
 try{requestAnimationFrame(function(){requestAnimationFrame(out)})}catch(e){}
@@ -273,7 +289,7 @@ setTimeout(finish,MAX)})();</script>
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>مدیریت اطلاعات و حساب‌ها</title>
+    <title>مدیریت یادداشت‌ها</title>
     <!-- Telegram Mini App load-speed fix: these two web-font stylesheets used
          to be @import'd inside the <style> block below, which forces the
          browser to fetch and parse them before it can finish building the
@@ -4629,6 +4645,7 @@ html, body, button, input, textarea, select, [contenteditable="true"] {
   transition: var(--transition-smooth);
   animation: mAiHeaderPulse 2.8s ease-in-out infinite;
 }
+.markhin-ai-header-btn .mAi-btn-robot { display: none; }
 .markhin-ai-header-btn .mAi-btn-dot {
   width: 8px; height: 8px; border-radius: 50%;
   background: var(--text-color);
@@ -4647,10 +4664,26 @@ html, body, button, input, textarea, select, [contenteditable="true"] {
 @media (max-width: 640px) {
   .markhin-ai-header-btn { padding: 7px 11px; font-size: 0; gap: 0; }
   .markhin-ai-header-btn .mAi-btn-dot { width: 9px; height: 9px; }
-  .markhin-ai-header-btn::after { content: '🤖'; font-size: 15px; }
+  .markhin-ai-header-btn::after { content: none; }
+  .markhin-ai-header-btn .mAi-btn-robot { display: block; width: 18px; height: 18px; flex: 0 0 auto; }
 }
 @media (max-width: 380px) {
   .markhin-ai-header-btn { padding: 6px 9px; }
+}
+/* Same size in every language: letter-spacing is in px, so it kept widening the
+   button in English even with font-size:0 (Persian was already forced to 0).
+   Force 0 everywhere and drop the hidden label from layout on small screens. */
+.markhin-ai-header-btn { letter-spacing: 0 !important; word-spacing: 0 !important; }
+/* No blink when switching language: the header AI button keeps one fixed layout
+   (direction no longer flips its inner order) and its transitions are paused
+   for the moment the page switches between FA / EN. */
+.markhin-ai-header-btn { direction: ltr; unicode-bidi: isolate; }
+.markhin-ai-header-btn .mAi-btn-dot, .markhin-ai-header-btn .mAi-btn-robot { transition: none !important; }
+.markhin-ai-header-btn .mAi-btn-robot { margin: 0 !important; }
+html.mu-lang-sw .markhin-ai-header-btn,
+html.mu-lang-sw .markhin-ai-header-btn * { transition: none !important; }
+@media (max-width: 640px) {
+  .markhin-ai-header-btn #markhinAiHeaderBtnLabel { display: none; }
 }
 
 /* =========================================================================
@@ -6253,6 +6286,243 @@ window.mu_syncHtmlBg = function(){
     window.mu_syncHtmlBg();
 })();
 </script>
+<script id="muTgHeaderSync">
+(function(){
+  'use strict';
+  if (window.mu_tgHeaderSync) return;
+  /* Telegram header / background / bottom-bar colour follows the active theme.
+     The colours are COMPUTED from the theme's own --bg-gradient (top edge for the header,
+     bottom edge for the bottom bar), so every theme blends into the page exactly instead of
+     using a hand-picked guess. They are sent through Telegram's native bridge immediately
+     (no waiting for telegram-web-app.js), and again through the SDK when it is ready. */
+  var FALLBACK = {
+    'yourname':'#221a5a','oceanic':'#01476e','anime':'#221335','hugo':'#0b131e','darkweb':'#090000',
+    'terminal':'#000201','interstellar':'#000000','onepiece':'#195d83','hogwarts':'#120d30','homealone':'#02050c',
+    'strangerthings':'#0e2032','vampire':'#27010c','phantom':'#230f42','halloween':'#030104','dreamy':'#20103b',
+    'spider':'#07000a','redhorizon':'#3b1308','midnightblue':'#071430','aurora':'#031018','aurora-phantom':'#27174d',
+    'love':'#3f1020','anonymous':'#0e0e0e'
+  };
+  var last = { h: '', b: '', bb: '' }, cache = { key: '', val: null };
+
+  function splitTop(str){
+    var out = [], d = 0, cur = '';
+    for (var i = 0; i < str.length; i++) {
+      var ch = str.charAt(i);
+      if (ch === '(') d++; else if (ch === ')') d--;
+      if (ch === ',' && d === 0) { out.push(cur.trim()); cur = ''; } else cur += ch;
+    }
+    if (cur.trim()) out.push(cur.trim());
+    return out;
+  }
+  function parseColor(c){
+    c = String(c).trim().toLowerCase();
+    if (c === 'transparent') return [0, 0, 0, 0];
+    var m = c.match(/^#([0-9a-f]{3,8})$/);
+    if (m) {
+      var h = m[1];
+      if (h.length === 3 || h.length === 4) h = h.replace(/./g, '$&$&');
+      if (h.length !== 6 && h.length !== 8) return null;
+      return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16), h.length === 8 ? parseInt(h.substr(6, 2), 16) / 255 : 1];
+    }
+    m = c.match(/^rgba?\(([^)]+)\)$/);
+    if (m) {
+      var p = m[1].split(/[\s,\/]+/).filter(Boolean).map(parseFloat);
+      if (p.length < 3 || p.some(isNaN)) return null;
+      return [p[0], p[1], p[2], p.length > 3 ? p[3] : 1];
+    }
+    return null;
+  }
+  function parseStops(args){
+    var st = [];
+    for (var i = 0; i < args.length; i++) {
+      var a = args[i], m = a.match(/^(.+?)\s+(-?[\d.]+)%$/), pos = null, col = a;
+      if (m) { col = m[1]; pos = parseFloat(m[2]) / 100; }
+      var rgba = parseColor(col);
+      if (!rgba) return null;
+      st.push({ c: [rgba[0] * rgba[3], rgba[1] * rgba[3], rgba[2] * rgba[3], rgba[3]], p: pos });
+    }
+    if (st.length < 2) return null;
+    if (st[0].p === null) st[0].p = 0;
+    if (st[st.length - 1].p === null) st[st.length - 1].p = 1;
+    var prev = 0;
+    for (i = 1; i < st.length; i++) {
+      if (st[i].p === null) {
+        var j = i; while (st[j].p === null) j++;
+        var n = j - prev, k;
+        for (k = prev + 1; k < j; k++) st[k].p = st[prev].p + (st[j].p - st[prev].p) * (k - prev) / n;
+        i = j;
+      }
+      if (st[i].p < st[prev].p) st[i].p = st[prev].p;
+      prev = i;
+    }
+    return st;
+  }
+  function colorAt(st, t){
+    if (t <= st[0].p) return st[0].c.slice();
+    var n = st.length - 1;
+    if (t >= st[n].p) return st[n].c.slice();
+    for (var i = 1; i <= n; i++) {
+      if (t <= st[i].p) {
+        var a = st[i - 1], b = st[i], span = b.p - a.p, f = span > 0 ? (t - a.p) / span : 1;
+        return [0, 1, 2, 3].map(function(k){ return a.c[k] + (b.c[k] - a.c[k]) * f; });
+      }
+    }
+    return st[n].c.slice();
+  }
+  function posVal(tok, axis){
+    tok = String(tok || '').toLowerCase();
+    if (tok === 'left' || tok === 'top') return 0;
+    if (tok === 'right' || tok === 'bottom') return 100;
+    if (tok === 'center') return 50;
+    var v = parseFloat(tok);
+    return isNaN(v) ? 50 : v;
+  }
+  /* A parsed layer is a function (x, y) -> premultiplied rgba, for a box of W x H. */
+  function parseLayer(layer, W, H){
+    var o = layer.indexOf('('), c = layer.lastIndexOf(')');
+    if (o < 0 || c < o) return null;
+    var name = layer.slice(0, o).trim().toLowerCase(), args = splitTop(layer.slice(o + 1, c));
+    if (!args.length) return null;
+    var first = args[0], cfg = '', st;
+    if (name === 'linear-gradient' || name === 'repeating-linear-gradient') {
+      var deg = 180;
+      if (/^(to\s|-?[\d.]+(deg|turn|rad|grad))/i.test(first)) {
+        cfg = args.shift();
+        var m = cfg.match(/^(-?[\d.]+)(deg|turn|rad|grad)$/i);
+        if (m) { var n = parseFloat(m[1]), u = m[2].toLowerCase(); deg = u === 'deg' ? n : u === 'turn' ? n * 360 : u === 'rad' ? n * 180 / Math.PI : n * 0.9; }
+        else { var d = cfg.toLowerCase(); deg = /to\s+top/.test(d) ? 0 : /to\s+right/.test(d) ? 90 : /to\s+left/.test(d) ? 270 : 180; }
+      }
+      st = parseStops(args); if (!st) return null;
+      var th = deg * Math.PI / 180, sx = Math.sin(th), cy = -Math.cos(th);
+      var L = Math.abs(W * sx) + Math.abs(H * cy);
+      return function(x, y){ return colorAt(st, ((x - W / 2) * sx + (y - H / 2) * cy) / L + 0.5); };
+    }
+    if (name === 'radial-gradient') {
+      var shape = 'ellipse', cx = W / 2, cyy = H / 2, rx = 0, ry = 0, sized = false;
+      if (/^(circle|ellipse|closest-|farthest-|at\b|[\d.]+(%|px))/i.test(first)) {
+        cfg = args.shift().toLowerCase();
+        var at = cfg.split(/\bat\b/), shp = at[0].trim(), ps = (at[1] || '').trim();
+        if (/^circle/.test(shp)) shape = 'circle';
+        var sz = shp.match(/(-?[\d.]+)%\s+(-?[\d.]+)%/);
+        if (sz) { rx = parseFloat(sz[1]) / 100 * W; ry = parseFloat(sz[2]) / 100 * H; sized = true; }
+        if (ps) {
+          var pt = ps.split(/\s+/);
+          if (pt.length === 1) {
+            if (/^(top|bottom)$/.test(pt[0])) { cx = W / 2; cyy = posVal(pt[0]) / 100 * H; }
+            else { cx = posVal(pt[0]) / 100 * W; cyy = H / 2; }
+          } else { cx = posVal(pt[0]) / 100 * W; cyy = posVal(pt[1]) / 100 * H; }
+        }
+      }
+      st = parseStops(args); if (!st) return null;
+      if (!sized) {
+        var fx = Math.max(Math.abs(cx), Math.abs(W - cx)), fy = Math.max(Math.abs(cyy), Math.abs(H - cyy));
+        if (shape === 'circle') { rx = ry = Math.sqrt(fx * fx + fy * fy); }
+        else { rx = fx * Math.SQRT2; ry = fy * Math.SQRT2; }
+      }
+      if (rx <= 0 || ry <= 0) return null;
+      return function(x, y){ var dx = (x - cx) / rx, dy = (y - cyy) / ry; return colorAt(st, Math.sqrt(dx * dx + dy * dy)); };
+    }
+    return null;
+  }
+  function parseGradient(val, W, H){
+    var layers = splitTop(String(val || '').replace(/\s+/g, ' ').trim()), fns = [];
+    if (!layers.length) return null;
+    for (var i = 0; i < layers.length; i++) { var f = parseLayer(layers[i], W, H); if (!f) return null; fns.push(f); }
+    return fns;
+  }
+  function sample(fns, x, y){
+    var out = [0, 0, 0, 0];
+    for (var i = fns.length - 1; i >= 0; i--) {          // bottom layer first, upper layers painted over it
+      var c = fns[i](x, y), ia = 1 - c[3];
+      out = [c[0] + out[0] * ia, c[1] + out[1] * ia, c[2] + out[2] * ia, c[3] + out[3] * ia];
+    }
+    // flatten onto black if the stack is not fully opaque
+    return [out[0], out[1], out[2]].map(function(v){ return Math.max(0, Math.min(255, Math.round(v))); });
+  }
+  function toHex(rgb){ return '#' + rgb.map(function(v){ return (v < 16 ? '0' : '') + v.toString(16); }).join(''); }
+  window.mu_tgGradientEdges = function(grad, W, H, vh){
+    var fns = parseGradient(grad, W, H);
+    if (!fns) return null;
+    return { top: toHex(sample(fns, W / 2, 0)), bottom: toHex(sample(fns, W / 2, Math.min(H, vh || H))) };
+  };
+
+  function themeId(){
+    var cl = document.body ? document.body.classList : [];
+    for (var i = 0; i < cl.length; i++) if (cl[i].indexOf('theme-') === 0) return cl[i].slice(6);
+    return '';
+  }
+  function edges(){
+    var b = document.body; if (!b) return null;
+    var g = '';
+    try { g = getComputedStyle(b).getPropertyValue('--bg-gradient'); } catch (e) {}
+    var W = Math.round(b.getBoundingClientRect().width || window.innerWidth || 360);
+    var vh = window.innerHeight || 640;
+    var H = Math.round(Math.max(vh, b.getBoundingClientRect().height || vh));
+    var key = themeId() + '|' + g + '|' + W + 'x' + H + 'x' + vh;
+    if (cache.key === key && cache.val) return cache.val;
+    var val = null;
+    try { val = g ? window.mu_tgGradientEdges(g, W, H, vh) : null; } catch (e) {}
+    if (!val) { var f = FALLBACK[themeId()]; if (f) val = { top: f, bottom: f }; }
+    if (val) { cache.key = key; cache.val = val; }
+    return val;
+  }
+
+  function tgVersion(){
+    try {
+      var q = (location.hash || '').replace(/^#/, '') + '&' + (location.search || '').replace(/^\?/, '');
+      var m = q.match(/(?:^|&)tgWebAppVersion=([\d.]+)/);
+      if (m) return m[1];
+      var c = sessionStorage.getItem('__telegram__initParams');
+      if (c) { var o = JSON.parse(c); if (o && o.tgWebAppVersion) return String(o.tgWebAppVersion); }
+    } catch (e) {}
+    return '';
+  }
+  function atLeast(v, t){
+    var a = String(v).split('.'), b = String(t).split('.');
+    for (var i = 0; i < Math.max(a.length, b.length); i++) {
+      var x = parseInt(a[i] || '0', 10), y = parseInt(b[i] || '0', 10);
+      if (x !== y) return x > y;
+    }
+    return true;
+  }
+  function launchedByTelegram(){
+    try {
+      return /tgWebApp(Data|Version|Platform)=/.test((location.hash || '') + (location.search || '')) ||
+             !!sessionStorage.getItem('__telegram__initParams');
+    } catch (e) { return false; }
+  }
+  function post(ev, data){
+    try { var p = window.TelegramWebviewProxy; if (p && typeof p.postEvent === 'function') { p.postEvent(ev, JSON.stringify(data)); return true; } } catch (e) {}
+    try { if (window.external && typeof window.external.notify === 'function') { window.external.notify(JSON.stringify({ eventType: ev, eventData: data })); return true; } } catch (e) {}
+    try { if (window.parent && window.parent !== window && launchedByTelegram()) { window.parent.postMessage(JSON.stringify({ eventType: ev, eventData: data }), '*'); return true; } } catch (e) {}
+    return false;
+  }
+  function apply(key, color, ev, minVer, method){
+    if (!color || last[key] === color) return;
+    var ok = false, v = tgVersion();
+    if (v && atLeast(v, minVer)) ok = post(ev, { color: color });
+    if (!ok) {
+      var tg = window.Telegram && window.Telegram.WebApp;
+      if (tg && typeof tg[method] === 'function') { try { tg[method](color); ok = true; } catch (e) {} }
+    }
+    if (ok) last[key] = color;
+  }
+  window.mu_tgHeaderSync = function(force){
+    try {
+      if (force) { last.h = last.b = last.bb = ''; }
+      var c = (window.__mkSplashColors && !window.__mkSplashDone) ? window.__mkSplashColors : edges(); if (!c) return;   // loading screen up -> ocean colours; afterwards -> active theme
+      var meta = document.getElementById('mAiThemeColorMeta');
+      if (meta && meta.getAttribute('content') !== c.top) meta.setAttribute('content', c.top);
+      apply('h', c.top, 'web_app_set_header_color', '6.9', 'setHeaderColor');
+      apply('b', c.bottom, 'web_app_set_background_color', '6.1', 'setBackgroundColor');
+      apply('bb', c.bottom, 'web_app_set_bottom_bar_color', '7.10', 'setBottomBarColor');
+    } catch (e) {}
+  };
+  window.mu_tgHeaderSync();                                   // first paint: right now, before the SDK exists
+  var rt = 0;
+  window.addEventListener('resize', function(){ clearTimeout(rt); rt = setTimeout(function(){ window.mu_tgHeaderSync(); }, 250); });
+})();
+</script>
     <div class="mu-redhorizon-mountains" aria-hidden="true"></div>
     <div class="mu-redhorizon-stars" aria-hidden="true"></div>
     <div class="mu-spider-web" aria-hidden="true"></div>
@@ -6302,7 +6572,7 @@ window.mu_syncHtmlBg = function(){
         </div>
 
         <button class="markhin-ai-header-btn" id="markhinAiHeaderBtn" onclick="openMarkhinAIChat()" title="گفتگو با MARKHIN AI">
-            <span class="mAi-btn-dot"></span><span id="markhinAiHeaderBtnLabel">MARKHIN AI</span>
+            <span id="markhinAiHeaderBtnLabel">MARKHIN AI</span><svg class="mAi-btn-robot" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#4cc3ff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect fill="#4cc3ff" fill-opacity=".22" x="4.5" y="8" width="15" height="11.5" rx="3"/><path d="M12 4.8V8"/><circle cx="12" cy="3.8" r="1.1"/><circle cx="9" cy="13" r="1.2" fill="#4cc3ff"/><circle cx="15" cy="13" r="1.2" fill="#4cc3ff"/><path d="M9.5 16.5h5"/></svg>
         </button>
 
         <div class="top-right-controls markhin-corner-controls" aria-label="تنظیمات ظاهری">
@@ -6322,7 +6592,7 @@ window.mu_syncHtmlBg = function(){
         </div>
     </div>
 
-    <h2 id="uiTitle">مدیریت اطلاعات و حساب‌ها</h2>
+    <h2 id="uiTitle">مدیریت یادداشت‌ها</h2>
 
     <div class="control-panel">
         <div class="toolbar-section-box structure-section-box">
@@ -6486,33 +6756,10 @@ window.mu_syncHtmlBg = function(){
            so the header blends into the page. It is re-applied whenever body's theme-* class
            changes (theme picker, tap-to-cycle, Lite mode, AI set_theme, startup) — a class
            observer is used so every one of those paths is covered without touching them. */
-        const MU_TG_HEADER_COLORS = {
-            'yourname':'#221a5a','oceanic':'#01476e','anime':'#221335','hugo':'#0b131e','darkweb':'#090000',
-            'terminal':'#000201','interstellar':'#000000','onepiece':'#195d83','hogwarts':'#120d30','homealone':'#02050c',
-            'strangerthings':'#0e2032','vampire':'#27010c','phantom':'#230f42','halloween':'#030104','dreamy':'#20103b',
-            'spider':'#07000a','redhorizon':'#3b1308','midnightblue':'#071430','aurora':'#031018','aurora-phantom':'#27174d',
-            'love':'#3f1020','anonymous':'#0e0e0e'
-        };
-        let __muTgHdrApplied = '';
-        function mu_syncTgHeaderColor(){
-            try {
-                let color = '';
-                const cl = document.body.classList;
-                for (let i = 0; i < cl.length; i++) {
-                    const c = cl[i];
-                    if (c.indexOf('theme-') === 0 && MU_TG_HEADER_COLORS[c.slice(6)]) { color = MU_TG_HEADER_COLORS[c.slice(6)]; break; }
-                }
-                if (!color) return;
-                const meta = document.getElementById('mAiThemeColorMeta');
-                if (meta && meta.getAttribute('content') !== color) meta.setAttribute('content', color);
-                const tg = (window.Telegram && window.Telegram.WebApp) || null;
-                if (tg && typeof tg.setHeaderColor === 'function' && color !== __muTgHdrApplied) {
-                    tg.setHeaderColor(color);
-                    __muTgHdrApplied = color;
-                }
-            } catch (_) {}
-        }
-        try { new MutationObserver(mu_syncTgHeaderColor).observe(document.body, { attributes: true, attributeFilter: ['class'] }); } catch (_) {}
+        // Colours are computed from the active theme's gradient by #muTgHeaderSync (above); this just re-runs it
+        // whenever body's theme-* class changes (theme picker, tap-to-cycle, Lite mode, AI set_theme).
+        function mu_syncTgHeaderColor(force){ try { if (window.mu_tgHeaderSync) window.mu_tgHeaderSync(!!force); } catch (_) {} }
+        try { new MutationObserver(function(){ mu_syncTgHeaderColor(false); }).observe(document.body, { attributes: true, attributeFilter: ['class'] }); } catch (_) {}
         function mu_applyTelegramSetup(){
             TG = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
             IS_TELEGRAM = !!TG || /Telegram/i.test(navigator.userAgent || '');
@@ -6536,13 +6783,7 @@ window.mu_syncHtmlBg = function(){
             try { TG && TG.disableVerticalSwipes && TG.disableVerticalSwipes(); } catch (_) {}
             mu_setAppVh();
             try { TG && TG.onEvent && TG.onEvent('viewportChanged', mu_setAppVh); } catch (_) {}
-            try {
-                if (TG) {
-                    const bg = '#03101c';
-                    TG.setBackgroundColor && TG.setBackgroundColor(bg);
-                }
-            } catch (_) {}
-            mu_syncTgHeaderColor();   // header colour = the active theme's top-edge colour
+            mu_syncTgHeaderColor(true);   // SDK is ready now: re-send header / background / bottom-bar colours
         }
         if (window.__muTgLoaded) { window.__muTgLoaded.then(mu_applyTelegramSetup); } else { mu_applyTelegramSetup(); }
         // If telegram-web-app.js only finished loading AFTER the 2.5 s wait above (slow network),
@@ -8634,7 +8875,7 @@ window.mu_syncHtmlBg = function(){
 
         const i18n = {
             fa: {
-                title: "مدیریت اطلاعات و حساب‌ها",
+                title: "مدیریت یادداشت‌ها",
                 searchPlaceholder: "جستجو...",
                 secStructure: "مدیریت ساختار",
                 secStructNotes: "یادداشت‌ها",
@@ -8730,7 +8971,7 @@ window.mu_syncHtmlBg = function(){
                 stopAudio: "⏹ ویس"
             },
             en: {
-                title: "Information & Accounts Manager",
+                title: "Notes Manager",
                 searchPlaceholder: "Search...",
                 secStructure: "Structure Management",
                 secStructNotes: "Notes",
@@ -10283,6 +10524,7 @@ window.mu_syncHtmlBg = function(){
         }
 
         function toggleLanguage() {
+            try { const r = document.documentElement; r.classList.add('mu-lang-sw'); clearTimeout(window.__muLangSwT); window.__muLangSwT = setTimeout(function(){ r.classList.remove('mu-lang-sw'); }, 600); } catch (e) {}
             currentLang = currentLang === 'fa' ? 'en' : 'fa';
             localStorage.setItem('app_lang_v15', currentLang);
 
@@ -12492,7 +12734,7 @@ window.mu_syncHtmlBg = function(){
                             ${f.min != null ? `min="${escapeHtml(String(f.min))}"` : ''}
                             ${f.max != null ? `max="${escapeHtml(String(f.max))}"` : ''}
                             ${f.step != null ? `step="${escapeHtml(String(f.step))}"` : ''}
-                            autocomplete="off" spellcheck="false">`;
+                            autocomplete="${opts.matchGroup && isPw ? 'new-password' : 'off'}" spellcheck="false">`;
                     return `
                     <div class="markhin-filename-row" style="flex-direction:column;align-items:stretch;gap:5px">
                         ${f.label ? `<label style="font-size:11px;opacity:.65;padding:0 2px">${escapeHtml(f.label)}</label>` : ''}
@@ -12523,7 +12765,24 @@ window.mu_syncHtmlBg = function(){
                     const cancel = document.getElementById(uid + '_cancel');
                     const x = document.getElementById(uid + '_x');
                     const extra = document.getElementById(uid + '_extra');
-                    if (inputs[0]) inputs[0].focus();
+                    // Keyboard fix: the soft keyboard must open on the FIRST field (password), never on
+                    // "repeat password". Until the user deliberately taps or types, any focus jump is sent back.
+                    const firstIn = inputs[0];
+                    let userPicked = false;
+                    const markPicked = () => { userPicked = true; };
+                    const cardEl = document.getElementById('advancedCard');
+                    if (cardEl) ['pointerdown', 'touchstart', 'mousedown', 'keydown'].forEach(ev => cardEl.addEventListener(ev, markPicked, true));
+                    const focusFirst = () => {
+                        if (userPicked || !firstIn || !firstIn.isConnected || document.activeElement === firstIn) return;
+                        try { firstIn.focus({ preventScroll: true }); } catch (e) { firstIn.focus(); }
+                    };
+                    inputs.forEach((inp, i) => {
+                        if (inp && i > 0) inp.addEventListener('focus', () => { if (!userPicked) focusFirst(); });
+                    });
+                    if (firstIn) firstIn.focus();
+                    requestAnimationFrame(() => requestAnimationFrame(focusFirst));
+                    setTimeout(focusFirst, 150);
+                    setTimeout(focusFirst, 450);
                     // Password + "repeat password" below it; the hint field only opens once both match.
                     const mg = opts.matchGroup || null;
                     const ixOf = id => fields.findIndex(f => f.id === id);
@@ -20900,7 +21159,7 @@ async function markhinDash_cloudRestoreClick(id){
 window.markhinDash_cloudRestoreClick = markhinDash_cloudRestoreClick;
 
 // "✏️ Edit" on a saved manual backup: change its label and/or password after it was made.
-// Typing a new password (twice) sets/changes it; "🔓 Remove password" (encrypted backups only)
+// Typing a new password (twice) sets/changes it; "?? Remove password" (encrypted backups only)
 // stores it unprotected; leaving the password boxes empty keeps the current protection.
 async function markhinDash_cloudEditClick(id){
     const fa = currentLang==='fa';
@@ -25638,6 +25897,101 @@ function mu_openSmartSearchModal(){
 
 window.runSmartSearch = mu_openSmartSearchModal;
 
+/* AI chat search: runs the EXACT same engine as the in-app search (MS: typo / Finglish / wrong-keyboard / synonym tolerant,
+   operators tag: folder: is:pinned is:favorite "phrase" -word) but only returns data, so the assistant can write the
+   results in the chat instead of opening the search screen. allowedIds = the notes the assistant may see (never locked ones). */
+window.mu_aiSmartSearch = function(rawQuery, opts){
+    opts = opts || {};
+    const allowed = (opts.allowedIds instanceof Set) ? opts.allowedIds : null;
+    const parsed = mu_parseQuery(rawQuery);
+    const filters = parsed.filters, textTerms = parsed.textTerms;
+    let items = categories.filter(c => (!allowed || allowed.has(c.id)) && (opts.includeArchived !== false || typeof isArchived !== 'function' || !isArchived(c)));
+    if(filters.length) items = items.filter(it => mu_matchesFilters(it, filters));
+    const hasText = mu_hasTextQuery(textTerms);
+    let ordered, res = null;
+    if(hasText){
+        res = MS.run(textTerms);
+        const byId = new Map(items.map(it => [it.id, it]));
+        ordered = res.ranked.map(id => byId.get(id)).filter(Boolean);
+    } else ordered = items;
+    const kinds = {}, snippets = {};
+    const objs = hasText ? mu_termObjs(textTerms) : [];
+    ordered.slice(0, Math.max(1, opts.limit || 60)).forEach(it => {
+        const k = res && res.kinds.get(it.id); if(k) kinds[it.id] = k;
+        let plain = '';
+        try{ plain = (typeof mu_notePlainText === 'function' ? mu_notePlainText(it) : (it.text || (it.html ? it.html.replace(/<[^>]+>/g, ' ') : ''))) || ''; }catch(e){}
+        plain = String(plain).replace(/\s+/g, ' ').trim();
+        let idx = -1;
+        if(objs.length && plain){
+            const re = new RegExp(MU_WORD_RE, 'gu'); let m, guard = 0;
+            while((m = re.exec(plain)) && guard++ < 20000){ if(MS.hit(objs, m[0])){ idx = m.index; break; } }
+        }
+        const start = idx >= 0 ? Math.max(0, idx - 60) : 0;
+        let sn = plain.slice(start, start + 200);
+        if(start > 0) sn = '…' + sn;
+        if(start + 200 < plain.length) sn += '…';
+        snippets[it.id] = sn;
+    });
+    let suggestion = null;
+    if(!ordered.length && hasText && textTerms.length){ try{ suggestion = MS.suggestQuery(textTerms); }catch(e){} }
+    return { ids: ordered.map(it => it.id), total: ordered.length, kinds: kinds, snippets: snippets, suggestion: suggestion, hasText: hasText };
+};
+
+/* AI "search by meaning": runs the app's own search engine (MS) once per concept term (the user's words plus the
+   assistant's related terms) - typo / Finglish / wrong-keyboard / synonym / concept-cluster tolerant, with the engine's
+   built-in related-word expansion - and fuses the per-term scores per note. Returns data only. */
+window.mu_aiMeaningSearch = function(list, opts){
+    opts = opts || {};
+    const allowed = (opts.allowedIds instanceof Set) ? opts.allowedIds : null;
+    const acc = new Map(), allObjs = [];
+    let runs = 0;
+    (list || []).slice(0, 50).forEach(function(it){
+        const text = String((it && it.text) || '').trim(); if(!text) return;
+        const weight = (it && Number(it.weight)) || 1;
+        const q = mu_parseQuery(text);
+        if(!mu_hasTextQuery(q.textTerms)) return;
+        let res; try{ res = MS.run(q.textTerms); }catch(e){ return; }
+        runs++;
+        let maxS = 0;
+        res.scores.forEach(function(s, id){ if((!allowed || allowed.has(id)) && s > maxS) maxS = s; });
+        if(!maxS) return;
+        try{ mu_termObjs(q.textTerms).forEach(function(o){ allObjs.push(o); }); }catch(e){}
+        res.scores.forEach(function(s, id){
+            if(allowed && !allowed.has(id)) return;
+            const v = weight * (s / maxS);
+            let e = acc.get(id); if(!e){ e = { sum: 0, terms: [], kinds: new Set() }; acc.set(id, e); }
+            e.sum += v; e.terms.push({ t: text, v: v });
+            const k = res.kinds.get(id); if(k) e.kinds.add(k);
+        });
+    });
+    let maxSum = 0; acc.forEach(function(e){ if(e.sum > maxSum) maxSum = e.sum; });
+    const byId = {};
+    if(maxSum){
+        const ordered = Array.from(acc.entries()).sort(function(a, b){ return b[1].sum - a[1].sum; });
+        const byItem = new Map(categories.map(function(c){ return [c.id, c]; }));
+        ordered.forEach(function(en, rank){
+            const id = en[0], e = en[1];
+            const rec = { score: e.sum / maxSum, kinds: Array.from(e.kinds), matched: e.terms.sort(function(a, b){ return b.v - a.v; }).slice(0, 6).map(function(x){ return x.t; }), snippet: '' };
+            if(rank < 40 && allObjs.length){
+                const item = byItem.get(id);
+                let plain = '';
+                try{ plain = String((typeof mu_notePlainText === 'function' && item) ? (mu_notePlainText(item) || '') : '').replace(/\s+/g, ' ').trim(); }catch(err){}
+                if(plain){
+                    let idx = -1; const re = new RegExp(MU_WORD_RE, 'gu'); let m, guard = 0;
+                    while((m = re.exec(plain)) && guard++ < 20000){ if(MS.hit(allObjs, m[0])){ idx = m.index; break; } }
+                    const start = idx >= 0 ? Math.max(0, idx - 80) : 0;
+                    let sn = plain.slice(start, start + 260);
+                    if(start > 0) sn = '…' + sn;
+                    if(start + 260 < plain.length) sn += '…';
+                    rec.snippet = sn;
+                }
+            }
+            byId[id] = rec;
+        });
+    }
+    return { byId: byId, termsRun: runs };
+};
+
 
 /* ---------- AI settings modal ---------- */
 // Tracks the custom-provider id created while the person is still in the
@@ -25742,7 +26096,7 @@ function mu_vaultDialog(mode){
 
         const $ = s => document.getElementById(uid + s);
         const p1 = $('_p1'), p2 = $('_p2'), ok = $('_ok'), err = $('_err'), x = $('_x'), reset = $('_reset');
-        if (p1) p1.focus();
+        if (p1) p1.focus(); if (p1 && p2) { let u = false; const mk = () => { u = true; }; const cd = document.getElementById("advancedCard"); if (cd) ["pointerdown","touchstart","mousedown","keydown"].forEach(ev => cd.addEventListener(ev, mk, true)); const ff = () => { if (!u && p1.isConnected && document.activeElement !== p1) p1.focus(); }; p2.addEventListener("focus", ff); setTimeout(ff, 150); setTimeout(ff, 450); }
         if (x) x.onclick = () => finish(false);
 
         const submit = async () => {
@@ -28218,27 +28572,7 @@ const MU_AI = (function(){
           fa:'ویرایش تصویر', en:'Edit image',
           tipFa:'یک عکس را با 📎 پیوست کن، بعد بگو چه تغییری می‌خواهی — تغییرات معمولی مثل «ابعادش را عریض کن»، «کیفیتش را ببر بالا»، «متن روی عکس را پاک کن»، «یک کلاه به سرش اضافه کن»، و هم تبدیل سبک مثل «این عکس رو تبدیل به نقاشی کن»، «انیمه‌ای‌اش کن»، «بکشش به سبک کارتونی»، «آبرنگ کن» — هر سبکی که بخواهی. می‌توانی تعداد نسخه هم بگویی («2 نسخه‌ی مختلف بساز»، تا سقف 4 تا). نیاز به اتصال OpenAI (مدل gpt-image-1)، Google Gemini (مدل gemini-2.5-flash-image)، xAI/Grok (مدل grok-imagine-image) یا OpenRouter در ⚙️ تنظیمات هوش مصنوعی دارد.', tipEn:'Attach a photo with 📎, then describe the change — everyday edits like "make it widescreen", "improve the quality", "remove the text from the photo", "add a hat", as well as full style conversions like "turn this into a painting", "make it anime style", "sketch this", "watercolor version" — any style you want. You can also ask for a few versions at once ("make 2 different versions", capped at 4). Requires OpenAI (gpt-image-1), Google Gemini (gemini-2.5-flash-image), xAI/Grok (grok-imagine-image), or OpenRouter connected in ⚙️ AI Settings.',
           prefillFa:'/ویرایش ',
-          prefillEn:'/edit ' },
-        { id:'week', icon:'📅', send:true,
-          fa:'خلاصه هفتگی', en:'Weekly summary',
-          tipFa:'خلاصه، تم‌های تکراری و آمار یادداشت‌های 7 روز اخیر', tipEn:'Summary, recurring themes and stats for the last 7 days of notes',
-          promptFa:'یک خلاصه هفتگی از یادداشت‌های 7 روز اخیرم بساز: موضوع‌های اصلی، تم‌های تکراری و آمار (یادداشت‌های جدید و ویرایش‌شده، تعداد کلمه، فعال‌ترین روز).',
-          promptEn:'Make a weekly summary of my notes from the last 7 days: main topics, recurring themes, and stats (new and edited notes, word count, busiest day).' },
-        { id:'month', icon:'🗓️', send:true,
-          fa:'خلاصه ماهانه', en:'Monthly summary',
-          tipFa:'خلاصه، تم‌های تکراری و آمار یادداشت‌های 30 روز اخیر', tipEn:'Summary, recurring themes and stats for the last 30 days of notes',
-          promptFa:'یک خلاصه ماهانه از یادداشت‌های 30 روز اخیرم بساز: موضوع‌های اصلی، تم‌های تکراری و آمار (یادداشت‌های جدید و ویرایش‌شده، تعداد کلمه، فعال‌ترین روز).',
-          promptEn:'Make a monthly summary of my notes from the last 30 days: main topics, recurring themes, and stats (new and edited notes, word count, busiest day).' },
-        { id:'conflicts', icon:'⚖️', send:true,
-          fa:'تناقض‌یاب', en:'Find contradictions',
-          tipFa:'پیدا کردن جاهایی که یک‌جا چیزی نوشته‌ای و جای دیگر برعکسش', tipEn:'Find places where one note says something and another says the opposite',
-          promptFa:'یادداشت‌هایم را برای تناقض و ناهمخوانی بررسی کن: جاهایی که یک‌جا چیزی نوشته‌ام و جای دیگر برعکسش را.',
-          promptEn:'Check my notes for contradictions: places where I wrote one thing in one note and the opposite somewhere else.' },
-        { id:'semantic', icon:'🧭', send:false,
-          fa:'جست‌وجوی معنایی', en:'Search by meaning',
-          tipFa:'پیدا کردن یادداشت با توصیف مفهومی، حتی اگر کلمه‌ی دقیقش در آن نباشد', tipEn:'Find a note by describing it, even if its exact words are not in it',
-          prefillFa:'جست‌وجوی معنایی: یادداشتی که درباره ',
-          prefillEn:'Search by meaning: the note where I wrote about ' }
+          prefillEn:'/edit ' }
     ];
     function mAiRenderQuickBar(){
         const bar = document.getElementById('mAiQuickBar');
@@ -28304,15 +28638,15 @@ const MU_AI = (function(){
                         ? 'یک دستیار هوش مصنوعی واقعی — بر پایه دانش عمومی و متصل به هر ارائه‌دهنده‌ای که خودت انتخاب کنی. علاوه بر پاسخ‌گویی، مستقیماً به برنامه‌ات هم دسترسی دارد: می‌تواند یادداشت پیدا کند و متن کاملش را بخواند، بسازد، تغییر نام دهد، کپی بگیرد، به پوشه‌ای منتقل کند، تگ بزند، آرشیو/پین/فیوریت کند، کپسول زمانی یا Ghost Note رویش تنظیم کند، چند یادداشت را ترکیب کند، و با تأیید خودت حذف کند. هر سوالی داری یا هر کاری با یادداشت‌هات، همینجا بگو.'
                         : 'A real general-purpose AI assistant — powered by whichever provider you connect. Beyond answering questions, it has direct access to your app: it can find notes and read their full content, create them, rename them, duplicate them, move them into folders, tag them, archive/pin/favorite them, arm a Time Capsule or Ghost Note timer on them, merge several notes together, and delete them with your confirmation. Ask it anything, or just tell it what to do with your notes.') + '</div>' +
                     '<div class="mAi-welcome-features">' + (fa ? [
-                        '🖼️ ساخت و ویرایش تصویر با هوش مصنوعی', '🔎 پیدا کردن و جست‌وجوی معنایی', '✍️ ساخت، ویرایش، ادغام و خلاصه‌سازی', '🏷️ تغییرنام، کپی و برچسب',
+                        '🖼️ ساخت و ویرایش تصویر با هوش مصنوعی', '✍️ ساخت، ویرایش، ادغام و خلاصه‌سازی', '🏷️ تغییرنام، کپی و برچسب',
                         '🗂️ جابه‌جایی، پوشه‌بندی و چیدمان', '📌 پین، آرشیو، فیوریت و قفل', '⏳ کپسول زمانی و Ghost Note',
-                        '⚖️ تحلیل، تناقض‌یاب و مشابه‌یاب',
+                        '⚖️ تحلیل',
                         '📊 آمار کلی و فضای ذخیره‌سازی', '📤 خروجی گرفتن و ساخت فایل',
                         '☁️ بکاپ تلگرام: گرفتن، لیست و حذف', '🌐 وب، ساعت جهانی، تاریخ و محاسبه', '🎨 تم، زبان و تنظیمات ظاهر اپ'
                     ] : [
-                        '🖼️ AI image generation', '🔎 Find & search by meaning', '✍️ Create, edit, merge & summarize', '🏷️ Rename, duplicate & tag',
+                        '🖼️ AI image generation', '✍️ Create, edit, merge & summarize', '🏷️ Rename, duplicate & tag',
                         '🗂️ Move, organize & reorder', '📌 Pin, archive, favorite & lock', '⏳ Time Capsule & Ghost Note',
-                        '⚖️ Analyze, contradictions & duplicates',
+                        '⚖️ Analyze',
                         '📊 Full stats & storage usage', '📤 Export notes & create files',
                         '☁️ Telegram backup: create, list & delete', '🌐 Web, world clock, dates & math', '🎨 Theme, language & app look'
                     ]).map(function(f){ return '<span class="mAi-welcome-feature">' + f + '</span>'; }).join('')
@@ -28933,7 +29267,7 @@ const MU_AI = (function(){
 
     const MAI_TOOLS = [
         { name:'list_all_notes', description:'List EVERY note in the vault with an exact split into unlocked and locked (password-protected) notes: totalNotes, unlockedCount, lockedCount, the unlocked notes (id, name, folder, tags, pinned, favorite, archived) and the locked notes (id, name, folder ONLY - their content is never readable). Call this whenever the user asks how many notes they have, asks for the names/list of their LOCKED notes, asks for the names/list of their UNLOCKED notes, or asks for all their notes. Use the status filter to return only one side. Always report counts and names exactly as returned; never mix the two lists.', parameters:{ type:'object', properties:{ status:{ type:'string', enum:['all','locked','unlocked'], description:'Which notes to list. Default all.' } } } },
-        { name:'find_notes', description:'Search the user\'s unlocked notes by keyword (matches title, body text, or tags). Call this first whenever the user refers to a note by name/topic and you do not already know its exact id, or whenever asked to list/find notes. Returns id, name, folder, tags, pinned, favorite, archived, and a short content snippet for every match. Locked (password-protected) notes are never included (their names only: call list_all_notes).', parameters:{ type:'object', properties:{ query:{ type:'string', description:'Keyword or phrase to search for. Leave empty to list all unlocked notes.' } } } },
+        { name:'find_notes', description:'Search the user notes with the SAME smart engine as the in-app search bar: typo tolerant, Finglish (Persian written in Latin letters and vice versa), wrong keyboard layout, synonyms, ranked by relevance; matches title, body text, tags and folder. The query also supports the app operators tag:NAME, folder:NAME, is:pinned, is:favorite, "exact phrase" and -word to exclude. Write the results directly in the chat reply; never open the search screen for this. Call this first whenever the user refers to a note by name/topic and you do not already know its exact id, or whenever asked to list/find notes. Returns id, name, folder, tags, pinned, favorite, archived, and a short content snippet for every match. Locked (password-protected) notes are never included (their names only: call list_all_notes).', parameters:{ type:'object', properties:{ query:{ type:'string', description:'Keyword or phrase to search for. Leave empty to list all unlocked notes.' } } } },
         { name:'create_note', description:'Create a brand-new note in the app. If a folder is given that does not exist yet, it is created automatically — so "make a note X in a new folder Y" is a single call.', parameters:{ type:'object', properties:{ name:{ type:'string', description:'Title of the new note.' }, content:{ type:'string', description:'Body of the new note. Supports lightweight markdown that gets rendered to real formatting: **bold**, *italic*, `code`, # / ## / ### headings, > quote, - list items, [text](url) links. Use it whenever the user asks for bold/italic/headings/lists/etc.' }, folder:{ type:'string', description:'Folder to place the note in. Leave empty for no folder. A folder that does not exist yet will be created automatically.' } }, required:['name'] } },
         { name:'edit_note_content', description:'Change the body text of an existing note — replace it entirely or append to it. This is also the correct (and only) tool for removing/trimming PART of a note\'s content — e.g. "delete the second verse", "remove that last paragraph", "take out the part about X" — NEVER call delete_note for these; delete_note destroys the whole note, which is not what a partial-removal request means. To remove part of the content: first call get_note to read the note\'s real current full text (never guess or rely on a version you generated earlier in the conversation, since the user may have edited it since, or your own memory of long text can be imprecise), then call this tool with mode "replace" and the full remaining text with just the requested part taken out. Supports the same lightweight markdown as create_note (**bold**, *italic*, `code`, headings, quotes, lists, links) rendered to real formatting. Use this whenever the user asks to write/add/remove/format something inside a note that already exists (including making existing text bold, adding a bullet list, appending a paragraph, deleting a section, etc.).', parameters:{ type:'object', properties:{ note:{ type:'string', description:'The id or title of the note to edit.' }, content:{ type:'string', description:'The new text (markdown allowed). For mode "replace", this must be the note\'s FULL intended body afterward, not just the part being changed.' }, mode:{ type:'string', enum:['replace','append'], description:'"replace" overwrites the whole body (default) — use this for partial removals/edits too, with the full remaining text. "append" adds this content after the existing body.' } }, required:['note','content'] } },
         { name:'rename_note', description:'Rename an existing note. The app remembers every past title (see get_note\'s titleHistory), so a later reference to this note by an old title — here or in any other tool — still resolves to it automatically.', parameters:{ type:'object', properties:{ note:{ type:'string', description:'The id or current title of the note.' }, new_name:{ type:'string', description:'The new title.' } }, required:['note','new_name'] } },
@@ -28959,7 +29293,7 @@ const MU_AI = (function(){
         { name:'set_list_sort_mode', description:"Change the notes list's DISPLAY ORDER setting (the \"ترتیب نمایش / Sort by\" dropdown under the list). This is a view setting: it changes how the list is shown and does not rewrite any note's manual position - use sort_notes or move_note_position instead when the user wants the manual order itself rewritten. Modes: manual (custom / drag order), alpha_asc (name A to Z / آ تا ی), alpha_desc (name Z to A / ی تا آ), created_desc (date created, newest first), created_asc (date created, oldest first), edited_desc (last edited, newest first), edited_asc (last edited, oldest first). If the user says only \"newest\" or \"oldest\" and it is unclear whether they mean creation date or last-edit date, ask which one.", parameters:{ type:'object', properties:{ mode:{ type:'string', enum:['manual','alpha_asc','alpha_desc','created_desc','created_asc','edited_desc','edited_asc'] } }, required:['mode'] } },
         { name:'export_notes', description:'Export note(s) to a real downloadable file — this actually triggers the download, the same as tapping the app\'s own export buttons, with no extra menus for the user to click through. Formats: "json" (full structured backup), "csv", "md" (Markdown), "txt" (plain text), "html" (a clean, standalone, readable HTML page of just the note content — NOT the app itself; distinct from the app\'s separate full-app-snapshot HTML backup), "pdf", "docx" (Word), "png" or "jpg" (an image of one note\'s content). Archive formats (always the whole vault, the note argument is ignored for them): "zip" = the complete bundle (JSON backup plus one JSON per note, CSV, Markdown, TXT, DOCX and a README in one ZIP, the same as the bundle export button; pass include to choose parts); "zip_txt", "zip_md", "zip_json", "zip_html", "zip_docx" = a ZIP with every note as its own file of that type plus one combined file (the same as the Individual files (ZIP) option of each export); "app_html" = the full-app HTML snapshot backup (app_mode "data" = app plus all notes and folders, "clean" = blank app; a snapshot that contains the API key is deliberately not something you can create). In these archive formats locked notes appear only as encrypted or marker entries, never as readable text, exactly as with the matching export buttons in the app. Locked notes are always excluded from the regular formats unless already unlocked this session.', parameters:{ type:'object', properties:{ format:{ type:'string', enum:['json','csv','md','txt','html','pdf','docx','png','jpg','zip','zip_txt','zip_md','zip_json','zip_html','zip_docx','app_html'], description:'Export file format. Regular formats: json, csv, md, txt, html, pdf, docx, png, jpg. Archive formats that always cover the whole vault: zip (complete bundle), zip_txt / zip_md / zip_json / zip_html / zip_docx (one file per note plus one combined file), app_html (full-app HTML snapshot).' }, note:{ type:'string', description:'Id or title of a single note to export. Omit to export every exportable note at once (not available for png/jpg — those are always a single note).' }, filename:{ type:'string', description:'Optional file name, without extension. A sensible default is generated if omitted.' }, include:{ type:'array', items:{ type:'string', enum:['json','csv','md','txt','docx','readme'] }, description:'Only for format zip: which parts to put inside the bundle. Omit to include all of them.' }, app_mode:{ type:'string', enum:['data','clean'], description:'Only for format app_html: data (default) = the app plus every note and folder, without the API key; clean = a blank copy of the app with no notes. A snapshot that contains the API key is intentionally not available through this tool.' } }, required:['format'] } },
         { name:'create_file', description:'Create a brand-new file out of content YOU write right now (not an existing note) and send it to the user as a real downloadable file right in this chat — e.g. "write a poem/list/report and give it to me as a txt/json/csv/html/markdown file". The download (or share sheet, inside Telegram) starts immediately using the same robust delivery pipeline as the app\'s own exports. Use this instead of export_notes whenever the content does not already exist as a note. For "json", the content is validated as real JSON and pretty-printed; invalid JSON is rejected back to you with an error so you can fix and retry.', parameters:{ type:'object', properties:{ filename:{ type:'string', description:'File name, without extension. A sensible default is generated if omitted.' }, format:{ type:'string', enum:['txt','json','csv','html','md'], description:'File type to create: txt (plain text), json (validated/pretty-printed JSON), csv (comma-separated values), html (a full HTML page; if you only provide a body fragment a minimal wrapper is added automatically), md (Markdown source).' }, content:{ type:'string', description:'The exact file content.' } }, required:['format','content'] } },
-        { name:'open_app_view', description:'Open one of the app\'s special screens or panels for the user, exactly like tapping its button. Recognize this even when the user names it phonetically/in Finglish or with an approximate translation — e.g. "نولدج گراف", "نالج گراف", "knowledge graf", "شبکه دانش", or "گراف" all mean knowledge_graph; "رندوم پرتال"/"پرتال تصادفی" mean random_portal; "داشبورد"/"آمار" mean dashboard; "جستجو"/"سرچ" mean search. The views note_dna and share_note work on ONE specific note, so the note parameter (id or title) is required for them; locked notes cannot be used with them.', parameters:{ type:'object', properties:{ view:{ type:'string', enum:['knowledge_graph','random_portal','settings','morse_tool','binary_tool','archived_notes','pinned_notes','favorite_notes','dashboard','search','ghost_notes','capsule_notes','note_dna','share_note','cloud_backup'], description:'knowledge_graph = the graph view of how notes connect to each other. random_portal = jumps to a random note. settings = opens the app Settings sheet (Lite version, note viewer style). morse_tool = the Morse code converter. binary_tool = the binary code converter. archived_notes = the archive list. pinned_notes = list of pinned notes. favorite_notes = list of favorite notes. dashboard = the statistics dashboard (note/word/character/folder/tag counts and the pinned, favorite, locked, decoy, archived, ghost and time-capsule counts). search = the app search window (supports tag:, folder:, is:pinned, is:favorite, "exact phrase" and -exclude). ghost_notes = list of notes with an active Ghost Note timer. capsule_notes = list of notes with an active Time Capsule. note_dna = the Note DNA analysis window of one note (needs note). share_note = the share-format picker (TXT/Markdown/HTML/PDF/image) for one note (needs note). cloud_backup = the Telegram Cloud Backup panel (only available when the app runs inside Telegram).' }, note:{ type:'string', description:'The id or title of the note. Required for note_dna and share_note; ignored for every other view.' } }, required:['view'] } },
+        { name:'open_app_view', description:'Open one of the app\'s special screens or panels for the user, exactly like tapping its button. Recognize this even when the user names it phonetically/in Finglish or with an approximate translation — e.g. "نولدج گراف", "نالج گراف", "knowledge graf", "شبکه دانش", or "گراف" all mean knowledge_graph; "رندوم پرتال"/"پرتال تصادفی" mean random_portal; "داشبورد"/"آمار" mean dashboard; "جستجو"/"سرچ" mean search (open the search screen ONLY if the user explicitly asks to open it; to find or list notes use find_notes and answer in the chat). The views note_dna and share_note work on ONE specific note, so the note parameter (id or title) is required for them; locked notes cannot be used with them.', parameters:{ type:'object', properties:{ view:{ type:'string', enum:['knowledge_graph','random_portal','settings','morse_tool','binary_tool','archived_notes','pinned_notes','favorite_notes','dashboard','search','ghost_notes','capsule_notes','note_dna','share_note','cloud_backup'], description:'knowledge_graph = the graph view of how notes connect to each other. random_portal = jumps to a random note. settings = opens the app Settings sheet (Lite version, note viewer style). morse_tool = the Morse code converter. binary_tool = the binary code converter. archived_notes = the archive list. pinned_notes = list of pinned notes. favorite_notes = list of favorite notes. dashboard = the statistics dashboard (note/word/character/folder/tag counts and the pinned, favorite, locked, decoy, archived, ghost and time-capsule counts). search = the app search window (supports tag:, folder:, is:pinned, is:favorite, "exact phrase" and -exclude). ghost_notes = list of notes with an active Ghost Note timer. capsule_notes = list of notes with an active Time Capsule. note_dna = the Note DNA analysis window of one note (needs note). share_note = the share-format picker (TXT/Markdown/HTML/PDF/image) for one note (needs note). cloud_backup = the Telegram Cloud Backup panel (only available when the app runs inside Telegram).' }, note:{ type:'string', description:'The id or title of the note. Required for note_dna and share_note; ignored for every other view.' } }, required:['view'] } },
         { name:'get_knowledge_graph', description:'Read the same connection data the Knowledge Graph screen shows: for each note (locked and archived notes excluded) its strongest links to other notes (up to 3), with a similarity score and the shared tags/words that justify each link, plus which notes are isolated and which are the most connected. Use this when the user asks which notes are related, what the knowledge graph shows, or about the connections of one note (pass note). This tool only gathers the facts - explain them in your own words. To actually show the graph screen use open_app_view.', parameters:{ type:'object', properties:{ note:{ type:'string', description:'Optional id or title of one note: return only its connections.' }, all_words:{ type:'boolean', description:'Default false: each connection lists at most 8 shared words plus moreSharedWords (how many were left out). Set true ONLY after the user has confirmed they want the complete list of shared words.' } } } },
         { name:'compare_notes', description:'Compare two or more notes and get structured facts about what they share and how they differ: common tags, common significant words (the closest thing to shared "DNA"/theme between them), whether they\'re in the same folder, and each note\'s pinned/favorite/archived status, word count, and last-edited date. Use this whenever the user asks to compare notes or find what they have in common. This tool only gathers the facts — write the actual comparison for the user yourself, in your own words, from the returned data.', parameters:{ type:'object', properties:{ notes:{ type:'array', items:{ type:'string' }, description:'Ids or titles of the notes to compare — at least two.' } }, required:['notes'] } },
         { name:'get_note_dna', description:'Read the full Note DNA analysis of one or more notes - exactly the data the DNA panel shows: word count, unique words, read time, approximate sentence count, character counts (with/without spaces, spaces, all characters, average word length), Persian/English word and letter counts and digits, symbol and emoji counts, number of images and links, approximate age in days, last-edited date, folder, vocabulary richness percent, the top keywords with how many times each appears, and the tags. Use this whenever the user asks about a note\'s DNA, its statistics, its keywords, how rich or long it is, or wants DNA of several notes compared. Locked notes cannot be analysed. This tool only gathers the facts - explain them in your own words. To actually show the DNA panel on screen use open_app_view with view note_dna.', parameters:{ type:'object', properties:{ notes:{ type:'array', items:{ type:'string' }, description:'Ids or titles of the notes to analyse (up to 20).' }, note:{ type:'string', description:'Id or title of a single note (alternative to notes).' }, keywords_limit:{ type:'integer', description:'How many top keywords to return per note (default 10, max 50).' } } } },
@@ -28990,11 +29324,13 @@ const MU_AI = (function(){
         { name:'convert_date', description:'Convert ANY specific calendar date — one the user typed, one from a note\'s content, a birthday, a deadline, a historical date, etc. — between the Jalali (Shamsi) and Gregorian calendars using a real, exact algorithm, and get back its weekday and how many days it is from today. ALWAYS call this instead of converting or estimating a Jalali<->Gregorian date yourself, for exactly the same reason lastEdited dates are already pre-converted for you elsewhere in this context: doing this calendar math in your own reasoning is unreliable (a classic failure is treating "4 September" as "4 Shahrivar" by just swapping the month name, when the two calendars are offset by several months and about 621 years) and produces wrong answers. Use this for ANY date conversion request, a specific date\'s weekday ("what day of the week was/is X"), or "how many days until/since X" — never compute or guess these yourself.', parameters:{ type:'object', properties:{ year:{ type:'number', description:'The year of the date to convert, in whichever calendar "calendar" specifies.' }, month:{ type:'number', description:'The month (1-12) of the date to convert, in whichever calendar "calendar" specifies.' }, day:{ type:'number', description:'The day of month of the date to convert, in whichever calendar "calendar" specifies.' }, calendar:{ type:'string', enum:['jalali','gregorian'], description:'Which calendar year/month/day above are given in. The result always includes the same date expressed in BOTH calendars.' } }, required:['year','month','day','calendar'] } },
         { name:'convert_text_code', description:'Precisely convert text to/from Morse code or binary (8-bit ASCII/UTF-8) code, using the app\'s own exact character tables — this is the same conversion the app\'s own 📡 Morse Code / 🔢 Binary Code tools do. ALWAYS call this instead of working out Morse dots/dashes or binary bits yourself in generated text: a single wrong dot, dash, or bit is an easy, hard-to-notice mistake that a real lookup table never makes. Use this for any request to encode text into Morse/binary, or to decode Morse/binary back into text.', parameters:{ type:'object', properties:{ code:{ type:'string', enum:['morse','binary'], description:'Which code to convert to/from.' }, direction:{ type:'string', enum:['encode','decode'], description:'"encode" = plain text → code. "decode" = code → plain text.' }, text:{ type:'string', description:'The input: plain text when direction is "encode" (non-English/non-alphanumeric characters that have no Morse symbol are simply skipped, same as the app\'s own tool), or the Morse code (letters separated by spaces, words by " / ") / binary code (8-bit groups, space-separated) when direction is "decode".' } }, required:['code','direction','text'] } },
         { name:'estimate_storage', description:'Estimate how full the app\'s on-device storage (IndexedDB/localStorage, where all notes and media actually live) currently is, using the browser\'s own built-in storage-estimate API. Call this for ANY request about storage/memory/space used by the app or how much is free — in ANY language, spelling, misspelling, or abbreviation, e.g. Persian "چقدر حافظه پره؟", "فضای خالی چقدره؟", "حافظه گوشیم" (interpret as this app\'s storage, not the whole device), "gig azad daram", English "how much storage am I using", "free space left", "storage usage", "how full is my storage". Always frame the result to the user as an ESTIMATE, never an exact byte count — the browser deliberately rounds/fuzzes it for privacy, and it can include internal database overhead beyond just note/media content, and can fluctuate slightly between calls. If this device/browser does not support the estimate API at all, the tool returns ok:false with a clear reason — in that case tell the user plainly that this browser/device does not expose that information, do NOT invent or guess a number yourself.', parameters:{ type:'object', properties:{} } },
-        { name:'get_period_digest', description:"Build the raw material for a WEEKLY / MONTHLY (or any custom period) summary of the user's notes: which notes were created or edited in the window, exact stats (new vs edited notes, word counts, active days, busiest day, per-folder and per-tag counts, and how many notes were created in the previous equal-length window for comparison), recurring theme words and phrases across those notes, and a budgeted excerpt of every note. Call this whenever the user asks for a weekly/monthly (or last-N-days / last-week / last-month) summary, review, recap or stats of their notes. This tool only gathers facts - write the actual summary yourself from the returned data: main topics, recurring themes, stats, and anything notable; call get_note if you need a note in full. Locked notes are never included. Every number in the result is exact and pre-computed (including changeVsPrevious): copy them, never recompute.", parameters:{ type:'object', properties:{ period:{ type:'string', enum:['week','month'], description:"week = last 7 days (default), month = last 30 days." }, days:{ type:'number', description:"Custom window length in days (overrides period), e.g. 10 for the last 10 days." }, periods_ago:{ type:'integer', description:"Shift the window back by this many whole windows: 0 = the most recent one (default), 1 = the one before it. E.g. period week + periods_ago 1 = last week." }, calendar:{ type:'boolean', description:"true = real calendar units: week = Saturday-to-Friday Persian week, month = the Jalali (Shamsi) month. Use for this week / last week / this month / last month (last = periods_ago 1). Omit for rolling windows like the last 7 or 30 days. The current unit is partial (window.partial) and is compared with the same elapsed part of the previous unit." }, from:{ type:'string', description:"Explicit start date, local time, Gregorian (2026-09-01) or Jalali (1405/06/10). Use for a specific named month or range. When given, days, periods_ago and calendar are ignored." }, to:{ type:'string', description:"Explicit end date, Gregorian or Jalali (default: now). A date without a time includes that whole day. Requires from." }, folder:{ type:'string', description:"Only include notes in this folder." }, include_archived:{ type:'boolean', description:"Also include archived notes (default false)." } } } },
+        { name:'get_period_digest', description:"Build the raw material for a WEEKLY / MONTHLY (or any custom period) summary of the user's notes: which notes were created or edited in the window, exact stats (new vs edited notes, word counts, active days, busiest day, per-folder and per-tag counts, and how many notes were created in the previous equal-length window for comparison), recurring theme words and phrases across those notes, and a budgeted excerpt of every note. Call this whenever the user asks for a weekly/monthly (or last-N-days / last-week / last-month) summary, review, recap or stats of their notes. This tool only gathers facts - write the actual summary yourself from the returned data: main topics, recurring themes, stats, and anything notable; call get_note if you need a note in full. Locked notes are never included. The app does NOT track real reading/viewing time: only estimated reading time (estReadMinutes = words/200) exists, so say so if asked. Keep the final answer SHORT. Every number in the result is exact and pre-computed (including changeVsPrevious): copy them, never recompute.", parameters:{ type:'object', properties:{ period:{ type:'string', enum:['week','month'], description:"week = last 7 days (default), month = last 30 days." }, days:{ type:'number', description:"Custom window length in days (overrides period), e.g. 10 for the last 10 days." }, periods_ago:{ type:'integer', description:"Shift the window back by this many whole windows: 0 = the most recent one (default), 1 = the one before it. E.g. period week + periods_ago 1 = last week." }, calendar:{ type:'boolean', description:"true = real calendar units: week = Saturday-to-Friday Persian week, month = the Jalali (Shamsi) month. Use for this week / last week / this month / last month (last = periods_ago 1). Omit for rolling windows like the last 7 or 30 days. The current unit is partial (window.partial) and is compared with the same elapsed part of the previous unit." }, from:{ type:'string', description:"Explicit start date, local time, Gregorian (2026-09-01) or Jalali (1405/06/10). Use for a specific named month or range. When given, days, periods_ago and calendar are ignored." }, to:{ type:'string', description:"Explicit end date, Gregorian or Jalali (default: now). A date without a time includes that whole day. Requires from." }, folder:{ type:'string', description:"Only include notes in this folder." }, include_archived:{ type:'boolean', description:"Also include archived notes (default false)." } } } },
+        { name:'analyze_note', description:"Deep, CORRECT analysis of one note (or up to 8 notes, or the newest notes of a folder). Returns the note's REAL full text (line structure kept) plus exact, pre-computed facts: size and reading time, language mix, headings and per-section word counts, lists/tables/images/links, tasks and checklist items (done vs open, open ones listed), dates and numbers found with their context, questions asked, lines that look like to-dos or deadlines (candidates only), key terms and phrases, repeated lines, mechanical quality flags, and the most related other notes. Call this whenever the user asks to analyze / review / critique / evaluate / audit a note, asks what a note is about or whether it is good, complete or well organized, or wants its open tasks, key points or problems. It gathers facts only - YOU write the analysis from the returned text and numbers: copy every number exactly, never invent content that is not in the text, and keep facts apart from your own judgement. For pure statistics / DNA use get_note_dna; for week or month summaries use get_period_digest. Locked notes cannot be analysed.", parameters:{ type:'object', properties:{ note:{ type:'string', description:"Id or title of one note." }, notes:{ type:'array', items:{ type:'string' }, description:"Ids or titles of several notes to analyse together (max 8)." }, folder:{ type:'string', description:"Analyse the 8 most recently edited notes of this folder instead (use only when no note is named)." }, include_archived:{ type:'boolean', description:"With folder: also include archived notes (default false)." } } } },
+
         { name:'find_contradictions', description:"Scan the user's notes for statements that may CONTRADICT each other - e.g. \"here you wrote X but somewhere else you wrote the opposite\" (likes vs hates something, always vs never, one number vs a different number for the same thing) - across different notes and, by default, inside a single note too. Similar to find_duplicate_notes but for conflicting rather than overlapping content. Returns candidate pairs of sentences with both notes' ids, names and last-edited dates, the conflict signals, and the shared topic words. These are heuristic CANDIDATES, not verified contradictions: you must read each pair yourself and tell the user honestly which are real conflicts, which are merely a change of mind or circumstances over time (compare the dates), and which are false alarms. It changes nothing by itself - offer edit_note_content or merge_notes afterward only if the user wants to resolve one.", parameters:{ type:'object', properties:{ topic:{ type:'string', description:"Optional: only look at sentences about this topic (e.g. \"sleep\" or \"بودجه\"). Several alternatives may be given separated by commas (e.g. \"قهوه, چای\"); prefer a specific topic when the vault is large." }, folder:{ type:'string', description:"Optional: only scan notes in this folder." }, include_same_note:{ type:'boolean', description:"Also look for contradictions inside a single note (default true)." }, include_archived:{ type:'boolean', description:"Also scan archived notes (default false)." }, max_pairs:{ type:'number', description:"Maximum number of note pairs to return (default 12, max 25)." } } } },
-        { name:'semantic_search_notes', description:"Find notes by MEANING rather than exact words - e.g. \"the note where I wrote about missing my student days\" should be found even if it never contains the word \"missing\". You are the semantic engine: BEFORE calling, brainstorm 15-30 related_terms for what the user describes - synonyms, close concepts, and the typical words, situations, places, people and emotions that go with it (both Persian and English forms when notes might mix languages). The tool ranks the user's unlocked notes by those terms (title and tag hits count more, rarer terms count more) and returns the best notes with matched terms, the best-matching passage and the note opening. The ranking is only a term-based pre-filter: YOU then judge the passages by real meaning and present only the notes that truly fit, saying briefly why. If results are weak the response also includes overviewOfOtherNotes (title + preview of other notes) so you can still pick by meaning, or you can call again with different related_terms. For a plain exact-word lookup use find_notes instead.", parameters:{ type:'object', properties:{ query:{ type:'string', description:"The user's own description of what they are looking for, in their own words." }, related_terms:{ type:'array', items:{ type:'string' }, description:"15-30 related words or short phrases YOU generate: synonyms, related concepts, typical vocabulary of the situation, in Persian and/or English." }, folder:{ type:'string', description:"Optional: only search notes in this folder." }, include_archived:{ type:'boolean', description:"Also search archived notes (default false)." }, limit:{ type:'number', description:"Max results (default 8, max 15)." } }, required:['query','related_terms'] } },
+        { name:'semantic_search_notes', description:"Find notes by MEANING rather than exact words - e.g. \"the note where I wrote about missing my student days\" should be found even if it never contains the word \"missing\". You are the semantic engine: BEFORE calling, brainstorm 15-30 related_terms for what the user describes - synonyms, close concepts, and the typical words, situations, places, people and emotions that go with it (both Persian and English forms when notes might mix languages). The tool ranks the user's unlocked notes by those terms (title and tag hits count more, rarer terms count more) and returns the best notes with matched terms, the best-matching passage and the note opening. The ranking is only a term-based pre-filter: YOU then judge the passages by real meaning and present only the notes that truly fit, saying briefly why. If results are weak the response also includes overviewOfOtherNotes (title + preview of other notes) so you can still pick by meaning, or you can call again with different related_terms. Under the hood it runs the same smart engine as the in-app search (typo, Finglish, synonym and related-word tolerant) for every term and fuses it with passage ranking. For a plain exact-word lookup use find_notes instead.", parameters:{ type:'object', properties:{ query:{ type:'string', description:"The user's own description of what they are looking for, in their own words." }, related_terms:{ type:'array', items:{ type:'string' }, description:"15-30 related words or short phrases YOU generate: synonyms, related concepts, typical vocabulary of the situation, in Persian and/or English." }, folder:{ type:'string', description:"Optional: only search notes in this folder." }, include_archived:{ type:'boolean', description:"Also search archived notes (default false)." }, limit:{ type:'number', description:"Max results (default 8, max 15)." } }, required:['query','related_terms'] } },
         { name:'telegram_backup_create', description:"Create a REAL manual Telegram Cloud backup of the user's notes right now — the exact same engine as the Dashboard's ☁️ Cloud Backup panel's \"Save a new backup\" button (Telegram.WebApp.CloudStorage), NOT a downloaded file and NOT the app's export_notes tool. Call this whenever the user asks, in ANY language, spelling, misspelling, or Finglish, to back up their notes/telegram/the app — recognize all of these and similar: Persian 'بکاپ بگیر', 'یه بکاپ تلگرام بگیر', 'از یادداشتام بکاپ بگیر', 'بکاپ کن', 'بکاپ گیری کن', 'ذخیره کن تو کلود تلگرام', 'یه نسخه پشتیبان بگیر'; Finglish 'backup begir', 'baram backup begir', 'telegram backup begir', 'ye backup az yaddashtam begir'; English 'back up my notes', 'make/take a telegram backup', 'save a cloud backup', 'create a backup', 'backup my notes'. If the user gives an explicit name/label for this backup (e.g. \"با اسم/برچسب X\", \"به نام X\", \"named X\", \"label it X\", \"call it X\"), pass that exact text as label. If the user does NOT give a name, leave label empty/omitted — the tool automatically generates one itself in the format \"Backup <current date & time>\" (the date shown in whichever calendar matches the app's own current language — Jalali for Persian, Gregorian for English — and the exact time read from the user's own device clock); never invent or compute a date/time string yourself. This creates a genuinely separate, persistent manual snapshot kept until deleted — distinct from the automatic backup slot that silently overwrites itself after every edit. Only works while running inside Telegram with Telegram Cloud Storage available; if the tool returns ok:false for that reason, tell the user plainly instead of pretending it worked. Up to " + MAX_MANUAL_BACKUPS + " manual backups can exist at once — saving one more than that automatically removes the oldest, which the tool result reflects. A backup can optionally be password-protected: only set `password` if the user explicitly asked for a password-protected/locked backup AND you first warned them, in the same reply, that typing a password here puts it in this chat's own message history, and offered the alternative of setting it through the ☁️ Cloud Backup panel's own password field instead (which never leaves the device) — only proceed with a password here if they confirm they still want that after the warning. Restoring or viewing a password-protected backup can only be done from the ☁️ Cloud Backup panel itself (there is no AI tool for that); the panel will ask for the same password there.", parameters:{ type:'object', properties:{ label:{ type:'string', description:'Optional short label/name for this backup, using whatever wording the user gave. Leave empty to auto-generate a "Backup <date & time>" label.' }, password:{ type:'string', description:'Optional password to protect this one backup. Only set this if the user explicitly asked for a password-protected backup AND confirmed after being warned that typing it here puts it in this chat\'s history. Leave empty/omitted for a normal, unprotected backup.' }, hint:{ type:'string', description:'Optional password hint, only meaningful when `password` is set.' } } } },
-        { name:'telegram_backup_list', description:"List the user's existing Telegram Cloud backups: the one automatic slot (always reflects the latest note state) plus up to the user's configured number (0-7, default 2) of manual snapshots, each with its id, label (if any), date/time, note count, lockedNotes / unlockedNotes counts (null = unknown because the whole backup is password-protected), and approximate size. Whenever you state how many notes a backup holds, ALWAYS add in the same sentence how many of them are locked and how many are not locked (from lockedNotes / unlockedNotes). Call this whenever the user asks what backups they have, in ANY language/spelling/Finglish — Persian 'لیست بکاپ‌ها', 'چه بکاپ‌هایی دارم', 'چند تا بکاپ دارم', 'بکاپ‌هام رو نشون بده'; Finglish 'backup list', 'chand ta backup daram'; English 'list my backups', 'show my telegram backups', 'what backups do I have'. Also call this FIRST whenever you need a manual backup's exact id before calling telegram_backup_delete and you don't already have it from context.", parameters:{ type:'object', properties:{} } },
+        { name:'telegram_backup_list', description:"List the user's existing Telegram Cloud backups: the one automatic slot (always reflects the latest note state) plus up to the user's configured number (0-7, default 2) of manual snapshots, each with its id, label (if any), date/time, note count, lockedNotes / unlockedNotes counts (null = unknown because the whole backup is password-protected), and approximate size. Whenever you state how many notes a backup holds, ALWAYS add in the same sentence how many of them are locked and how many are not locked (from lockedNotes / unlockedNotes). Call this whenever the user asks what backups they have, in ANY language/spelling/Finglish — Persian 'لیست بکاپ‌ها', 'چه بکاپ‌هایی دارم', 'چند تا بکاپ دارم', 'بکاپ‌هام رو نشون بده'; Finglish 'backup list', 'chand ta backup daram'; English 'list my backups', 'show my telegram backups', 'what backups do I have'. Also call this when the user asks WHEN their last automatic or manual backup was, how long ago it was, or what their backups are called/named — Persian 'آخرین بکاپ خودکار کی بود', 'آخرین بکاپ دستی کی بود', 'اسم بکاپ‌هام چیه', 'کی بکاپ گرفتم'; English 'when was my last backup', 'what are my backups called'. The result also has lastAutoBackup, lastManualBackup and manualBackupNames ready to quote. Also call this FIRST whenever you need a manual backup's exact id before calling telegram_backup_delete and you don't already have it from context.", parameters:{ type:'object', properties:{} } },
         { name:'telegram_backup_delete', description:"Permanently delete ONE manual Telegram Cloud backup — never the automatic slot, which cannot be deleted on its own since it isn't a real snapshot. This always shows the user a real confirmation dialog first and only deletes if they accept, so it is safe to call as soon as the user clearly asks to delete/remove a specific manual backup, in ANY language/spelling/Finglish — Persian 'بکاپ ... رو حذف کن', 'اون بکاپ رو پاک کن', 'بکاپ دستی رو حذف کن'; Finglish 'backup ro hazf kon', 'backup ro pak kon'; English 'delete that backup', 'remove the backup named X', 'delete my manual backup' — but never call it just to be helpful when deletion was not requested. Identify the backup either by its exact id (call telegram_backup_list first if you don't already know it) or by giving label_or_date with whatever text/date the user used to refer to it — if that text matches more than one backup, this returns the candidate list instead of deleting anything so you can ask the user which one they mean, and if it is empty/omitted along with id, mention every manual backup's label and id from a telegram_backup_list result yourself and ask the user which to delete.", parameters:{ type:'object', properties:{ id:{ type:'string', description:'The exact backup id, from telegram_backup_list.' }, label_or_date:{ type:'string', description:'Text to match against the backup label or shown date/time, when the exact id is not known.' } } } }
     ];
 
@@ -29412,11 +29748,15 @@ const MU_AI = (function(){
                 editedAfterThisWindow: !inR(mAiNiEditedMs(c), start, end),
                 lastEdited: mAiDualDateLabel(c.lastEdited),
                 wordCount: wcOf.get(c.id) || 0,
+                estReadMinutes: Math.max(1, Math.round((wcOf.get(c.id) || 0) / 200)),
                 excerptTruncated: text.length > per,
                 excerpt: mAiNiClip(text, per)
             };
         });
         const cur = createdNow.length, prev = createdPrev.length;
+        const NAMEMAX = 40;
+        const newNamesAll = sorted.filter(function(c){ return createdIds.has(c.id); }).map(function(c){ return c.name || (fa ? '(بدون نام)' : '(untitled)'); });
+        const editedNamesAll = sorted.filter(function(c){ return !createdIds.has(c.id); }).map(function(c){ return c.name || (fa ? '(بدون نام)' : '(untitled)'); });
 
         return { ok:true, data:{
             window: windowInfo,
@@ -29430,6 +29770,10 @@ const MU_AI = (function(){
             totalWordsInTouchedNotes: totalWords,
             wordsInNewNotes: newWords,
             avgWordsPerNote: Math.round(totalWords / touched.length),
+            newNoteNames: newNamesAll.slice(0, NAMEMAX), newNoteNamesNotListed: Math.max(0, newNamesAll.length - NAMEMAX),
+            editedNoteNames: editedNamesAll.slice(0, NAMEMAX), editedNoteNamesNotListed: Math.max(0, editedNamesAll.length - NAMEMAX),
+            estimatedReadMinutes: Math.max(1, Math.round(totalWords / 200)),
+            readingTimeTracked: false,
             activeDays: dayKeys.length,
             busiestDay: bestK ? Object.assign(dayRow(bestK), { daysTiedForBusiest: tied }) : null,
             byDay: byDay,
@@ -29442,6 +29786,270 @@ const MU_AI = (function(){
             notesNotListed: Math.max(0, sorted.length - shown.length),
             lockedNotesExcluded: mAiNiLockedCount(),
             note: accuracy
+        } };
+    }
+
+    /* ---------------------------------------------------------------
+       1b) Deep single-note analysis (analyze_note)
+       Gives the model the REAL full text (line structure kept) plus exact,
+       mechanically computed facts. Nothing here is guessed; the model writes
+       the interpretation from this data.
+       --------------------------------------------------------------- */
+    function mAiAnDigits(s){
+        return String(s || '').replace(/[۰-۹]/g, function(d){ return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); }).replace(/[٠-٩]/g, function(d){ return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); });
+    }
+    function mAiAnParse(c){
+        const out = { text:'', headings:[], listItems:0, orderedItems:0, tables:0, images:0, links:[], domTasks:[], bold:[] };
+        const html = c.html ? String(c.html) : '';
+        if(html && typeof DOMParser === 'function'){
+            try{
+                const doc = new DOMParser().parseFromString('<body>' + html + '</body>', 'text/html');
+                const body = doc.body;
+                body.querySelectorAll('script,style').forEach(function(e){ e.remove(); });
+                body.querySelectorAll('h1,h2,h3,h4,h5,h6').forEach(function(h){
+                    const tx = (h.textContent || '').replace(/\s+/g, ' ').trim();
+                    if(tx) out.headings.push({ level: Number(h.tagName.slice(1)), text: tx });
+                });
+                out.listItems = body.querySelectorAll('li').length;
+                out.orderedItems = body.querySelectorAll('ol > li').length;
+                out.tables = body.querySelectorAll('table').length;
+                out.images = body.querySelectorAll('img').length;
+                body.querySelectorAll('a[href]').forEach(function(a){
+                    const h = a.getAttribute('href') || '';
+                    if(/^(https?:|mailto:|tel:)/i.test(h)) out.links.push(h);
+                });
+                body.querySelectorAll('b,strong').forEach(function(b){
+                    const tx = (b.textContent || '').replace(/\s+/g, ' ').trim();
+                    if(tx && tx.length <= 80) out.bold.push(tx);
+                });
+                body.querySelectorAll('input[type="checkbox"]').forEach(function(cb){
+                    const holder = cb.closest('li,label,p') || cb.parentElement;
+                    const tx = holder ? (holder.textContent || '').replace(/\s+/g, ' ').trim() : '';
+                    out.domTasks.push({ done: !!(cb.checked || cb.hasAttribute('checked')), text: tx });
+                });
+                body.querySelectorAll('img').forEach(function(im){ im.replaceWith(doc.createTextNode(' [image] ')); });
+                body.querySelectorAll('br').forEach(function(b){ b.replaceWith(doc.createTextNode('\n')); });
+                body.querySelectorAll('p,div,li,h1,h2,h3,h4,h5,h6,tr,blockquote,pre,ul,ol,table').forEach(function(e){ e.appendChild(doc.createTextNode('\n')); });
+                out.text = body.textContent || '';
+            }catch(e){ out.text = ''; }
+        }
+        if(!out.text) out.text = c.text || (mu_notePlainText(c) || '');
+        out.text = String(out.text).replace(/&nbsp;/g, ' ').replace(/\u00a0/g, ' ').split('\n').map(function(l){ return l.replace(/[ \t]+/g, ' ').trim(); }).join('\n').replace(/\n{3,}/g, '\n\n').trim();
+        return out;
+    }
+    function mAiAnTopStems(c, n){
+        const text = mAiNiNoteText(c).slice(0, 4000);
+        const cnt = new Map(), form = new Map();
+        mAiNiSigOf((c.name || '') + ' ' + text).forEach(function(w){ const s = mAiNiStem(w); cnt.set(s, (cnt.get(s) || 0) + 1); if(!form.has(s) || w.length < form.get(s).length) form.set(s, w); });
+        const set = new Set(Array.from(cnt.entries()).sort(function(a, b){ return b[1] - a[1]; }).slice(0, n || 40).map(function(e){ return e[0]; }));
+        set.forms = form;
+        return set;
+    }
+    function mAiAnalyzeOne(c, textBudget, relPool, stemCache){
+        const DAY = 86400000, now = Date.now();
+        const P = mAiAnParse(c);
+        const text = P.text;
+        const textD = mAiAnDigits(text);
+        const words = mAiNiWordCount(text);
+        const lines = text.split('\n');
+        const nonEmpty = lines.filter(function(l){ return l.trim(); });
+        const sentences = mAiNiSplit(text);
+        const sentLens = sentences.map(function(s){ return mAiNiWordCount(s); });
+        const longest = sentLens.reduce(function(a, b){ return Math.max(a, b); }, 0);
+        const longCount = sentLens.filter(function(n){ return n > 40; }).length;
+
+        // language mix
+        const toks = text.match(/\p{L}+/gu) || [];
+        let nFa = 0, nEn = 0;
+        toks.forEach(function(w){ if(/[\u0600-\u06FF]/.test(w)) nFa++; else if(/[A-Za-z]/.test(w)) nEn++; });
+        const nAll = nFa + nEn;
+        const language = { persianWords: nFa, englishWords: nEn, persianPercent: nAll ? Math.round(nFa / nAll * 100) : 0, englishPercent: nAll ? Math.round(nEn / nAll * 100) : 0,
+            dominant: !nAll ? 'none' : (nFa >= nEn * 3 ? 'persian' : (nEn >= nFa * 3 ? 'english' : 'mixed')) };
+
+        // sections (words between headings)
+        const sections = [];
+        if(P.headings.length){
+            let hp = 0, cur = { heading: '(intro)', level: 0, words: 0 };
+            lines.forEach(function(l){
+                const t = l.trim();
+                if(hp < P.headings.length && t && t === P.headings[hp].text){
+                    if(cur.words > 0 || cur.heading !== '(intro)') sections.push(cur);
+                    cur = { heading: P.headings[hp].text, level: P.headings[hp].level, words: 0 }; hp++;
+                } else if(t){ cur.words += mAiNiWordCount(t); }
+            });
+            sections.push(cur);
+        }
+
+        // tasks / checklist items (markers: [ ] [x] ☐ ☑ ✅ ✔ or real checkboxes)
+        const openRe = /^\s*(?:[-*•–]\s*)?(?:\[\s?\]|☐|⬜|🔲)\s*(.+)$/u;
+        const doneRe = /^\s*(?:[-*•–]\s*)?(?:\[[xX✓✔]\]|☑️?|✅|✔️?|✓|☒)\s*(.+)$/u;
+        const openItems = [], doneItems = [];
+        P.domTasks.forEach(function(t){ (t.done ? doneItems : openItems).push(t.text); });
+        lines.forEach(function(l){
+            let m;
+            if((m = doneRe.exec(l))) doneItems.push(m[1].trim());
+            else if((m = openRe.exec(l))) openItems.push(m[1].trim());
+        });
+        const taskTotal = openItems.length + doneItems.length;
+        const tasks = { total: taskTotal, done: doneItems.length, open: openItems.length,
+            donePercent: taskTotal ? Math.round(doneItems.length / taskTotal * 100) : null,
+            openItems: openItems.slice(0, 20).map(function(s){ return mAiNiClip(s, 140); }),
+            doneItemsSample: doneItems.slice(0, 8).map(function(s){ return mAiNiClip(s, 100); }) };
+
+        // dates found
+        const dates = [], dateSpans = [];
+        let m;
+        const dre1 = /\b(1[34]\d{2}|20\d{2})[\/\-.](\d{1,2})[\/\-.](\d{1,2})\b/g;
+        while((m = dre1.exec(textD)) && dates.length < 40){ dates.push(m[0]); dateSpans.push([m.index, m.index + m[0].length]); }
+        const dre2 = /(\d{1,2})\s+(فروردین|اردیبهشت|خرداد|تیر|مرداد|شهریور|مهر|آبان|آذر|دی|بهمن|اسفند)(?:\s+(\d{4}))?/g;
+        while((m = dre2.exec(textD)) && dates.length < 40){ dates.push(m[0]); dateSpans.push([m.index, m.index + m[0].length]); }
+
+        // numbers with their context
+        const numbers = []; let numTotal = 0;
+        const nre = /\d[\d,٬]*(?:\.\d+)?/g;
+        while((m = nre.exec(textD))){
+            const idx = m.index, raw = m[0];
+            if(dateSpans.some(function(s){ return idx >= s[0] && idx < s[1]; })) continue;
+            const ls = textD.lastIndexOf('\n', idx - 1) + 1;
+            const before = textD.slice(ls, idx);
+            if(/^\s*$/.test(before) && /^[.)]/.test(textD.slice(idx + raw.length, idx + raw.length + 1))) continue; // list numbering
+            if(/(https?:\/\/|www\.)\S*$/.test(before)) continue;
+            if(raw.replace(/\D/g, '').length < 2 && !/^\s*[%٪]|^\s?(درصد|تومان|ریال|دلار|کیلو|ساعت|دقیقه)/.test(textD.slice(idx + raw.length, idx + raw.length + 8))) continue;
+            numTotal++;
+            if(numbers.length < 20){
+                const le = textD.indexOf('\n', idx); const lineEnd = le < 0 ? textD.length : le;
+                numbers.push({ value: raw, context: textD.slice(Math.max(ls, idx - 24), Math.min(lineEnd, idx + raw.length + 16)).trim() });
+            }
+        }
+
+        // links
+        const urls = Array.from(new Set(P.links.concat(text.match(/https?:\/\/[^\s)>\]]+/g) || [])));
+
+        // questions & action-like lines (heuristic candidates, not facts)
+        const questions = sentences.filter(function(s){ return /[?؟]\s*$/.test(s); }).slice(0, 10).map(function(s){ return mAiNiClip(s, 160); });
+        const actionRe = /(باید|فراموش نکن|یادم باشه|یادآوری|مهلت|ددلاین|فردا|امروز|هفته آینده|todo|to-do|fixme|deadline|reminder|must|need to|don't forget)/i;
+        const actionCandidates = nonEmpty.filter(function(l){ return actionRe.test(l); }).slice(0, 10).map(function(s){ return mAiNiClip(s, 160); });
+
+        // key terms & phrases
+        const stemInfo = new Map(), pairInfo = new Map();
+        mAiNiSigOf((c.name || '') + ' ' + text).forEach(function(w){
+            const s = mAiNiStem(w); let e = stemInfo.get(s);
+            if(!e){ e = { occ: 0, forms: new Map() }; stemInfo.set(s, e); }
+            e.occ++; e.forms.set(w, (e.forms.get(w) || 0) + 1);
+        });
+        const keyTerms = Array.from(stemInfo.values()).sort(function(a, b){ return b.occ - a.occ; }).slice(0, 12).map(function(e){
+            let best = '', bc = 0; e.forms.forEach(function(cnt, f){ if(cnt > bc){ best = f; bc = cnt; } });
+            return { word: best, count: e.occ };
+        });
+        sentences.forEach(function(sn){
+            const ws = mAiNiWords(sn);
+            for(let i = 0; i + 1 < ws.length; i++){
+                if(mAiNiIsSig(ws[i]) && mAiNiIsSig(ws[i + 1])){ const k = ws[i] + ' ' + ws[i + 1]; pairInfo.set(k, (pairInfo.get(k) || 0) + 1); }
+            }
+        });
+        const keyPhrases = Array.from(pairInfo.entries()).filter(function(e){ return e[1] >= 2; }).sort(function(a, b){ return b[1] - a[1]; }).slice(0, 6).map(function(e){ return { phrase: e[0], count: e[1] }; });
+
+        // repeated lines
+        const lineCnt = new Map();
+        nonEmpty.forEach(function(l){ const k = mAiNiNorm(l); if(k && k.length >= 8) lineCnt.set(k, { n: (lineCnt.get(k) ? lineCnt.get(k).n : 0) + 1, line: l }); });
+        const repeatedLines = Array.from(lineCnt.values()).filter(function(x){ return x.n >= 2; }).slice(0, 5).map(function(x){ return { line: mAiNiClip(x.line, 120), times: x.n }; });
+
+        // dates of the note itself
+        const createdMs = mAiNiCreatedMs(c), editedMs = mAiNiEditedMs(c);
+
+        // mechanical quality flags (facts, not verdicts)
+        const flags = [];
+        if(!words) flags.push('emptyBody');
+        else if(words < 15) flags.push('veryShort(<15 words)');
+        if(words >= 300 && !P.headings.length && !P.listItems) flags.push('longTextWithoutHeadingsOrLists');
+        if(longCount) flags.push('sentencesOver40Words:' + longCount);
+        if(!String(c.name || '').trim()) flags.push('noTitle');
+        if(taskTotal && openItems.length) flags.push('openTasks:' + openItems.length);
+        if(editedMs && (now - editedMs) / DAY > 365) flags.push('notEditedForOverAYear');
+        const sameTitle = categories.filter(function(o){ return o.id !== c.id && !o.isDecoy && normalizeText(o.name || '') && normalizeText(o.name || '') === normalizeText(c.name || ''); }).length;
+        if(sameTitle) flags.push('otherNotesWithSameTitle:' + sameTitle);
+
+        // related notes (shared significant terms)
+        const mine = mAiAnTopStems(c, 40);
+        const related = [];
+        if(mine.size >= 3){
+            relPool.forEach(function(o){
+                if(o.id === c.id) return;
+                let st = stemCache.get(o.id);
+                if(!st){ st = mAiAnTopStems(o, 40); stemCache.set(o.id, st); }
+                if(st.size < 3) return;
+                const shared = []; mine.forEach(function(s){ if(st.has(s)) shared.push(mine.forms.get(s) || s); });
+                if(shared.length < 3) return;
+                related.push({ id: o.id, name: o.name, folder: o.folder || '', sharedTerms: shared.slice(0, 6), score: Math.round(shared.length / Math.sqrt(mine.size * st.size) * 100) / 100 });
+            });
+            related.sort(function(a, b){ return b.score - a.score; });
+        }
+
+        const total = text.length;
+        let content = text, truncated = false;
+        if(total > textBudget){
+            content = text.slice(0, textBudget); const nl = content.lastIndexOf('\n');
+            if(nl > textBudget * 0.6) content = content.slice(0, nl);
+            truncated = true;
+        }
+
+        return {
+            id: c.id, name: c.name, folder: c.folder || '', tags: c.tags || [],
+            pinned: !!c.pinned, favorite: !!c.favorite, archived: !!c.archived,
+            lastEdited: mAiDualDateLabel(c.lastEdited),
+            daysSinceLastEdit: editedMs ? Math.floor((now - editedMs) / DAY) : null,
+            ageDays: createdMs ? Math.floor((now - createdMs) / DAY) : null,
+            size: { words: words, lines: nonEmpty.length, sentencesApprox: sentences.length, avgWordsPerSentence: sentences.length ? Math.round(words / sentences.length * 10) / 10 : 0,
+                longestSentenceWords: longest, estReadMinutes: Math.max(1, Math.round(words / 200)), characters: total },
+            language: language,
+            structure: { headings: P.headings.slice(0, 30), headingsTotal: P.headings.length, sections: sections.slice(0, 25),
+                listItems: P.listItems, orderedListItems: P.orderedItems, tables: P.tables, images: P.images, boldPhrases: Array.from(new Set(P.bold)).slice(0, 10) },
+            tasks: tasks,
+            datesFound: dates.slice(0, 15), datesFoundTotal: dates.length,
+            numbersFound: numbers, numbersFoundTotal: numTotal,
+            links: urls.slice(0, 15), linksTotal: urls.length,
+            questions: questions,
+            actionCandidates: actionCandidates,
+            keyTerms: keyTerms, keyPhrases: keyPhrases,
+            repeatedLines: repeatedLines,
+            qualityFlags: flags,
+            relatedNotes: related.slice(0, 3),
+            contentTruncated: truncated, contentCharsReturned: content.length, contentCharsTotal: total,
+            content: content
+        };
+    }
+    function mAiAnalyzeNote(input, fa){
+        input = input || {};
+        const MAXN = 8, TOTAL_BUDGET = 60000;
+        let refs = Array.isArray(input.notes) ? input.notes.slice() : [];
+        if(input.note) refs.push(input.note);
+        refs = refs.map(function(r){ return String(r || '').trim(); }).filter(Boolean);
+        let targets = [], notAnalyzed = 0, scope = 'notes';
+        if(refs.length){
+            if(refs.length > MAXN) return { ok:false, error: fa ? ('حداکثر ' + MAXN + ' یادداشت در هر درخواست؛ برای بیشتر، چند بار صدا بزن.') : ('At most ' + MAXN + ' notes per request; call again for more.') };
+            for(let i = 0; i < refs.length; i++){
+                const it = mAiResolveNote(refs[i]);
+                if(!it) return { ok:false, error: (fa ? 'یادداشتی پیدا نشد: ' : 'No matching note found: ') + refs[i] };
+                if(mAiIsLockedForAi(it)) return { ok:false, error: (fa ? 'این یادداشت قفل است و قابل تحلیل نیست: ' : 'This note is locked and cannot be analysed: ') + (it.name || refs[i]) };
+                if(!targets.some(function(t){ return t.id === it.id; })) targets.push(it);
+            }
+        } else if(String(input.folder || '').trim()){
+            const pool = mAiNiVisible(input.include_archived === true, input.folder).slice().sort(function(a, b){ return mAiNiEditedMs(b) - mAiNiEditedMs(a); });
+            if(!pool.length) return { ok:false, error: fa ? 'در این پوشه یادداشتِ قابل‌تحلیلی نیست.' : 'There are no analysable notes in that folder.' };
+            targets = pool.slice(0, MAXN); notAnalyzed = Math.max(0, pool.length - MAXN); scope = 'folder';
+        } else {
+            return { ok:false, error: fa ? 'یک یادداشت (note یا notes) یا یک پوشه (folder) لازم است.' : 'A note (note or notes) or a folder is required.' };
+        }
+        const budget = targets.length === 1 ? TOTAL_BUDGET : Math.max(3000, Math.floor(TOTAL_BUDGET / targets.length));
+        const relPool = mAiNiVisible(true).slice().sort(function(a, b){ return mAiNiEditedMs(b) - mAiNiEditedMs(a); }).slice(0, 600);
+        const stemCache = new Map();
+        const notes = targets.map(function(c){ return mAiAnalyzeOne(c, budget, relPool, stemCache); });
+        return { ok:true, data:{
+            scope: scope, count: notes.length, notesNotAnalyzed: notAnalyzed, lockedNotesExcluded: mAiNiLockedCount(),
+            notes: notes,
+            howToAnalyze: fa
+                ? 'تحلیل را فقط از content و عددهای همین خروجی بنویس: عددها را عیناً بردار، چیزی که در متن نیست نساز، ادعاهای مهم را با اشاره به همان بخش یا یک نقل‌قول خیلی کوتاه پشتیبانی کن و واقعیت را از برداشت خودت جدا کن. actionCandidates و qualityFlags فقط سرنخ‌اند. اگر contentTruncated درست است صریح بگو بر پایه‌ی بخشی از متن است. کوتاه و ساختارمند بنویس.'
+                : 'Write the analysis only from the content and numbers in this output: copy numbers exactly, never invent what is not in the text, support important claims by pointing to the section or a very short quote, and keep facts apart from your own judgement. actionCandidates and qualityFlags are only hints. If contentTruncated is true, say plainly that it rests on part of the text. Be short and structured.'
         } };
     }
 
@@ -29874,6 +30482,19 @@ const MU_AI = (function(){
         if(!terms.length) return { ok:false, error: fa ? 'عبارت‌ها بیش‌ازحد کلی‌اند؛ چند اصطلاح مرتبط‌تر بده.' : 'The terms are too generic — provide more specific related terms.' };
         const queryWordTerms = terms.filter(function(t){ return t.single; });
 
+        // The app's own search engine (typos, Finglish, wrong keyboard, synonyms, concept clusters, related-word expansion),
+        // run once per concept term and fused with the passage ranking below.
+        let ms = null;
+        try{
+            if(typeof window.mu_aiMeaningSearch === 'function'){
+                const msList = [];
+                if(qWords.length > 1) msList.push({ text: qWords.join(' '), weight: 1.3 });
+                qWords.forEach(function(w){ msList.push({ text: w, weight: 1.0 }); });
+                related.slice(0, 40).forEach(function(t){ msList.push({ text: t, weight: 0.8 }); });
+                ms = window.mu_aiMeaningSearch(msList, { allowedIds: new Set(pool.map(function(c){ return c.id; })) });
+            }
+        }catch(_){ ms = null; }
+
         // Per-note data: whole-note stem counts (for the note-level score) and 3-sentence sliding windows
         // (for the passage-level score) — meaning lives in a passage, not scattered over a long note.
         const prepared = pool.map(function(c){
@@ -29982,12 +30603,16 @@ const MU_AI = (function(){
             contrib.sort(function(a, b){ return b.v - a.v; });
             return {
                 p: p, docScore: docScore, passScore: bestPass, distinct: distinct, qHit: qHit, passDistinct: bestDistinct,
-                win: bestWin, matched: (bestLabels.length ? bestLabels : contrib).slice(0, 8).map(function(x){ return x.label; })
+                win: bestWin, matched: (bestLabels.length ? bestLabels : contrib).slice(0, 8).map(function(x){ return x.label; }),
+                ms: (ms && ms.byId[p.c.id]) || null
             };
-        }).filter(function(r){ return r.docScore > 0 || r.passScore > 0; });
+        }).filter(function(r){ return r.docScore > 0 || r.passScore > 0 || !!r.ms; });
         const maxDoc = scored.reduce(function(m, r){ return Math.max(m, r.docScore); }, 0) || 1;
         const maxPass = scored.reduce(function(m, r){ return Math.max(m, r.passScore); }, 0) || 1;
-        scored.forEach(function(r){ r.final = 0.45 * (r.docScore / maxDoc) + 0.55 * (r.passScore / maxPass); });
+        scored.forEach(function(r){
+            const base = 0.45 * (r.docScore / maxDoc) + 0.55 * (r.passScore / maxPass);
+            r.final = r.ms ? (0.65 * base + 0.35 * r.ms.score) : base;
+        });
         scored.sort(function(a, b){ return b.final - a.final; });
 
         const top = scored.slice(0, limit);
@@ -30000,11 +30625,13 @@ const MU_AI = (function(){
                 id: c.id, name: c.name, folder: c.folder || '', tags: c.tags || [],
                 lastEdited: mAiDualDateLabel(c.lastEdited),
                 relevance: Math.round(r.final * 100),
-                confidence: strong ? 'high' : (partial ? 'medium' : 'low'),
+                confidence: strong ? 'high' : ((partial || (r.ms && r.ms.score >= 0.5)) ? 'medium' : 'low'),
+                matchTypes: (r.ms && r.ms.kinds.length) ? r.ms.kinds : undefined,
+                appSearchScore: r.ms ? Math.round(r.ms.score * 100) : undefined,
                 queryWordsMatched: totalQ ? (r.qHit + '/' + totalQ) : undefined,
                 termsMatchedInBestPassage: r.passDistinct,
-                matchedTerms: r.matched,
-                bestPassage: mAiNiClip(r.win ? r.win.text : '', 360),
+                matchedTerms: (r.matched && r.matched.length) ? r.matched : (r.ms ? r.ms.matched : []),
+                bestPassage: mAiNiClip(r.win ? r.win.text : ((r.ms && r.ms.snippet) || ''), 360),
                 opening: mAiNiClip(r.p.text, 130)
             };
         });
@@ -30012,6 +30639,8 @@ const MU_AI = (function(){
         const data = {
             scannedNotes: N,
             searchTermsUsed: terms.length,
+            engine: ms ? 'app-search-engine + passage ranking' : 'passage ranking',
+            engineNote: ms ? 'Matches come from the same smart engine as the in-app search (typo, Finglish, wrong-keyboard, synonym and related-word tolerant) fused with passage ranking. matchTypes (if present) says how a note matched: fuzzy = typo-tolerant, finglish = Persian/Latin spelling, synonym / semantic = related word, keyboard = wrong layout. appSearchScore is 0-100 relative to the best note.' : undefined,
             results: results,
             lockedNotesExcluded: mAiNiLockedCount(),
             note: fa
@@ -30097,27 +30726,40 @@ const MU_AI = (function(){
                     return { ok:true, data };
                 }
                 case 'find_notes': {
-                    const qn = normalizeText(String(input.query || '').trim());
+                    const qRaw = String(input.query || '').trim();
+                    const qn = normalizeText(qRaw);
                     const base = categories.filter(c => !c.isDecoy && (!isNoteLocked(c) || unlockedQaIds.includes(c.id)));
-                    let list = base;
-                    if(qn){
-                        // First try a plain substring match (fast path for clean queries).
-                        list = base.filter(c => {
+                    let list = base, kinds = {}, snippets = {}, suggestion = null, engine = 'basic';
+                    if(qRaw){
+                        /* Same engine as the in-app search bar (typos, Finglish, wrong keyboard layout, synonyms, operators,
+                           relevance ranking). Plain substring matching is kept as a supplement (it also covers notes the user
+                           unlocked for this chat, whose body the app index does not hold). */
+                        let smart = null;
+                        try{
+                            if(typeof window.mu_aiSmartSearch === 'function'){
+                                smart = window.mu_aiSmartSearch(qRaw, { allowedIds: new Set(base.map(c => c.id)), includeArchived: true, limit: 60 });
+                            }
+                        }catch(_){ smart = null; }
+                        const plainHits = qn ? base.filter(c => {
                             const name = normalizeText(c.name || '');
                             const body = normalizeText(mu_notePlainText(c) || '');
                             const tags = (c.tags || []).some(t => normalizeText(t).includes(qn));
                             return name.includes(qn) || body.includes(qn) || tags;
-                        });
-                        /* Fuzzy fallback: the query may itself carry the user's typos
-                           (misspelled note title, swapped/dropped letters, sloppy
-                           spacing) relayed almost verbatim by the model, so an exact
-                           substring match can legitimately find nothing even though a
-                           note clearly matches. Score every note by term overlap,
-                           allowing each search word to match a near-miss substring
-                           (same trick used by the app's own fuzzy in-note search), and
-                           fall back to whatever scores reasonably instead of reporting
-                           "not found". */
-                        if(!list.length){
+                        }) : [];
+                        if(smart){
+                            engine = 'app-smart-search';
+                            const byId = new Map(base.map(c => [c.id, c]));
+                            list = smart.ids.map(id => byId.get(id)).filter(Boolean);
+                            kinds = smart.kinds || {}; snippets = smart.snippets || {}; suggestion = smart.suggestion || null;
+                            if(smart.hasText){
+                                const have = new Set(list.map(c => c.id));
+                                plainHits.forEach(c => { if(!have.has(c.id)) list.push(c); });
+                            }
+                        } else {
+                            list = plainHits;
+                        }
+                        /* Last-resort fuzzy fallback (only if both of the above found nothing). */
+                        if(!list.length && qn){
                             const terms = qn.split(/\s+/).filter(Boolean);
                             if(terms.length){
                                 const scored = base.map(c => {
@@ -30135,6 +30777,9 @@ const MU_AI = (function(){
                         }
                     }
                     return { ok:true, data:{
+                        searchEngine: engine,
+                        howToAnswer: 'These results come from the same smart search as the in-app search bar, already ranked by relevance. Write them directly in your chat reply (title, folder, a short snippet) - do NOT open the search screen. matchType (if present) says why a note matched: fuzzy = typo-tolerant, finglish = Persian/Latin spelling, keyboard = wrong keyboard layout, synonym/semantic = related word. Notes without matchType contain the searched word directly.',
+                        didYouMean: suggestion || undefined,
                         lockedNotesExcluded: categories.filter(c => isNoteLocked(c) && !unlockedQaIds.includes(c.id)).length,
                         lockedNotesHint: 'Locked notes are not searched here; call list_all_notes to list their names.',
                         totalMatches: list.length, returned: Math.min(list.length, 30), truncated: list.length > 30,
@@ -30142,7 +30787,8 @@ const MU_AI = (function(){
                         notes: list.slice(0, 30).map(c => ({
                             id: c.id, name: c.name, folder: c.folder || '', tags: c.tags || [],
                             pinned: !!c.pinned, favorite: !!c.favorite, archived: !!c.archived,
-                            snippet: mu_notePlainText(c).slice(0, 180)
+                            matchType: kinds[c.id] || undefined,
+                            snippet: snippets[c.id] || mu_notePlainText(c).slice(0, 180)
                         }))
                     } };
                 }
@@ -31576,6 +32222,7 @@ const MU_AI = (function(){
                     }
                 }
                 case 'get_period_digest': return mAiNiPeriodDigest(input, fa);
+                case 'analyze_note': return mAiAnalyzeNote(input, fa);
                 case 'find_contradictions': return mAiNiContradictions(input, fa);
                 case 'semantic_search_notes': return mAiNiSemanticSearch(input, fa);
                 case 'telegram_backup_create': {
@@ -31648,7 +32295,10 @@ const MU_AI = (function(){
                         passwordProtected: !!e.enc
                     }));
                     return { ok:true, data:{
-                        backups: data, manualCount: data.filter(e=>e.kind==='manual').length, manualBackupLimit: MAX_MANUAL_BACKUPS
+                        backups: data, manualCount: data.filter(e=>e.kind==='manual').length, manualBackupLimit: MAX_MANUAL_BACKUPS,
+                        lastAutoBackup: (function(){ const x = data.filter(e=>e.kind==='auto')[0]; return x ? { dateLabel:x.dateLabel, dateGregorian:x.dateGregorian, dateJalali:x.dateJalali, ts:x.ts } : null; })(),
+                        lastManualBackup: (function(){ const x = data.filter(e=>e.kind==='manual')[0]; return x ? { label:x.label, dateLabel:x.dateLabel, dateGregorian:x.dateGregorian, dateJalali:x.dateJalali, ts:x.ts } : null; })(),
+                        manualBackupNames: data.filter(e=>e.kind==='manual').map(e => e.label || null)
                     } };
                 }
                 case 'telegram_backup_delete': {
@@ -33752,6 +34402,7 @@ const MU_AI = (function(){
                 + '۳) کارشناس خودِ برنامه: کل امکانات Markhin را می‌شناسی و درباره‌شان دقیق و کاربردی راهنمایی می‌کنی، حتی آن‌هایی که ابزار مستقیم برایشان نداری: پوشه‌بندی و برچسب‌گذاری یادداشت‌ها، پین و فیوریت‌کردن، آرشیو و بازگردانی، شبکه دانش (نمای گرافی ارتباط یادداشت‌ها)، پورتال رندوم، درون‌ریزی از JSON/CSV/TXT/MD/DOCX/HTML (این یکی چون به انتخاب فایل واقعی از گوشی کاربر نیاز دارد، فقط می‌توانی راهنمایی کنی). خروجیِ HTML کامل برنامه (بکاپ کل برنامه) را هم می‌توانی مستقیم با ابزار export_notes و فرمت app_html بسازی (حالت data: برنامه + همه یادداشت‌ها و پوشه‌ها بدون کلید API، حالت clean: برنامهٔ خالی)؛ نسخه‌ای که کلید API را هم داخلش دارد فقط خودِ کاربر از گزینهٔ «کامل، حتی کلید API» در منوی خروجی HTML می‌تواند بسازد و ابزار مستقیمی برایش نداری. همچنین بکاپ Cloud تلگرام (پنل ☁️): یک «بکاپ خودکار» هست که چند ثانیه بعد از هر ویرایش، بی‌صدا و بدون کاری از طرف کاربر، متنِ یادداشت‌ها را در فضای ابری خودِ تلگرام ذخیره می‌کند (تصاویر در آن نیستند، فقط روی همان دستگاه می‌مانند) — این همیشه فعال است. جدا از آن، «دریافتِ خودکار» تغییرات دستگاه‌های دیگر (یادداشت جدید، ویرایش، یا حذف) بدون فشردن دستی Restore، فقط روی دستگاهی کار می‌کند که قبلاً حداقل یک‌بار «ذخیره‌ی یک بکاپ جدید» یا «بازیابی» زده باشد؛ اگر کاربر گفت یادداشت‌ها/حذف‌ها بین دو دستگاهش خودکار سینک نمی‌شوند، دقیقاً همین را توضیح بده و بگو یک‌بار در پنل ☁️، تب «بکاپ خودکار»، دکمه‌ی «فعال‌سازی / تعمیر سینک خودکار» را بزند — همان لحظه هم وضعیت را روشن می‌کند هم یک‌بار با بکاپ ابری چک/merge می‌کند؛ زدنش هیچ‌وقت ضرر ندارد. پنل دو تب کنار هم دارد: «بکاپ خودکار» (پیش‌فرض؛ وضعیت سینک، آخرین نسخه‌ی خودکار و دکمه‌ی فعال‌سازی/تعمیر سینک) و «بکاپ دستی» (تنظیم تعداد بکاپ‌ها، برچسب، ذخیره و فهرست بکاپ‌های ذخیره‌شده). پایین هر دو تب، تعداد کلیدهای واقعیِ مصرف‌شده در Cloud تلگرام نوشته شده: کلیدهای بکاپ خودکار، کلیدهای بکاپ‌های دستی، کل کلیدهای ربات از 1024 و سقف تعیین‌شده‌ی برنامه (960 کلید)؛ اگر کاربر پرسید چقدر جا مانده، همین را بگو. در تب دستی علاوه بر بکاپِ خودکار، «ذخیره‌ی یک بکاپ جدید» (تا ۷ بکاپ دستی، با برچسب و رمزِ اختیاری)، «مشاهده» محتوای هر بکاپ قبل از بازیابی، «بازیابی» (یادداشتِ جدیدتر از بکاپ اضافه/به‌روزرسانی می‌شود، حذف‌های عمدی برنمی‌گردند)، و «🔓 بازیابی و لغو حذف‌ها» (وقتی کاربر صریحاً می‌خواهد یادداشت‌های حذف‌شده هم دقیقاً از همان یک بکاپِ مشخص برگردند، برخلاف رفتار عادیِ بازیابی که حذف‌های عمدی را برنمی‌گرداند) هم هست — همه‌ی این‌ها فقط از پنل ☁️ در دسترس‌اند، ابزار مستقیم برایشان نداری. همچنین بخش «⚙️ تنظیمات بکاپ» بالای همان پنل به کاربر اجازه می‌دهد تعداد بکاپ‌های دستیِ هم‌زمان را از ۰ تا ۷ (پیش‌فرض ۳) تغییر دهد؛ چون تلگرام به هر بات فقط ۱۰۲۴ کلید ذخیره‌سازی می‌دهد، این عدد مستقیماً حجمِ مجازِ هر بکاپ (خودکار و دستی) را تعیین می‌کند — هرچه تعداد بکاپ دستی بیشتر باشد سهمِ هرکدام از فضا کمتر می‌شود، و گذاشتنش روی ۰ بکاپ دستی را کلاً خاموش می‌کند و تقریباً تمام فضا را به بکاپ خودکار می‌دهد. کم‌کردن این عدد به کمتر از تعداد بکاپ‌های دستیِ فعلی، قدیمی‌ترین‌هایشان را برای همیشه حذف می‌کند (فقط بعد از تأیید کاربر). این تنظیم هم فقط از همان پنل ☁️ قابل‌تغییر است، ابزار مستقیمی برایش نداری. تنظیمات برنامه را هم مستقیماً با ابزار تغییر می‌دهی، نه فقط توضیح: روشن/خاموش‌کردن نسخه سبک (set_lite_mode — تا وقتی روشن است تغییر تم قفل است؛ پس اگر کاربر تغییر تم خواست، اول بگو و پیشنهاد بده نسخه سبک را خاموش کنی)، زوم صفحه (set_page_zoom — پیش‌فرض خاموش است؛ شبکه دانش همیشه زوم مخصوص خودش را دارد و به این تنظیم وابسته نیست)، موسیقی پس‌زمینهٔ برنامه — روشن/خاموش و کم/زیاد کردن بلندی صدا (set_background_music)، سبک کادر نمایش یادداشت (set_viewer_style)، پیش‌نمایش یادداشت‌ها و تعداد خط‌هایش (set_note_preview)، ترتیب نمایش لیست (set_list_sort_mode)، و خواندن وضعیت فعلی همه‌ی این‌ها (get_app_settings — همیشه به‌جای حدس‌زدن وضعیت یک تنظیم، آن را صدا بزن). تغییر تم ظاهری، تغییر زبان، خروجی‌گرفتن واقعی از یادداشت‌ها (JSON/CSV/MD/TXT/HTML/PDF/DOCX/PNG/JPG، بسته کامل ZIP، ZIPهای تک\u200cفایلی، بکاپ کامل HTML برنامه)، باز کردن شبکه دانش/پورتال رندوم، و قفل‌کردن واقعیِ یک یادداشت با رمز (با ابزار lock_note — همان دیالوگ امنِ رمزگذاریِ خودِ برنامه باز می‌شود و کاربر رمز و راهنمای رمز را مستقیماً همان‌جا وارد می‌کند، هرگز از طریق این چت) را هم می‌توانی مستقیماً با ابزار انجام دهی، نه فقط توضیح بدهی. وقتی کاربر پرسید فلان کار در برنامه چطور انجام می‌شود، دقیقاً بگو کدام دکمه/بخش را لمس کند. همچنین این بخش‌های برنامه را می‌شناسی و دقیق راهنمایی می‌کنی: «جستجو» (جستجوی سراسری؛ با Ctrl+K هم باز می‌شود؛ فارسی، انگلیسی و فینگلیش را می‌فهمد، عملگرهای tag:، folder:، is:pinned، is:favorite، «عبارت دقیق» و علامت - برای حذف یک کلمه را دارد و جستجوهای اخیر را نگه می‌دارد)؛ «داشبورد» (آمار کل: تعداد یادداشت، کلمه، حرف، پوشه، تگ، میانگین کلمات، و فهرست پین‌شده، علاقه‌مندی، قفل‌شده، فریب‌دهنده، بایگانی، Ghost و کپسول زمانیِ فعال)؛ «🧬 DNA یادداشت» (تحلیل یک یادداشت: کلمه‌ها، نمادها، کلمات یکتا، کلمات کلیدیِ پرتکرار، زمان تقریبی مطالعه، تعداد تصویر و لینک)؛ «اشتراک‌گذاری یادداشت» (TXT، Markdown، HTML، PDF یا تصویر؛ یادداشت قفل‌شده فقط به‌صورت فایل رمزنگاری‌شده به اشتراک گذاشته می‌شود)؛ «انتخاب چندتایی» (نگه‌داشتن طولانی روی یادداشت یا پوشه؛ برای یادداشت‌ها پین، فیوریت، کپی، جابجایی بالا/پایین و حذف، و برای پوشه‌ها حذف گروهی)؛ و ابزارهای داخل خودِ یادداشت: نقاشی (قلم، پاک‌کن، مستطیل، دایره، رنگ، اندازه، برگشت، پاک‌کردن، دانلود و درج در متن)، ضبط صدا، درج و جابجایی تصویر، برگشت/تکرار متن (undo/redo)، دکمه‌ی «نمایش لینک» برای پیش‌نمایش لینک‌ها، و دکمه‌ی کپی یادداشت. داشبورد، جستجو، DNA و اشتراک‌گذاری را با open_app_view برای کاربر باز می‌کنی؛ برای بقیه‌ی این‌ها ابزار مستقیم نداری و فقط راهنمایی می‌کنی.\n\n'
                 + webSearchRoleFa
                 + mAiDateTimeFa
+                + (window.mAiBackupInfo ? window.mAiBackupInfo(true) : '')
                 + 'استانداردِ کیفیت پاسخ (خیلی مهم):\n'
                 + '- برای سوال‌های ساده مستقیم جواب بده، اما برای هر درخواستِ چندمرحله‌ای، تصمیم‌گیری، مقایسه، محاسبه، یا هر جایی که جزئیات به‌هم‌ریخته یا نتیجه‌گیری غلط واقعاً هزینه دارد، قبل از نوشتنِ جواب نهایی، خودت را وادار کن مرحله‌به‌مرحله و آرام فکر کنی (این ظرفیتِ تفکرِ عمیق‌تر را داری و باید واقعاً از آن استفاده کنی، نه فقط سریع‌ترین پاسخِ ممکن را بنویسی) — ولی این فکرکردنِ داخلی را برای کاربر ننویس، فقط نتیجه‌ی نهاییِ پاک و مرتب را نشان بده.\n'
                 + '- بودجه‌ی فکرکردنِ عمیقِ داخلی‌ات (وقتی در دسترس است) قابل‌توجه است — از آن دریغ نکن؛ برای هر چیزِ واقعاً غیرِپیش‌پاافتاده، فرضیات را بررسی کن، حداقل یک راهِ جایگزین یا یک اشکالِ احتمالی در استدلالِ خودت را قبل از نهایی‌کردنِ جواب امتحان کن، و فقط وقتی که از درست‌بودنِ نتیجه مطمئن شدی آن را ارائه بده. کیفیت و دقتِ نهاییِ پاسخ روی سرعتِ رسیدن به آن اولویت دارد.\n'
@@ -33791,7 +34442,9 @@ const MU_AI = (function(){
                 + '- وقتی کاربر خواست یادداشت‌های مرتبط را پوشه‌بندی/دسته‌بندی/سازمان‌دهی کنی، اول suggest_note_groups را صدا بزن تا گروه‌های پیشنهادی را بگیری، خلاصه‌ی کوتاهی از آنچه پیدا شده به کاربر بگو، و بعد واقعاً با move_note_to_folder (یا bulk_update_notes) برای هر گروه اجرایش کن — فقط به توضیح‌دادن پیشنهاد بسنده نکن.\n'
                 + '- یادداشت‌های قفل (رمزدار) کاملاً خارج از دسترس تو هستند و هیچ ابزاری روی آن‌ها کار نمی‌کند؛ اگر درخواستی به یک یادداشت قفل مربوط بود، به‌سادگی به کاربر بگو باید اول از دکمه 🔒 بالای همین چت بازش کند.\n'
                 + '- بعد از هر عملیات موفق یا ناموفق، نتیجه را کوتاه، شفاف و بدون اصطلاحات فنی گزارش کن.\n'
-                + '- خلاصه هفتگی/ماهانه (دقت مهم است): وقتی کاربر خلاصه، مرور یا آمار یادداشت‌ها در یک بازه خواست، حتماً get_period_digest را صدا بزن و هرگز از حدس یا حافظه ننویس. «این هفته / هفته‌ی پیش / این ماه / ماه پیش» = calendar:true (هفته‌ی شمسی شنبه تا جمعه، ماه شمسی؛ برای «قبلی» periods_ago:1). یک ماه یا بازه‌ی مشخص (مثلاً مهر ۱۴۰۵) = from/to شمسی مثل 1405/07/01 تا 1405/07/30. «۷ روز اخیر / ۳۰ روز اخیر / N روز اخیر» = بدون calendar با period یا days. در یک خط بگو دقیقاً کدام بازه (window.from تا window.to) را بررسی کرده‌ای. سپس فقط از داده‌ی برگشتی بنویس: موضوع‌های اصلی، تم‌های تکراری، آمار (جدید/ویرایش‌شده، کلمه، فعال‌ترین روز، پوشه‌ها و تگ‌ها، مقایسه با بازه‌ی قبل) و نکته‌های برجسته. قوانین: ۱) عددها را عیناً از خروجی بردار (changeVsPrevious و newNotesPerDay هم آماده‌اند) و خودت حساب یا گرد نکن؛ ۲) چیزی که در excerpt یا get_note نیست را ادعا نکن؛ اگر excerptTruncated یا notesNotListed مهم بود get_note بزن یا صریح بگو بر پایه‌ی بخشی از متن است؛ ۳) اگر empty بود بگو در این بازه یادداشتی نیست و چیزی نساز؛ ۴) totalWordsInTouchedNotes حجم کل یادداشت‌های درگیر است، نه نوشته‌ی همین بازه؛ برای «چقدر نوشتم» wordsInNewNotes را بخوان و تفاوت را درست بگو؛ ۵) اگر window.partial درست بود بازه هنوز تمام نشده و مقایسه با همان مقدار گذشته از بازه‌ی قبل است؛ ۶) recurringThemeWords فقط سرنخ است، تم واقعی را از متن یادداشت‌ها تشخیص بده؛ ۷) اگر لازم بود کوتاه بگو هر یادداشت فقط زمان آخرین ویرایشش را نگه می‌دارد و محتوایش وضعیت فعلی است. به زبان کاربر، کوتاه و ساختارمند بنویس.\n'
+                + '- تحلیل یادداشت: وقتی کاربر خواست یادداشتی را «تحلیل / بررسی / نقد / ارزیابی» کنی یا پرسید درباره‌ی چیست، کامل است یا خوب نوشته شده، analyze_note را صدا بزن (متن واقعیِ کامل + واقعیت‌های دقیق) و هرگز از روی عنوان، قطعه‌ی کوتاه find_notes یا حدس تحلیل ننویس. فقط از متن و عددهای برگشتی بنویس: عددها را عیناً بردار، چیزی که در متن نیست نساز، ادعاهای مهم را با اشاره به همان بخش (عنوان یا خط) یا یک نقل‌قول خیلی کوتاه پشتیبانی کن و «واقعیت» را از «برداشت یا پیشنهاد خودت» جدا کن (مثلاً با «به نظرم»). اگر contentTruncated درست بود صریح بگو تحلیل بر پایه‌ی بخشی از متن است. کار باز یا انجام‌شده را فقط از tasks بگو؛ actionCandidates و qualityFlags فقط سرنخ‌اند و باید با متن تأییدشان کنی. قالب پیش‌فرض (کوتاه، حدود ۱۰ تا ۱۲ خط): ۱) در دو جمله یادداشت درباره‌ی چیست؛ ۲) محورها و بخش‌های اصلی؛ ۳) وضعیت کارها و موعدها (اگر هست)؛ ۴) نقاط قوت و ضعف، ناقص‌ها و تناقض‌های داخلی؛ ۵) سه پیشنهاد عملی؛ ۶) یادداشت‌های مرتبط (اگر مفید بود). عددهای DNA را فقط اگر کاربر خواست بگو. برای چند یادداشت یا یک پوشه، به‌جای تحلیل تک‌تک، الگوهای مشترک، تفاوت‌ها و موارد مهم را بگو.\n'
+                + '- جستجوی یادداشت‌ها: find_notes همان موتور جستجوی خود برنامه است (غلط‌یاب، فینگلیش، کیبورد اشتباه، مترادف، رتبه‌بندی) و عملگرهای tag: و folder: و is:pinned و is:favorite و «عبارت دقیق» و -کلمه را می‌فهمد. هر وقت کاربر گفت جستجو کن / پیدا کن / سرچ کن، خودت find_notes را صدا بزن و نتیجه را همین‌جا توی چت بنویس (عنوان، پوشه و یک قطعه‌ی کوتاه از متن)، و صفحه‌ی جستجوی برنامه را باز نکن مگر اینکه کاربر صریحاً گفت «صفحه‌ی جستجو را باز کن». اگر چیزی پیدا نشد و didYouMean آمده بود، همان را امتحان کن. تعداد نتیجه را از totalMatches بگو، نه از تعداد لیست.\n'
+                + '- خلاصه هفتگی/ماهانه (دقت مهم است): وقتی کاربر خلاصه، مرور یا آمار یادداشت‌ها در یک بازه خواست، حتماً get_period_digest را صدا بزن و هرگز از حدس یا حافظه ننویس. «این هفته / هفته‌ی پیش / این ماه / ماه پیش» = calendar:true (هفته‌ی شمسی شنبه تا جمعه، ماه شمسی؛ برای «قبلی» periods_ago:1). یک ماه یا بازه‌ی مشخص (مثلاً مهر ۱۴۰۵) = from/to شمسی مثل 1405/07/01 تا 1405/07/30. «۷ روز اخیر / ۳۰ روز اخیر / N روز اخیر» = بدون calendar با period یا days. در یک خط بگو دقیقاً کدام بازه (window.from تا window.to) را بررسی کرده‌ای. سپس فقط از داده‌ی برگشتی بنویس: موضوع‌های اصلی، تم‌های تکراری، آمار (جدید/ویرایش‌شده، کلمه، فعال‌ترین روز، پوشه‌ها و تگ‌ها، مقایسه با بازه‌ی قبل) و نکته‌های برجسته. قوانین: ۱) عددها را عیناً از خروجی بردار (changeVsPrevious و newNotesPerDay هم آماده‌اند) و خودت حساب یا گرد نکن؛ ۲) چیزی که در excerpt یا get_note نیست را ادعا نکن؛ اگر excerptTruncated یا notesNotListed مهم بود get_note بزن یا صریح بگو بر پایه‌ی بخشی از متن است؛ ۳) اگر empty بود بگو در این بازه یادداشتی نیست و چیزی نساز؛ ۴) totalWordsInTouchedNotes حجم کل یادداشت‌های درگیر است، نه نوشته‌ی همین بازه؛ برای «چقدر نوشتم» wordsInNewNotes را بخوان و تفاوت را درست بگو؛ ۵) اگر window.partial درست بود بازه هنوز تمام نشده و مقایسه با همان مقدار گذشته از بازه‌ی قبل است؛ ۶) recurringThemeWords فقط سرنخ است، تم واقعی را از متن یادداشت‌ها تشخیص بده؛ ۷) اگر لازم بود کوتاه بگو هر یادداشت فقط زمان آخرین ویرایشش را نگه می‌دارد و محتوایش وضعیت فعلی است. ۸) برنامه مدت واقعی مطالعه یا باز کردن یادداشت‌ها را ثبت نمی‌کند؛ هرگز نگو «فلان قدر مطالعه کردی/وقت گذاشتی». اگر کاربر درباره‌ی مطالعه پرسید، estimatedReadMinutes و estReadMinutes را فقط به‌عنوان «زمان تقریبی خواندن متن این یادداشت‌ها» (کلمه÷۲۰۰) بگو و صریح بگو زمان واقعی مطالعه ثبت نمی‌شود؛ ۹) فقط نام یادداشت‌هایی را بیاور که در newNoteNames یا editedNoteNames هستند و نام یا عددی از خودت نساز؛ ۱۰) جواب باید کوتاه باشد (حداکثر حدود ۸ تا ۱۰ خط، بدون مقدمه، تکرار سؤال و توضیح اضافه، مگر کاربر جزئیات خواست). قالب: خط ۱ بازه‌ی بررسی‌شده؛ خط ۲ آمار فشرده (چند یادداشت جدید، چند ویرایش‌شده، کلمه‌ی نوشته‌شده، مقایسه با بازه‌ی قبل، فعال‌ترین روز)؛ بعد «جدید:» و «ویرایش‌شده:» با نام یادداشت‌ها (اگر زیاد بود ۵ تا ۸ تای اول و «و N تای دیگر»)؛ بعد زمان تقریبی خواندن در یک جمله؛ در آخر یک خط تم‌ها یا نکته‌ی برجسته. به زبان کاربر بنویس.\n'
                 + '- تناقض‌یابی: وقتی کاربر خواست ناهمخوانی یا تناقض بین یادداشت‌هایش را پیدا کنی («یه‌جا نوشتم X و یه‌جای دیگه برعکسش»)، find_contradictions را صدا بزن. خروجی فقط «جمله‌های مشکوک» است، نه تناقض تأییدشده؛ خودت هر جفت را بخوان و صادقانه بگو کدام‌ها واقعاً متناقض‌اند، کدام‌ها فقط تغییر نظر یا وضعیت در گذر زمان‌اند (به تاریخ آخرین ویرایش دو یادداشت نگاه کن) و کدام‌ها هشدار اشتباه‌اند. اگر تناقض واقعی پیدا نشد همین را بگو و چیزی از خودت نساز. فیلدهای confidence، cautions و possibleChangeOfMind را جدی بگیر؛ اگر جمله‌ها برای قضاوت کافی نبود متن کامل را با get_note بخوان؛ و نبودِ نتیجه را هرگز «بدون تناقض بودن» گزارش نکن (فقط بگو با این روش چیزی پیدا نشد). بدون درخواست کاربر چیزی را ویرایش یا حذف نکن؛ فقط پیشنهاد بده.\n'
                 + '- جست‌وجوی معنایی: وقتی کاربر یادداشتی را با توصیف مفهومی می‌خواهد («اون یادداشتی که درباره‌ی دلتنگی برای دوران دانشجویی نوشته بودم») حتی اگر کلمه‌ی دقیقش در آن نباشد، اول خودت مفهوم را باز کن و ۱۵ تا ۳۰ اصطلاح مرتبط (مترادف، مفاهیم نزدیک، کلمات و موقعیت‌ها و احساس‌های همراهش؛ فارسی و در صورت لزوم انگلیسی) بساز و همراه query به semantic_search_notes بده. بعد قطعه‌های برگشتی را از نظر معنا خودت قضاوت کن و فقط یادداشت‌هایی را معرفی کن که واقعاً می‌خورند، با توضیح کوتاه این‌که چرا. اگر نتیجه ضعیف بود overviewOfOtherNotes را هم بررسی کن یا با اصطلاحات دیگر دوباره جست‌وجو کن. برای جست‌وجوی ساده‌ی کلمه‌ای همچنان find_notes را بزن.\n'
                 + '- نتیجه get_knowledge_graph فقط ۸ کلمه مشترک اول هر ارتباط را می‌دهد. اگر moreSharedWords بزرگ‌تر از صفر بود، همان ۸ تا را بگو و بنویس چند کلمه دیگر هم هست و از کاربر بپرس می‌خواهد فهرست کامل را ببیند یا نه؛ فقط بعد از تأیید صریح او دوباره با all_words=true صدا بزن و فهرست کامل را بده. بدون تأیید همه کلمات را نخواه.\n'
@@ -33813,6 +34466,7 @@ const MU_AI = (function(){
                 + '3) App expert: you know the whole Markhin feature set and give precise, actionable guidance about any of it, even features you have no direct tool for: folders and tags, pinning and favoriting, archiving/restoring, the Knowledge Graph (a graph view of how notes connect), the Random Portal, importing from JSON/CSV/TXT/MD/DOCX/HTML (this one needs the user to actually pick a file on their device, so you can only guide them to it). The full-app HTML export (a complete backup of the app itself) you can create directly with export_notes format app_html (app_mode data = app plus all notes and folders without the API key, clean = blank app); the variant that also contains the API key can only be made by the user from the "Full, including API key" option of the HTML export menu, you have no tool for it. Also Telegram Cloud backup (the ☁️ panel): an "auto backup" saves the notes\' text to Telegram\'s own cloud a few seconds after every edit, silently, with nothing for the user to do (images aren\'t included, they stay on-device) — this always runs. Separately, automatically *pulling in* another device\'s changes (new notes, edits, or deletions) without the user manually tapping Restore only works on a device that has, at some point, tapped "Save a new backup" or "Restore" at least once; if the user says notes/deletions aren\'t syncing automatically between two of their devices, explain exactly this and tell them to open the ☁️ panel once, go to the "Auto backup" tab and tap "Enable / fix auto sync" — it turns that on immediately and also does one check-and-merge against the cloud backup right then; tapping it is never harmful. The panel has two tabs side by side: "Auto backup" (the default; sync status, the latest auto version and the enable/fix auto sync button) and "Manual backup" (the manual-backup count setting, label, save button and the list of saved backups). At the bottom of both tabs it shows the real number of Telegram Cloud keys in use: auto-backup keys, manual-backup keys, all keys of the bot out of 1024, and the app-defined limit (960 keys); if the user asks how much space is left, use these. In the Manual tab, beyond the auto backup there\'s also "Save a new backup" (up to 7 manual snapshots, with an optional label and password), "View" a backup\'s contents before restoring, "Restore" (newer notes from the backup are added/updated, deliberate deletions are never brought back), and "🔓 Restore and undo deletions" (for when the user explicitly wants a deleted note back from one specific backup, overriding the normal behavior) — all of these live only in the ☁️ panel; you have no tool to open, view the inside of, or restore a backup. HOWEVER you DO have telegram_backup_list, and it is the ONLY trustworthy source for backups: for ANY question about which backups exist, a backup name, label or date, or how many notes a backup holds, you MUST call telegram_backup_list FIRST and answer strictly from its result (label, dateLabel, notes, skipped, approxSizeKB, passwordProtected). NEVER guess or invent a backup name, date or note count, and NEVER convert or write a date yourself: quote label and dateLabel exactly as returned, or call convert_date. If the tool returns ok:false (for example the app is not running inside Telegram), tell the user that plainly instead of answering from imagination. Never output long meaningless strings of letters or digits; if you have no real data, say so in one short sentence. There\'s also an "⚙️ Backup settings" block at the top of that same panel, where the user can change how many manual backups are kept at once, from 0 to 7 (default 2); since Telegram gives each bot only 1024 storage keys, this number directly sets the size cap for every backup (auto and manual) — more manual backups means a smaller cap for each, and setting it to 0 turns manual backups off entirely so nearly all the space goes to the auto backup alone. Lowering the number below the current manual-backup count permanently deletes the oldest ones (after the user confirms). This setting, too, can only be changed from the ☁️ panel itself; you have no direct tool for it. Changing any app setting directly with a tool, not just explaining it: Lite version on/off (set_lite_mode - while it is on, theme changes are locked, so if the user asks for a theme change first tell them and offer to turn Lite off), Eco power-saving options (set_eco_option - all on by default: pause animations while typing / in note viewer / idle / background), the scroll-pause delay (set_scroll_pause_delay - how many milliseconds the heavy theme effects stay paused after scrolling stops, 0 to 1000, default 300; 0 = off), page zoom on/off (set_page_zoom - off by default; the Knowledge Graph always has its own zoom and does not depend on this setting), the background music (the app theme song) on/off and its volume (set_background_music), note viewer frame style (set_viewer_style), note previews and their line count (set_note_preview), the list display order (set_list_sort_mode), and reading the current state of all of them (get_app_settings - always call it instead of guessing a setting\'s state). Switching the visual theme, switching the language, actually exporting notes to a real file (JSON/CSV/MD/TXT/HTML/PDF/DOCX/PNG/JPG, the complete ZIP bundle, per-format individual-file ZIPs, the full-app HTML snapshot), opening the Knowledge Graph / Random Portal, and actually password-locking a note (with the lock_note tool — this opens the app\'s own real, secure encryption dialog, where the user types the password and an optional hint directly, never through this chat) are things you can do directly with a tool, not just explain. When asked how to do something in the app, say exactly which button or section to tap. You also know these other parts of the app and guide users through them precisely: Search (the app-wide search; it also opens with Ctrl+K; it understands Persian, English and Finglish, supports the operators tag:, folder:, is:pinned, is:favorite, \"exact phrase\" and a leading - to exclude a word, and remembers recent searches); the Dashboard (overall stats: note, word, character, folder and tag counts, average words, plus the pinned, favorite, locked, decoy, archived, active Ghost and active Time Capsule lists); Note DNA (an analysis of one note: words, symbols, unique words, top keywords, estimated reading time, image and link counts); Share note (TXT, Markdown, HTML, PDF or image; a locked note is only ever shared as an encrypted file); multi-select (long-press a note or folder; for notes: pin, favorite, duplicate, move up/down and delete, for folders: bulk delete); and the tools inside a note itself: drawing (pen, eraser, rectangle, circle, color, size, undo, clear, download and insert into the text), voice recording, inserting and moving images, text undo/redo, the \"Show link\" button for link previews, and the duplicate-note button. You can open the dashboard, search, Note DNA and the share picker for the user with open_app_view; for the rest you have no direct tool and only guide.\n\n'
                 + webSearchRoleEn
                 + mAiDateTimeEn
+                + (window.mAiBackupInfo ? window.mAiBackupInfo(false) : '')
                 + 'Answer quality standard (important):\n'
                 + '- Answer simple questions directly, but for anything multi-step, a decision, a comparison, a calculation, or anywhere a mixed-up detail or wrong conclusion actually costs the user something, force yourself to reason step by step, unhurried, before writing the final answer (you have real capacity for deeper reasoning here and should actually use it, not just produce the fastest possible answer) — but never show that internal reasoning to the user, only the clean final result.\n'
                 + '- Your internal deep-thinking budget (when available) is substantial — use it. For anything genuinely non-trivial, check your own assumptions, try at least one alternative approach or look for a flaw in your own reasoning before finalizing, and only give the answer once you are actually confident it is correct. Getting the final answer right matters more than getting to it fast.\n'
@@ -33856,7 +34510,9 @@ const MU_AI = (function(){
                 + '- When the user asks you to organize/tidy/group related notes into folders, first call suggest_note_groups to get candidate groups, briefly tell the user what it found, then actually carry it out yourself using move_note_to_folder (or bulk_update_notes) for each group — don\'t just describe the suggestion and stop there.\n'
                 + '- Locked (password-protected) notes are completely out of your reach and no tool can act on them; if a request touches one, simply tell the user to unlock it first via the 🔒 button above this chat.\n'
                 + '- After any operation, succeeded or not, report back briefly and plainly, with no technical jargon.\n'
-                + '- Weekly/monthly summaries (accuracy matters): when the user asks for a summary, recap or stats of notes over a period, ALWAYS call get_period_digest and never answer from guesses. "This week / last week / this month / last month" = calendar:true (Saturday-Friday Persian week, Jalali month; for "last" use periods_ago:1). A specific named month or range = from/to, Gregorian or Jalali (e.g. 1405/07/01 to 1405/07/30). "Last 7 / 30 / N days" = no calendar, use period or days. State in one line exactly which window (window.from to window.to) you covered. Then write only from the returned data: main topics, recurring themes, stats (new vs edited, words, busiest day, folders, tags, comparison with the previous window) and notable points. Rules: 1) copy every number verbatim (changeVsPrevious and newNotesPerDay are pre-computed), never recompute or round them; 2) never claim anything absent from the excerpts or get_note; if excerptTruncated or notesNotListed matters, call get_note or say the summary rests on part of the text; 3) if empty is true, say there are no notes in that window and invent nothing; 4) totalWordsInTouchedNotes is the size of all touched notes, not what was written in the window; for how much was written use wordsInNewNotes and say which you mean; 5) if window.partial is true the period is unfinished and the comparison uses the same elapsed part of the previous one; 6) recurringThemeWords are only hints, judge real themes from the note text; 7) if relevant, mention briefly that each note only remembers its last edit time and its content is its current state. Answer in the user language, short and structured.\n'
+                + '- Note analysis: when the user asks you to analyze / review / critique / evaluate a note, or asks what it is about, whether it is complete or well written, call analyze_note (the real full text plus exact facts) and never analyse from the title, a find_notes snippet or a guess. Write only from the returned text and numbers: copy numbers exactly, never invent what is not in the text, support important claims by pointing to the section (heading or line) or a very short quote, and keep facts apart from your own judgement or suggestions (e.g. "I think"). If contentTruncated is true, say plainly that it rests on part of the text. Report open or finished tasks only from tasks; actionCandidates and qualityFlags are hints you must confirm against the text. Default format (short, about 10-12 lines): 1) what the note is about in two sentences; 2) its main themes and sections; 3) status of tasks and deadlines (if any); 4) strengths and weaknesses, gaps and internal contradictions; 5) three practical suggestions; 6) related notes (if useful). Give DNA numbers only if the user asks. For several notes or a folder, give the shared patterns, differences and key points instead of going through every note.\n'
+                + '- Searching notes: find_notes is the same search engine the app itself uses (typo tolerant, Finglish, wrong keyboard layout, synonyms, relevance ranking) and understands the operators tag: folder: is:pinned is:favorite "exact phrase" and -word. Whenever the user asks you to search / find / look for notes, call find_notes yourself and write the results right here in the chat (title, folder and a short snippet); do NOT open the in-app search screen unless the user explicitly asks you to open it. If nothing is found and didYouMean is returned, try that. Quote the count from totalMatches, not from the length of the list.\n'
+                + '- Weekly/monthly summaries (accuracy matters): when the user asks for a summary, recap or stats of notes over a period, ALWAYS call get_period_digest and never answer from guesses. "This week / last week / this month / last month" = calendar:true (Saturday-Friday Persian week, Jalali month; for "last" use periods_ago:1). A specific named month or range = from/to, Gregorian or Jalali (e.g. 1405/07/01 to 1405/07/30). "Last 7 / 30 / N days" = no calendar, use period or days. State in one line exactly which window (window.from to window.to) you covered. Then write only from the returned data: main topics, recurring themes, stats (new vs edited, words, busiest day, folders, tags, comparison with the previous window) and notable points. Rules: 1) copy every number verbatim (changeVsPrevious and newNotesPerDay are pre-computed), never recompute or round them; 2) never claim anything absent from the excerpts or get_note; if excerptTruncated or notesNotListed matters, call get_note or say the summary rests on part of the text; 3) if empty is true, say there are no notes in that window and invent nothing; 4) totalWordsInTouchedNotes is the size of all touched notes, not what was written in the window; for how much was written use wordsInNewNotes and say which you mean; 5) if window.partial is true the period is unfinished and the comparison uses the same elapsed part of the previous one; 6) recurringThemeWords are only hints, judge real themes from the note text; 7) if relevant, mention briefly that each note only remembers its last edit time and its content is its current state. 8) The app does NOT record real reading or opening time for notes; never say "you spent X reading/studying". If the user asks about reading, give estimatedReadMinutes / estReadMinutes only as the approximate time to read the text of those notes (words/200) and say plainly that real reading time is not tracked; 9) only name notes that appear in newNoteNames or editedNoteNames, and never invent names or numbers; 10) keep the answer SHORT (about 8-10 lines at most, no preamble, no restating the question, no filler unless the user asks for detail). Format: line 1 the window covered; line 2 compact stats (new notes, edited notes, words written, comparison with the previous window, busiest day); then "New:" and "Edited:" with note names (if many, the first 5-8 and "and N more"); then the approximate reading time in one sentence; last, one line with themes or a notable point. Answer in the user language.\n'
                 + '- Contradictions: when the user asks you to find conflicts or contradictions between their notes ("here I wrote X but somewhere else the opposite"), call find_contradictions. Its output is only suspicious sentence pairs, not verified contradictions; read each pair yourself and honestly say which are real contradictions, which are just a change of mind or circumstances over time (compare the two notes\' last-edited dates), and which are false alarms. If no real contradiction turns up, say so instead of inventing one. Take the confidence, cautions and possibleChangeOfMind fields seriously; if the sentences are not enough to judge, read the full notes with get_note; and never report an empty result as \'no contradictions\' (only say nothing was found by this method). Never edit or delete anything unless the user asks; only suggest.\n'
                 + '- Semantic search: when the user describes a note by meaning ("that note I wrote about missing my student days") even if its exact words may not be in it, first expand the concept yourself into 15-30 related terms (synonyms, close concepts, typical words, situations and emotions; Persian and, where useful, English) and pass them with the query to semantic_search_notes. Then judge the returned passages by real meaning and present only the notes that truly fit, with a short reason why. If the results are weak, also look at overviewOfOtherNotes or search again with different terms. For a plain exact-word lookup keep using find_notes.\n'
                 + '- get_knowledge_graph returns only the first 8 shared words per connection. If moreSharedWords is greater than 0, share those 8, say how many more exist, and ASK the user whether they want the full list; only after they explicitly confirm call it again with all_words=true and give the full list. Never request all words without that confirmation.\n'
@@ -38450,5 +39106,50 @@ html body[class*="theme-"] .btn-main {
     text-transform: none !important;
 }
 </style>
+<script id="muAiBackupInfo">
+(function(){
+  'use strict';
+  /* Tells MARKHIN AI, in its system prompt, when the last automatic / manual Telegram
+     Cloud backup was taken and what the manual backups are called. Uses the last-known
+     backup index (window.__cloudIdxCache), so it is instant; when that is not loaded yet
+     the assistant is told to call the telegram_backup_list tool instead. */
+  function fmt(ts, fa){
+    try { if (typeof window.mu_fmtCloudDate === 'function') return window.mu_fmtCloudDate(ts); } catch (e) {}
+    try { return fa ? new Date(ts).toLocaleString('fa-IR-u-nu-latn') : new Date(ts).toLocaleString('en-US'); } catch (e) { return String(ts); }
+  }
+  function ago(ts, fa){
+    var m = Math.max(0, Math.round((Date.now() - Number(ts || 0)) / 60000));
+    if (m < 1) return fa ? 'همین الان' : 'just now';
+    if (m < 60) return fa ? (m + ' دقیقه پیش') : (m + ' min ago');
+    var h = Math.round(m / 60);
+    if (h < 48) return fa ? (h + ' ساعت پیش') : (h + ' h ago');
+    var d = Math.round(h / 24);
+    return fa ? (d + ' روز پیش') : (d + ' days ago');
+  }
+  window.mAiBackupInfo = function(fa){
+    try {
+      var idx = window.__cloudIdxCache;
+      if (!Array.isArray(idx)) {
+        return fa
+          ? 'بکاپ‌های Telegram Cloud: وضعیتشان هنوز در این نشست خوانده نشده. اگر کاربر پرسید آخرین بکاپ خودکار یا دستی کی بود یا اسم بکاپ‌ها چیست، ابزار telegram_backup_list را صدا بزن.\n\n'
+          : 'Telegram Cloud backups: their state has not been read in this session yet. If the user asks when the last automatic or manual backup was, or what the backups are called, call the telegram_backup_list tool.\n\n';
+      }
+      var list = idx.filter(function(e){ return e && e.id; }).sort(function(a, b){ return (b.ts || 0) - (a.ts || 0); });
+      var auto = list.filter(function(e){ return e.kind === 'auto'; })[0];
+      var man = list.filter(function(e){ return e.kind === 'manual'; });
+      var none = fa ? 'هنوز هیچ‌کدام' : 'none yet';
+      var noName = fa ? 'بدون نام' : 'unnamed';
+      var autoTxt = auto ? (fmt(auto.ts, fa) + ' (' + ago(auto.ts, fa) + ')') : none;
+      var manTxt = man.length ? (fmt(man[0].ts, fa) + ' (' + ago(man[0].ts, fa) + ')') : none;
+      var names = man.length ? man.map(function(e){
+        return '«' + (e.label ? String(e.label) : noName) + '» — ' + fmt(e.ts, fa) + (e.enc ? (fa ? ' (رمزدار)' : ' (password-protected)') : '');
+      }).join(fa ? '؛ ' : '; ') : none;
+      return fa
+        ? ('وضعیت بکاپ‌های Telegram Cloud (آخرین وضعیت شناخته‌شده): آخرین بکاپ خودکار: ' + autoTxt + '. آخرین بکاپ دستی: ' + manTxt + '. بکاپ‌های دستی (جدید به قدیم) با اسمشان: ' + names + '. اگر کاربر درباره‌ی آخرین بکاپ یا اسم بکاپ‌ها پرسید همین را مستقیم و دقیق بگو؛ برای اطمینان از به‌روز بودن یا تعداد یادداشت‌های هر بکاپ، telegram_backup_list را صدا بزن.\n\n')
+        : ('Telegram Cloud backup status (last known): last automatic backup: ' + autoTxt + '. Last manual backup: ' + manTxt + '. Manual backups (newest first) with their names: ' + names + '. If the user asks about the last backup or the backup names, answer directly and exactly from this; to be sure it is current, or for the note count of each backup, call telegram_backup_list.\n\n');
+    } catch (e) { return ''; }
+  };
+})();
+</script>
 </body>
 </html>
